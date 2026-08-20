@@ -2,7 +2,8 @@ import { useState, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import PageNavigation from './PageNavigation';
+import { VIEWER_PAGE_WIDTH } from '../../constants';
+import PageNavigation from '../PageNavigation';
 import './PdfViewer.css';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -44,7 +45,7 @@ export default function PdfViewer({
         >
           <Page
             pageNumber={currentPage}
-            width={700}
+            width={VIEWER_PAGE_WIDTH}
             loading={<div className="pdf-loading">Loading page...</div>}
           />
         </Document>

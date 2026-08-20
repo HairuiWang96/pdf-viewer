@@ -1,20 +1,5 @@
+import type { PdfMetadata } from '../../types';
 import './PdfDetails.css';
-
-interface PdfMetadata {
-  id: string;
-  fileName: string;
-  title: string;
-  author: string;
-  description: string;
-  category: string;
-  tags: string[];
-  totalPages: number;
-  fileSize: string;
-  createdDate: string;
-  lastModified: string;
-  language: string;
-  status: string;
-}
 
 interface PdfDetailsProps {
   metadata: PdfMetadata;

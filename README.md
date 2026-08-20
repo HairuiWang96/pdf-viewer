@@ -1,32 +1,66 @@
-# React + TypeScript + Vite
+# PDF Viewer
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A React-based PDF viewer with thumbnail navigation, page controls, and a document details panel.
 
-Currently, two official plugins are available:
+## Getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Prerequisites
 
-## React Compiler
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- npm
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Installation
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### Development
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Build
+
+```bash
+npm run build
+```
+
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+## Project Structure
+
+```text
+src/
+├── components/                 # UI components (each in its own folder)
+│   ├── Layout/                 # App shell — header + main content area
+│   ├── PageNavigation/         # Prev/next buttons and page number controls
+│   ├── PdfDetails/             # Right sidebar showing document metadata
+│   ├── PdfViewer/              # Main PDF rendering area (uses react-pdf)
+│   └── ThumbnailSidebar/       # Left sidebar with clickable page thumbnails
+├── constants/                  # Named constants (page widths, defaults)
+│   └── pdf.ts
+├── data/                       # Static/mock data
+│   └── pdf-metadata.json
+├── hooks/                      # Custom React hooks (business logic)
+│   └── usePdfViewer.ts
+├── types/                      # Shared TypeScript interfaces
+│   └── pdf.ts
+├── App.tsx                     # Root component — pure composition, no logic
+├── main.tsx                    # Entry point
+└── index.css                   # Global styles and CSS custom properties
+```
+
+## Tech Stack
+
+- [React 19](https://react.dev/) — UI framework
+- [TypeScript](https://www.typescriptlang.org/) — type safety
+- [Vite](https://vite.dev/) — build tool and dev server
+- [react-pdf](https://github.com/wojtekmaj/react-pdf) — PDF rendering (built on PDF.js)

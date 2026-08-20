@@ -1,26 +1,21 @@
-import { useCallback, useState } from 'react';
 import Layout from './components/Layout';
 import ThumbnailSidebar from './components/ThumbnailSidebar';
 import PdfViewer from './components/PdfViewer';
 import PdfDetails from './components/PdfDetails';
-import pdfMetadata from './data/pdf-metadata.json';
+import { usePdfViewer } from './hooks';
 import './App.css';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const metadata = pdfMetadata[0];
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
-  const handleLoadSuccess = useCallback((numPages: number) => {
-    setTotalPages(numPages);
-  }, []);
+  const {
+    currentPage,
+    totalPages,
+    metadata,
+    handlePageChange,
+    handleLoadSuccess,
+  } = usePdfViewer();
 
   return (
-    <Layout>
+    <Layout title={metadata.title}>
       <ThumbnailSidebar
         filePath={metadata.filePath}
         currentPage={currentPage}

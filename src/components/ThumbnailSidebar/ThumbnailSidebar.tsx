@@ -1,4 +1,5 @@
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
+import { THUMBNAIL_WIDTH } from '../../constants';
 import './ThumbnailSidebar.css';
 
 interface ThumbnailSidebarProps {
@@ -27,7 +28,7 @@ export default function ThumbnailSidebar({
           >
             <Page
               pageNumber={page}
-              width={140}
+              width={THUMBNAIL_WIDTH}
               renderTextLayer={false}
               renderAnnotationLayer={false}
             />
