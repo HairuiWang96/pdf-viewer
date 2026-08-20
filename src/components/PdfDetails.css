@@ -1,0 +1,83 @@
+.pdf-details {
+  width: 300px;
+  min-width: 300px;
+  border-left: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.details-title {
+  font-size: 18px;
+  margin: 0 0 20px;
+}
+
+.details-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.details-section:last-child {
+  border-bottom: none;
+}
+
+.details-section h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.details-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.details-list dt {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.details-list dd {
+  margin: 0;
+  color: var(--text-h);
+  word-break: break-word;
+}
+
+.details-description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  background: var(--code-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
