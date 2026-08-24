@@ -13,4 +13,5 @@ export interface PdfMetadata {
   lastModified: string;
   language: string;
   status: string;
+  stampText: string;
 }

@@ -2,7 +2,7 @@ import Layout from './components/Layout';
 import ThumbnailSidebar from './components/ThumbnailSidebar';
 import PdfViewer from './components/PdfViewer';
 import PdfDetails from './components/PdfDetails';
-import { usePdfViewer } from './hooks';
+import { usePdfViewer, usePdfStamp } from './hooks';
 import './App.css';
 
 function App() {
@@ -14,16 +14,21 @@ function App() {
     handleLoadSuccess,
   } = usePdfViewer();
 
+  const { showStamp, toggleStamp, activePdfPath } = usePdfStamp(
+    metadata.filePath,
+    metadata.stampText,
+  );
+
   return (
     <Layout title={metadata.title}>
       <ThumbnailSidebar
-        filePath={metadata.filePath}
+        filePath={activePdfPath}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
       />
       <PdfViewer
-        filePath={metadata.filePath}
+        filePath={activePdfPath}
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onLoadSuccess={handleLoadSuccess}
@@ -31,6 +36,8 @@ function App() {
       <PdfDetails
         metadata={metadata}
         currentPage={currentPage}
+        showStamp={showStamp}
+        onToggleStamp={toggleStamp}
       />
     </Layout>
   );

@@ -4,9 +4,11 @@ import './PdfDetails.css';
 interface PdfDetailsProps {
   metadata: PdfMetadata;
   currentPage: number;
+  showStamp: boolean;
+  onToggleStamp: (stamped: boolean) => void;
 }
 
-export default function PdfDetails({ metadata, currentPage }: PdfDetailsProps) {
+export default function PdfDetails({ metadata, currentPage, showStamp, onToggleStamp }: PdfDetailsProps) {
   return (
     <aside className="pdf-details">
       <h2 className="details-title">Document Details</h2>
@@ -66,6 +68,30 @@ export default function PdfDetails({ metadata, currentPage }: PdfDetailsProps) {
               {tag}
             </span>
           ))}
+        </div>
+      </div>
+
+      <div className="details-section">
+        <h3>Download</h3>
+        <div className="stamp-toggle">
+          <label className="radio-label">
+            <input
+              type="radio"
+              name="stamp"
+              checked={!showStamp}
+              onChange={() => onToggleStamp(false)}
+            />
+            Without stamp
+          </label>
+          <label className="radio-label">
+            <input
+              type="radio"
+              name="stamp"
+              checked={showStamp}
+              onChange={() => onToggleStamp(true)}
+            />
+            With stamp
+          </label>
         </div>
       </div>
     </aside>
