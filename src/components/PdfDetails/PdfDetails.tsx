@@ -3,10 +3,9 @@ import './PdfDetails.css';
 
 interface PdfDetailsProps {
   metadata: PdfMetadata;
-  currentPage: number;
 }
 
-export default function PdfDetails({ metadata, currentPage }: PdfDetailsProps) {
+export default function PdfDetails({ metadata }: PdfDetailsProps) {
   return (
     <aside className="pdf-details">
       <h2 className="details-title">Document Details</h2>
@@ -40,9 +39,7 @@ export default function PdfDetails({ metadata, currentPage }: PdfDetailsProps) {
           <dt>File Size</dt>
           <dd>{metadata.fileSize}</dd>
           <dt>Pages</dt>
-          <dd>
-            {currentPage} / {metadata.totalPages}
-          </dd>
+          <dd>{metadata.totalPages}</dd>
           <dt>Language</dt>
           <dd>{metadata.language}</dd>
         </dl>

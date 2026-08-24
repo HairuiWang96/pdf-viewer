@@ -3,33 +3,11 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--code-bg);
 }
 
-.pdf-canvas {
+.pdf-iframe {
   flex: 1;
-  overflow: auto;
-  display: flex;
-  justify-content: center;
-  padding: 24px;
-}
-
-.pdf-loading,
-.pdf-error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  font-size: 15px;
-  color: var(--text);
-}
-
-.pdf-error {
-  color: #e74c3c;
-}
-
-.react-pdf__Page {
-  box-shadow: var(--shadow);
-  border-radius: 4px;
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  border: none;
 }
