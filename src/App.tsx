@@ -38,6 +38,7 @@ function App() {
         currentPage={currentPage}
         showStamp={showStamp}
         onToggleStamp={toggleStamp}
+        downloadUrl={activePdfPath}
       />
     </Layout>
   );

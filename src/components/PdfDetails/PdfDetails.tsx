@@ -6,9 +6,10 @@ interface PdfDetailsProps {
   currentPage: number;
   showStamp: boolean;
   onToggleStamp: (stamped: boolean) => void;
+  downloadUrl: string;
 }
 
-export default function PdfDetails({ metadata, currentPage, showStamp, onToggleStamp }: PdfDetailsProps) {
+export default function PdfDetails({ metadata, currentPage, showStamp, onToggleStamp, downloadUrl }: PdfDetailsProps) {
   return (
     <aside className="pdf-details">
       <h2 className="details-title">Document Details</h2>
@@ -93,6 +94,9 @@ export default function PdfDetails({ metadata, currentPage, showStamp, onToggleS
             With stamp
           </label>
         </div>
+        <a className="download-btn" href={downloadUrl} download={metadata.fileName}>
+          Download PDF
+        </a>
       </div>
     </aside>
   );
