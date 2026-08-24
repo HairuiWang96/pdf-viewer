@@ -2,6 +2,7 @@ export interface PdfMetadata {
   id: string;
   fileName: string;
   filePath: string;
+  stampedFilePath: string;
   title: string;
   author: string;
   description: string;

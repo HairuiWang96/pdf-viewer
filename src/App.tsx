@@ -5,12 +5,16 @@ import { usePdfViewer } from './hooks';
 import './App.css';
 
 function App() {
-  const { metadata } = usePdfViewer();
+  const { metadata, showStamp, toggleStamp, activePdfPath } = usePdfViewer();
 
   return (
     <Layout title={metadata.title}>
-      <PdfViewer filePath={metadata.filePath} />
-      <PdfDetails metadata={metadata} />
+      <PdfViewer filePath={activePdfPath} />
+      <PdfDetails
+        metadata={metadata}
+        showStamp={showStamp}
+        onToggleStamp={toggleStamp}
+      />
     </Layout>
   );
 }

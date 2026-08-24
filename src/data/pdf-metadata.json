@@ -3,6 +3,7 @@
     "id": "1",
     "fileName": "sample-report.pdf",
     "filePath": "/sample-report.pdf",
+    "stampedFilePath": "/sample-report-stamped.pdf",
     "title": "Q2 2026 Market Report",
     "author": "Global Markets Research Division",
     "description": "Comprehensive quarterly review covering equity indices, fixed income, commodities, and foreign exchange markets for Q2 2026.",

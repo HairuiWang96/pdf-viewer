@@ -174,6 +174,28 @@ async function generateSamplePDF() {
   const pdfBytes = await doc.save();
   writeFileSync("public/sample-report.pdf", pdfBytes);
   console.log("Generated: public/sample-report.pdf (5 pages)");
+
+  // Generate stamped version (mimics backend behavior)
+  const stampedDoc = await PDFDocument.load(pdfBytes);
+  const stampFont = await stampedDoc.embedFont(StandardFonts.HelveticaBold);
+
+  for (const page of stampedDoc.getPages()) {
+    const { width } = page.getSize();
+    const stampText = "DOC-2026-Q2-00147 | Internal Use Only";
+    const textWidth = stampFont.widthOfTextAtSize(stampText, 10);
+
+    page.drawText(stampText, {
+      x: width - textWidth - 50,
+      y: page.getHeight() - 25,
+      size: 10,
+      font: stampFont,
+      color: rgb(0.8, 0, 0),
+    });
+  }
+
+  const stampedBytes = await stampedDoc.save();
+  writeFileSync("public/sample-report-stamped.pdf", stampedBytes);
+  console.log("Generated: public/sample-report-stamped.pdf (5 pages, with stamp)");
 }
 
 generateSamplePDF();
