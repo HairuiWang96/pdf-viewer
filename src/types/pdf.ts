@@ -1,5 +1,6 @@
 export interface PdfMetadata {
   id: string;
+  caseNumber: string;
   fileName: string;
   filePath: string;
   stampedFilePath: string;

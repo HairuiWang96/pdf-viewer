@@ -1,4 +1,5 @@
 import type { PdfMetadata } from '../../types';
+import CaseSelector from '../CaseSelector';
 import './PdfDetails.css';
 
 interface PdfDetailsProps {
@@ -8,6 +9,11 @@ interface PdfDetailsProps {
   isMobile: boolean;
   isOpen: boolean;
   onClose: () => void;
+  /* Case selection props — only needed when there are multiple cases */
+  allCases: PdfMetadata[];
+  hasMultipleCases: boolean;
+  selectedCaseId: string;
+  onSelectCase: (caseId: string) => void;
 }
 
 export default function PdfDetails({
@@ -17,6 +23,10 @@ export default function PdfDetails({
   isMobile,
   isOpen,
   onClose,
+  allCases,
+  hasMultipleCases,
+  selectedCaseId,
+  onSelectCase,
 }: PdfDetailsProps) {
   return (
       <aside
@@ -31,6 +41,21 @@ export default function PdfDetails({
             </button>
           )}
         </div>
+
+      {/* Multiple cases → show dropdown so user can pick.
+          Single case → just display the case number as static text. */}
+      {hasMultipleCases ? (
+        <CaseSelector
+          cases={allCases}
+          selectedCaseId={selectedCaseId}
+          onSelectCase={onSelectCase}
+        />
+      ) : (
+        <div className="details-section">
+          <h3>Case Number</h3>
+          <p className="case-number-static">{metadata.caseNumber}</p>
+        </div>
+      )}
 
       <div className="details-section">
         <h3>General</h3>

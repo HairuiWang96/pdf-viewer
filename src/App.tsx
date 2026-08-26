@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import Layout from './components/Layout';
 import PdfViewer from './components/PdfViewer';
 import PdfDetails from './components/PdfDetails';
@@ -5,8 +6,24 @@ import { usePdfViewer, useDetailsPanel } from './hooks';
 import './App.css';
 
 function App() {
-  const { metadata, showStamp, toggleStamp, activePdfPath } = usePdfViewer();
+  const {
+    allCases,
+    hasMultipleCases,
+    metadata,
+    selectedCaseId,
+    selectCase,
+    showStamp,
+    toggleStamp,
+    activePdfPath,
+  } = usePdfViewer();
   const { isDetailsOpen, isMobile, toggleDetails, closeDetails } = useDetailsPanel();
+
+  // On mobile, selecting a case should also close the details panel
+  // so the user sees the PDF with the newly selected case.
+  const handleSelectCase = useCallback((caseId: string) => {
+    selectCase(caseId);
+    if (isMobile) closeDetails();
+  }, [selectCase, isMobile, closeDetails]);
 
   return (
     <Layout
@@ -23,6 +40,10 @@ function App() {
         isMobile={isMobile}
         isOpen={isDetailsOpen}
         onClose={closeDetails}
+        allCases={allCases}
+        hasMultipleCases={hasMultipleCases}
+        selectedCaseId={selectedCaseId}
+        onSelectCase={handleSelectCase}
       />
     </Layout>
   );

@@ -82,6 +82,13 @@
   border: 1px solid var(--border);
 }
 
+/* Static case number shown when only one case exists */
+.case-number-static {
+  font-size: 14px;
+  color: var(--text-h);
+  margin: 0;
+}
+
 .stamp-toggle {
   display: flex;
   flex-direction: column;
