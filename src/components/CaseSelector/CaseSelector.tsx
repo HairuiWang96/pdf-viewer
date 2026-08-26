@@ -22,7 +22,9 @@ export default function CaseSelector({
   onSelectCase,
 }: CaseSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const infoRef = useRef<HTMLSpanElement>(null);
 
   // Find the currently selected case to display its case number
   const selectedCase = cases.find((c) => c.id === selectedCaseId);
@@ -52,11 +54,25 @@ export default function CaseSelector({
     <div className="case-selector">
       <div className="case-selector-header">
         <h3>Case Number</h3>
-        {/* Info icon with a CSS-only tooltip on hover.
-            The \u24D8 character is ⓘ (circled lowercase i). */}
-        <span className="case-selector-info" aria-label="Selecting a new case number will refresh all document details">
+        {/* Info icon with tooltip on hover. Uses position: fixed so the
+            tooltip escapes the sidebar's overflow clipping and renders
+            above the PDF. We calculate position from the icon's bounding rect. */}
+        <span
+          className="case-selector-info"
+          ref={infoRef}
+          aria-label="Selecting a new case number will refresh all document details"
+          onMouseEnter={() => {
+            if (!infoRef.current) return;
+            const rect = infoRef.current.getBoundingClientRect();
+            setTooltipStyle({
+              top: rect.top + rect.height / 2,
+              right: window.innerWidth - rect.left + 6,
+              transform: 'translateY(-50%)',
+            });
+          }}
+        >
           {'\u24D8'}
-          <span className="case-selector-tooltip">
+          <span className="case-selector-tooltip" style={tooltipStyle}>
             Selecting a new case number will refresh all document details
           </span>
         </span>

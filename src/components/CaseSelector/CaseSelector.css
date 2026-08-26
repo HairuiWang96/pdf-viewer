@@ -28,24 +28,23 @@
   cursor: help;
 }
 
-/* Tooltip — hidden by default, shown on hover */
+/* Tooltip — hidden by default, shown on hover.
+   Uses position: fixed so it escapes the sidebar's overflow clipping
+   and renders above the PDF viewer. Positioned via JS (inline style). */
 .case-selector-tooltip {
   display: none;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: calc(100% + 6px);
-  width: 220px;
-  padding: 8px 10px;
+  position: fixed;
+  white-space: nowrap;
+  padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1;
   background: var(--text-h);
   color: var(--bg);
   text-transform: none;
   letter-spacing: normal;
   font-weight: 400;
-  z-index: 10;
+  z-index: 30;
 }
 
 .case-selector-info:hover .case-selector-tooltip {
