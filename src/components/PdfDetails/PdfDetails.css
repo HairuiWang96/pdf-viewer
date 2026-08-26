@@ -100,3 +100,57 @@
 .radio-label input[type="radio"] {
   accent-color: var(--accent);
 }
+
+/* Title row with close button on mobile */
+.details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.details-header .details-title {
+  margin: 0;
+}
+
+/* Close button inside the panel on mobile */
+.details-close-btn {
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.details-close-btn:hover {
+  background: var(--code-bg);
+}
+
+/* Tablet: narrower sidebar */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .pdf-details {
+    width: 260px;
+    min-width: 260px;
+  }
+}
+
+/* Mobile: full-screen overlay covering everything */
+.pdf-details--mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  min-width: 100%;
+  z-index: 20;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+.pdf-details--mobile.pdf-details--open {
+  transform: translateX(0);
+}

@@ -5,12 +5,32 @@ interface PdfDetailsProps {
   metadata: PdfMetadata;
   showStamp: boolean;
   onToggleStamp: (stamped: boolean) => void;
+  isMobile: boolean;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export default function PdfDetails({ metadata, showStamp, onToggleStamp }: PdfDetailsProps) {
+export default function PdfDetails({
+  metadata,
+  showStamp,
+  onToggleStamp,
+  isMobile,
+  isOpen,
+  onClose,
+}: PdfDetailsProps) {
   return (
-    <aside className="pdf-details">
-      <h2 className="details-title">Document Details</h2>
+      <aside
+        className={`pdf-details ${isMobile ? 'pdf-details--mobile' : ''} ${isOpen ? 'pdf-details--open' : ''}`}
+      >
+        <div className="details-header">
+          <h2 className="details-title">Document Details</h2>
+          {isMobile && (
+            <button className="details-close-btn" onClick={onClose} aria-label="Close details">
+              {/* \u2715 = ✕ close icon */}
+              {'\u2715'}
+            </button>
+          )}
+        </div>
 
       <div className="details-section">
         <h3>General</h3>
