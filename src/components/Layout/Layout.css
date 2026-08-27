@@ -25,3 +25,25 @@
   display: flex;
   overflow: hidden;
 }
+
+.layout-details-toggle {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 18px;
+  color: var(--text-h);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.layout-details-toggle:hover {
+  background: var(--code-bg);
+}
+
+@media (max-width: 767px) {
+  .layout-header {
+    padding: 0 16px;
+  }
+}

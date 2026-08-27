@@ -1,4 +1,5 @@
 import type { PdfMetadata } from '../../types';
+import CaseSelector from '../CaseSelector';
 import './PdfDetails.css';
 
 interface PdfDetailsProps {
@@ -7,12 +8,58 @@ interface PdfDetailsProps {
   showStamp: boolean;
   onToggleStamp: (stamped: boolean) => void;
   downloadUrl: string;
+  isMobile: boolean;
+  isOpen: boolean;
+  onClose: () => void;
+  /* Case selection props — only needed when there are multiple cases */
+  allCases: PdfMetadata[];
+  hasMultipleCases: boolean;
+  selectedCaseId: string;
+  onSelectCase: (caseId: string) => void;
 }
 
-export default function PdfDetails({ metadata, currentPage, showStamp, onToggleStamp, downloadUrl }: PdfDetailsProps) {
+export default function PdfDetails({
+  metadata,
+  currentPage,
+  showStamp,
+  onToggleStamp,
+  downloadUrl,
+  isMobile,
+  isOpen,
+  onClose,
+  allCases,
+  hasMultipleCases,
+  selectedCaseId,
+  onSelectCase,
+}: PdfDetailsProps) {
   return (
-    <aside className="pdf-details">
-      <h2 className="details-title">Document Details</h2>
+      <aside
+        className={`pdf-details ${isMobile ? 'pdf-details--mobile' : ''} ${isOpen ? 'pdf-details--open' : ''}`}
+      >
+        <div className="details-header">
+          <h2 className="details-title">Document Details</h2>
+          {isMobile && (
+            <button className="details-close-btn" onClick={onClose} aria-label="Close details">
+              {/* \u2715 = ✕ close icon */}
+              {'\u2715'}
+            </button>
+          )}
+        </div>
+
+      {/* Multiple cases → show dropdown so user can pick.
+          Single case → just display the case number as static text. */}
+      {hasMultipleCases ? (
+        <CaseSelector
+          cases={allCases}
+          selectedCaseId={selectedCaseId}
+          onSelectCase={onSelectCase}
+        />
+      ) : (
+        <div className="details-section">
+          <h3>Case Number</h3>
+          <p className="case-number-static">{metadata.caseNumber}</p>
+        </div>
+      )}
 
       <div className="details-section">
         <h3>General</h3>

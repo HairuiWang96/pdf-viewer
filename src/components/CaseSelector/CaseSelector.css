@@ -1,0 +1,119 @@
+.case-selector {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.case-selector-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.case-selector-header h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Info icon — styled to look subtle next to the heading */
+.case-selector-info {
+  position: relative;
+  font-size: 14px;
+  color: var(--text);
+  cursor: help;
+}
+
+/* Tooltip — hidden by default, shown on hover.
+   Uses position: fixed so it escapes the sidebar's overflow clipping
+   and renders above the PDF viewer. Positioned via JS (inline style). */
+.case-selector-tooltip {
+  display: none;
+  position: fixed;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1;
+  background: var(--text-h);
+  color: var(--bg);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  z-index: 30;
+}
+
+.case-selector-info:hover .case-selector-tooltip {
+  display: block;
+}
+
+/* Custom dropdown container — position: relative so the
+   options list is positioned relative to this, not the page */
+.case-dropdown {
+  position: relative;
+}
+
+/* Trigger button — matches the original native select styling */
+.case-dropdown-trigger {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.case-dropdown-trigger:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.case-dropdown-arrow {
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* Options list — position: absolute so it floats over content
+   below without pushing it down */
+.case-dropdown-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 15;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.case-dropdown-option {
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.case-dropdown-option:hover {
+  background: var(--code-bg);
+}
+
+.case-dropdown-option--selected {
+  color: var(--accent);
+  font-weight: 500;
+}
