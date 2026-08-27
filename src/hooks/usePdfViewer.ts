@@ -5,17 +5,19 @@ import pdfMetadata from '../data/pdf-metadata.json';
 /**
  * Manages which case is selected and whether the stamp version is active.
  *
- * Behavior depends on how many cases exist:
+ * No case is selected by default — the user must pick one from the dropdown.
+ * Before selection:
+ * - The PDF shows the default file (without stamp).
+ * - Document details are hidden (metadata is null).
+ *
+ * After selection:
+ * - Document details populate with the selected case's metadata.
+ * - Stamp toggle becomes available.
+ * - Changing the case resets the stamp toggle back to OFF.
  *
  * Single case:
  * - No dropdown needed — the only case is auto-selected.
  * - Stamp defaults to ON (with stamp).
- * - Document details are visible immediately.
- *
- * Multiple cases:
- * - Dropdown is shown so the user can pick a case number.
- * - Stamp defaults to OFF (without stamp).
- * - Changing the case resets the stamp toggle back to OFF.
  */
 export default function usePdfViewer() {
   // `pdfMetadata` is imported from a JSON file. TypeScript doesn't automatically
@@ -25,27 +27,36 @@ export default function usePdfViewer() {
   const allCases: PdfMetadata[] = pdfMetadata as PdfMetadata[];
   const hasMultipleCases = allCases.length > 1;
 
-  // Default to the first case in the array
-  const [selectedCaseId, setSelectedCaseId] = useState(allCases[0].id);
+  // Single case → auto-select it; multiple cases → no default selection
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(
+    hasMultipleCases ? null : allCases[0].id,
+  );
 
   // Single case → stamp on by default; multiple cases → stamp off by default
   const [showStamp, setShowStamp] = useState(!hasMultipleCases);
 
-  // Find the metadata for whichever case is currently selected
-  const metadata = allCases.find((c) => c.id === selectedCaseId) ?? allCases[0];
+  // null when no case is selected yet (multiple cases, before user picks one)
+  const metadata = selectedCaseId
+    ? (allCases.find((c) => c.id === selectedCaseId) ?? null)
+    : null;
 
   const toggleStamp = useCallback((stamped: boolean) => {
     setShowStamp(stamped);
   }, []);
 
-  // When the user picks a different case number, update the selection
+  // When the user picks a case number, update the selection
   // and reset the stamp toggle so they start fresh with the new case.
   const selectCase = useCallback((caseId: string) => {
     setSelectedCaseId(caseId);
     setShowStamp(false);
   }, []);
 
-  const activePdfPath = showStamp ? metadata.stampedFilePath : metadata.filePath;
+  // Default PDF: show the first case's file (without stamp) before any selection.
+  // After selection: show the selected case's file, stamped or not.
+  const defaultPdfPath = allCases[0].filePath;
+  const activePdfPath = metadata
+    ? (showStamp ? metadata.stampedFilePath : metadata.filePath)
+    : defaultPdfPath;
 
   return {
     allCases,

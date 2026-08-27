@@ -26,7 +26,7 @@ export default function PdfViewerPage() {
 
   return (
     <Layout
-      title={metadata.title}
+      title={metadata?.title ?? 'PDF Viewer'}
       isMobile={isMobile}
       isDetailsOpen={isDetailsOpen}
       onToggleDetails={toggleDetails}

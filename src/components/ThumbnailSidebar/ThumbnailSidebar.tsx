@@ -18,12 +18,14 @@ export default function ThumbnailSidebar({
   if (totalPages === 0) return null;
 
   return (
-    <div className="thumbnail-sidebar">
+    <nav className="thumbnail-sidebar" aria-label="Page thumbnails">
       <Document file={filePath}>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
           <button
             key={page}
             className={`thumbnail-item ${page === currentPage ? 'active' : ''}`}
+            aria-label={`Page ${page}`}
+            aria-current={page === currentPage ? 'page' : undefined}
             onClick={() => onPageChange(page)}
           >
             <Page
@@ -36,6 +38,6 @@ export default function ThumbnailSidebar({
           </button>
         ))}
       </Document>
-    </div>
+    </nav>
   );
 }

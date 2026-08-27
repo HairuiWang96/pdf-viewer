@@ -12,6 +12,7 @@ interface LayoutProps {
 export default function Layout({ title, children, isMobile, isDetailsOpen, onToggleDetails }: LayoutProps) {
     return (
         <div className='layout'>
+            <a href='#main-content' className='skip-to-main'>Skip to main content</a>
             <header className='layout-header'>
                 <h1 className='layout-logo'>{title}</h1>
                 {isMobile && (
@@ -22,7 +23,7 @@ export default function Layout({ title, children, isMobile, isDetailsOpen, onTog
                     </button>
                 )}
             </header>
-            <main className='layout-main'>{children}</main>
+            <main id='main-content' className='layout-main'>{children}</main>
         </div>
     );
 }
