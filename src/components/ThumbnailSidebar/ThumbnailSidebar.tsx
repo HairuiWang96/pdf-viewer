@@ -7,6 +7,9 @@ interface ThumbnailSidebarProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  isMobile: boolean;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export default function ThumbnailSidebar({
@@ -14,17 +17,41 @@ export default function ThumbnailSidebar({
   currentPage,
   totalPages,
   onPageChange,
+  isMobile,
+  isOpen,
+  onClose,
 }: ThumbnailSidebarProps) {
   if (totalPages === 0) return null;
 
+  // On mobile, tapping a thumbnail should also close the panel
+  // so the user sees the selected page in the viewer.
+  const handlePageSelect = (page: number) => {
+    onPageChange(page);
+    if (isMobile) onClose();
+  };
+
   return (
-    <div className="thumbnail-sidebar">
-      <Document file={filePath}>
+    <div
+      className={`thumbnail-sidebar ${isMobile ? 'thumbnail-sidebar--mobile' : ''} ${isOpen ? 'thumbnail-sidebar--open' : ''}`}
+    >
+      {isMobile && (
+        <div className="thumbnail-header">
+          <h2 className="thumbnail-title">Pages</h2>
+          <button className="thumbnail-close-btn" onClick={onClose} aria-label="Close thumbnails">
+            {'\u2715'}
+          </button>
+        </div>
+      )}
+
+      {/* The Document component must wrap all Page components, but we need
+          the grid to be the direct parent of the buttons for CSS grid layout.
+          So Document wraps the grid, and the grid contains the buttons. */}
+      <Document file={filePath} className="thumbnail-grid">
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
           <button
             key={page}
             className={`thumbnail-item ${page === currentPage ? 'active' : ''}`}
-            onClick={() => onPageChange(page)}
+            onClick={() => handlePageSelect(page)}
           >
             <Page
               pageNumber={page}

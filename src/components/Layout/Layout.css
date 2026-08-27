@@ -26,8 +26,14 @@
   overflow: hidden;
 }
 
-.layout-details-toggle {
+/* Container for the thumbnail and details toggle buttons on mobile */
+.layout-header-actions {
   margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.layout-details-toggle {
   background: none;
   border: 1px solid var(--border);
   border-radius: 6px;

@@ -23,7 +23,15 @@ export default function PdfViewerPage() {
     metadata.stampText,
   );
 
-  const { isDetailsOpen, isMobile, toggleDetails, closeDetails } = useDetailsPanel();
+  const {
+    isDetailsOpen,
+    isThumbnailsOpen,
+    isMobile,
+    toggleDetails,
+    closeDetails,
+    toggleThumbnails,
+    closeThumbnails,
+  } = useDetailsPanel();
 
   // On mobile, selecting a case should also close the details panel
   // so the user sees the PDF with the newly selected case.
@@ -38,18 +46,24 @@ export default function PdfViewerPage() {
       isMobile={isMobile}
       isDetailsOpen={isDetailsOpen}
       onToggleDetails={toggleDetails}
+      isThumbnailsOpen={isThumbnailsOpen}
+      onToggleThumbnails={toggleThumbnails}
     >
       <ThumbnailSidebar
         filePath={activePdfPath}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
+        isMobile={isMobile}
+        isOpen={isThumbnailsOpen}
+        onClose={closeThumbnails}
       />
       <PdfViewer
         filePath={activePdfPath}
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onLoadSuccess={handleLoadSuccess}
+        isMobile={isMobile}
       />
       <PdfDetails
         metadata={metadata}

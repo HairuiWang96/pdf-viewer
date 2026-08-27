@@ -4,14 +4,30 @@
   flex-direction: column;
   min-width: 0;
   background: var(--code-bg);
+  overflow: auto;
 }
 
 .pdf-canvas {
-  flex: 1;
-  overflow: auto;
   display: flex;
   justify-content: center;
-  padding: 24px;
+  padding: 16px;
+}
+
+@media (max-width: 767px) {
+  .pdf-viewer {
+    background: var(--bg);
+    /* Leave room at the bottom for the fixed page navigation bar */
+    padding-bottom: 56px;
+  }
+
+  .pdf-canvas {
+    padding: 8px;
+  }
+
+  .react-pdf__Page {
+    box-shadow: none;
+    border-radius: 0;
+  }
 }
 
 .pdf-loading,

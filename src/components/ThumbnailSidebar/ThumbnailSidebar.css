@@ -5,6 +5,10 @@
   overflow-y: auto;
   padding: 12px;
   background: var(--bg);
+}
+
+/* Single column on desktop */
+.thumbnail-grid {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -48,4 +52,65 @@
 .thumbnail-item.active .thumbnail-label {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* Header with close button — only visible on mobile */
+.thumbnail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.thumbnail-title {
+  font-size: 18px;
+  margin: 0;
+}
+
+.thumbnail-close-btn {
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.thumbnail-close-btn:hover {
+  background: var(--code-bg);
+}
+
+/* Mobile: full-screen overlay sliding in from the left.
+   Uses flexbox so the header stays at the top and the
+   thumbnail grid scrolls independently below it. */
+.thumbnail-sidebar--mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  min-width: 100%;
+  z-index: 20;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.thumbnail-sidebar--mobile.thumbnail-sidebar--open {
+  transform: translateX(0);
+}
+
+/* On mobile, the grid scrolls while the header stays pinned */
+.thumbnail-sidebar--mobile .thumbnail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex: 1;
+  overflow-y: auto;
 }

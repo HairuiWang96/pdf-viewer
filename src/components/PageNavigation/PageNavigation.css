@@ -64,3 +64,14 @@
   color: var(--text);
   white-space: nowrap;
 }
+
+/* On mobile, pin the navigation to the bottom of the screen */
+@media (max-width: 767px) {
+  .page-navigation {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+  }
+}
