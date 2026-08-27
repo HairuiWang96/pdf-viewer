@@ -47,8 +47,15 @@
   z-index: 30;
 }
 
-.case-selector-info:hover .case-selector-tooltip {
+.case-selector-info:hover .case-selector-tooltip,
+.case-selector-info:focus .case-selector-tooltip {
   display: block;
+}
+
+.case-selector-info:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 50%;
 }
 
 /* Custom dropdown container — position: relative so the
@@ -116,4 +123,17 @@
 .case-dropdown-option--selected {
   color: var(--accent);
   font-weight: 500;
+}
+
+/* Visible highlight when navigating options via arrow keys */
+.case-dropdown-option--focused {
+  background: var(--code-bg);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The listbox itself receives focus for keyboard events —
+   hide its outline since the focused option is highlighted instead */
+.case-dropdown-list:focus {
+  outline: none;
 }

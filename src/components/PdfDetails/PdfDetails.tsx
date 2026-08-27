@@ -35,6 +35,9 @@ export default function PdfDetails({
   return (
       <aside
         className={`pdf-details ${isMobile ? 'pdf-details--mobile' : ''} ${isOpen ? 'pdf-details--open' : ''}`}
+        role={isMobile ? 'dialog' : undefined}
+        aria-modal={isMobile && isOpen ? true : undefined}
+        aria-label={isMobile ? 'Document Details' : undefined}
       >
         <div className="details-header">
           <h2 className="details-title">Document Details</h2>
@@ -120,8 +123,8 @@ export default function PdfDetails({
       </div>
 
       <div className="details-section">
-        <h3>Download</h3>
-        <div className="stamp-toggle">
+        <fieldset className="stamp-toggle">
+          <legend className="stamp-legend">Download</legend>
           <label className="radio-label">
             <input
               type="radio"
@@ -140,7 +143,7 @@ export default function PdfDetails({
             />
             With stamp
           </label>
-        </div>
+        </fieldset>
         <a className="download-btn" href={downloadUrl} download={metadata.fileName}>
           Download PDF
         </a>

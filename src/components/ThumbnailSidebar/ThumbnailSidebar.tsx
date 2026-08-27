@@ -31,8 +31,11 @@ export default function ThumbnailSidebar({
   };
 
   return (
-    <div
+    <nav
       className={`thumbnail-sidebar ${isMobile ? 'thumbnail-sidebar--mobile' : ''} ${isOpen ? 'thumbnail-sidebar--open' : ''}`}
+      aria-label="Page thumbnails"
+      role={isMobile ? 'dialog' : undefined}
+      aria-modal={isMobile && isOpen ? true : undefined}
     >
       {isMobile && (
         <div className="thumbnail-header">
@@ -51,6 +54,8 @@ export default function ThumbnailSidebar({
           <button
             key={page}
             className={`thumbnail-item ${page === currentPage ? 'active' : ''}`}
+            aria-label={`Page ${page}`}
+            aria-current={page === currentPage ? 'page' : undefined}
             onClick={() => handlePageSelect(page)}
           >
             <Page
@@ -63,6 +68,6 @@ export default function ThumbnailSidebar({
           </button>
         ))}
       </Document>
-    </div>
+    </nav>
   );
 }
