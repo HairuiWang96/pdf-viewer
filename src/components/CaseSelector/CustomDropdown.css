@@ -1,0 +1,80 @@
+/* Custom dropdown container */
+.custom-dropdown {
+  position: relative;
+}
+
+/* Trigger button */
+.custom-dropdown-trigger {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.custom-dropdown-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.custom-dropdown-arrow {
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* Options list — floats over content below */
+.custom-dropdown-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 15;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.custom-dropdown-list:focus {
+  outline: none;
+}
+
+.custom-dropdown-option {
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.custom-dropdown-option:hover {
+  background: var(--code-bg);
+}
+
+.custom-dropdown-option--selected {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.custom-dropdown-option--focused {
+  background: var(--code-bg);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Placeholder text when no case is selected */
+.custom-dropdown-placeholder {
+  color: var(--text);
+  font-style: italic;
+}

@@ -10,6 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@progress/kendo-react-common": "^16.0.0",
+    "@progress/kendo-react-dropdowns": "^16.0.0",
+    "@progress/kendo-react-intl": "^16.0.0",
+    "@progress/kendo-theme-default": "^14.5.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-pdf": "^10.5.0"
