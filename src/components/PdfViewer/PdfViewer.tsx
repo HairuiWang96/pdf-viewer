@@ -5,8 +5,12 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import PageNavigation from '../PageNavigation';
 import './PdfViewer.css';
 
+// The legacy worker, to match the legacy API that vite.config.ts aliases
+// 'pdfjs-dist' onto. Both halves have to come from the same build: the modern
+// one omits the Map.prototype.getOrInsertComputed polyfill that Safari needs,
+// and PDF.js refuses to load a document if API and worker versions disagree.
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
+  'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
   import.meta.url,
 ).toString();
 
