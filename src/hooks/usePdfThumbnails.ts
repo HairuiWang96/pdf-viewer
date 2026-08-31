@@ -1,9 +1,33 @@
 import { useEffect, useState } from 'react';
+// The *legacy* API build, matching what the KendoReact PDF Viewer imports.
+// Beyond version-matching, the legacy build is the one that carries core-js
+// polyfills — including Map.prototype.getOrInsertComputed, which PDF.js 5.5
+// calls and Safari 18 does not ship. Loading it patches the global prototype
+// for the whole realm. See the note below.
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 // Registers the PDF.js worker on `globalThis`. This is the same worker bundle
 // the KendoReact PDF Viewer imports, so both share one PDF.js instance —
 // mismatched API/worker versions make PDF.js refuse to load a document.
 import 'pdfjs-dist/build/pdf.worker.min.mjs';
+
+/**
+ * DO NOT set `pdfjs.GlobalWorkerOptions.workerSrc` on this branch.
+ *
+ * Left unset, PDF.js finds `globalThis.pdfjsWorker` from the import above and
+ * runs the "fake worker" on the main thread. That is the only reason Safari
+ * works here: this worker bundle is the *modern* build, which calls
+ * `Map.prototype.getOrInsertComputed` without polyfilling it, but on the main
+ * thread it inherits the polyfill the legacy API installed.
+ *
+ * Setting `workerSrc` spawns a real Worker, which has its own global scope
+ * that a main-thread polyfill cannot reach — and Safari breaks immediately,
+ * with "getOrInsertComputed is not a function" on every page render. Tempting
+ * change, since a real worker moves parsing off the main thread.
+ *
+ * If you do want a real worker, point it at the legacy worker build
+ * (`pdfjs-dist/legacy/build/pdf.worker.min.mjs`) so both halves carry the
+ * polyfill. That is what the react-pdf branch does, via a Vite alias.
+ */
 
 /** Stable empty array, so callers don't re-render on every miss. */
 const NO_THUMBNAILS: string[] = [];
