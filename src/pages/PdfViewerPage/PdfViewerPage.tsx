@@ -11,6 +11,7 @@ export default function PdfViewerPage() {
     hasMultipleCases,
     metadata,
     filePath,
+    fileName,
     stampText,
     selectedCaseId,
     selectCase,
@@ -62,7 +63,7 @@ export default function PdfViewerPage() {
       />
       <KendoPdfViewer
         filePath={activePdfPath}
-        fileName={metadata.fileName}
+        fileName={fileName}
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onLoadSuccess={handleLoadSuccess}
