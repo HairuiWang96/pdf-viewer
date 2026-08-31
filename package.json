@@ -30,9 +30,10 @@
     "@progress/kendo-react-progressbars": "^16.0.0",
     "@progress/kendo-svg-icons": "^5.4.0",
     "@progress/kendo-theme-default": "^14.5.0",
-    "pdfjs-dist": "^5.5.207",
+    "pdfjs-dist": "5.5.207",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-pdf": "^10.5.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
@@ -43,5 +44,8 @@
     "pdf-lib": "^1.17.1",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"
+  },
+  "overrides": {
+    "pdfjs-dist": "$pdfjs-dist"
   }
 }
