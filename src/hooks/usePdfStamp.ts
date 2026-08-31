@@ -1,13 +1,31 @@
 import { useCallback, useEffect, useState } from 'react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
-export default function usePdfStamp(filePath: string, stampText: string) {
-  const [showStamp, setShowStamp] = useState(false);
+/**
+ * Draws the stamp text onto the PDF client-side and hands back a blob URL.
+ *
+ * `defaultOn` is the toggle's resting position: OFF while the user is picking
+ * between several cases, ON when there is only one case to look at. The choice
+ * is stored against the `resetKey` it was made under — bumped every time a case
+ * is selected — so picking a case always starts from the default rather than
+ * inheriting the previous case's toggle.
+ */
+export default function usePdfStamp(
+  filePath: string,
+  stampText: string,
+  { defaultOn = false, resetKey = 0 }: { defaultOn?: boolean; resetKey?: number } = {},
+) {
+  const [stampChoice, setStampChoice] = useState({ resetKey, on: defaultOn });
   const [stampedUrl, setStampedUrl] = useState<string | null>(null);
 
-  const toggleStamp = useCallback((stamped: boolean) => {
-    setShowStamp(stamped);
-  }, []);
+  const showStamp = stampChoice.resetKey === resetKey ? stampChoice.on : defaultOn;
+
+  const toggleStamp = useCallback(
+    (stamped: boolean) => {
+      setStampChoice({ resetKey, on: stamped });
+    },
+    [resetKey],
+  );
 
   useEffect(() => {
     if (!showStamp) {

@@ -10,18 +10,22 @@ export default function PdfViewerPage() {
     allCases,
     hasMultipleCases,
     metadata,
+    filePath,
+    stampText,
     selectedCaseId,
     selectCase,
+    selectionCount,
     currentPage,
     totalPages,
     handlePageChange,
     handleLoadSuccess,
   } = usePdfViewer();
 
-  const { showStamp, toggleStamp, activePdfPath } = usePdfStamp(
-    metadata.filePath,
-    metadata.stampText,
-  );
+  // Single case → stamp on by default; multiple cases → off until chosen.
+  const { showStamp, toggleStamp, activePdfPath } = usePdfStamp(filePath, stampText, {
+    defaultOn: !hasMultipleCases,
+    resetKey: selectionCount,
+  });
 
   const {
     isDetailsOpen,
@@ -42,7 +46,7 @@ export default function PdfViewerPage() {
 
   return (
     <Layout
-      title={metadata.title}
+      title={metadata?.title ?? 'PDF Viewer'}
       isMobile={isMobile}
       isDetailsOpen={isDetailsOpen}
       onToggleDetails={toggleDetails}
