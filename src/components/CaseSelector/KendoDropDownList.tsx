@@ -45,6 +45,9 @@ export default function KendoDropDownList({
       value={selectedCase}
       onChange={handleChange}
       defaultItem={{ id: null, caseNumber: 'Please select a case number' }}
+      // The popup renders in a portal on <body>, so its list items can only be
+      // styled through a class handed to it here.
+      popupSettings={{ popupClass: 'case-selector-popup' }}
     />
   );
 }

@@ -57,3 +57,113 @@
   outline-offset: 2px;
   border-radius: 50%;
 }
+
+/* ---------------------------------------------------------------------------
+   KendoReact DropDownList sizing.
+
+   The Kendo theme sizes this control relatively — the arrow button is
+   `width: calc(var(--kendo-line-height) * 1em + ...)` — so it inherits the
+   15px root font and lands well under a comfortable touch target. On a phone
+   that compounds with each browser's own text scaling, which is why the same
+   control looks different in Safari and Chrome on the same device. Pinning
+   the sizes in px makes it render identically everywhere.
+   --------------------------------------------------------------------------- */
+.case-selector .k-dropdownlist {
+  font-size: 15px;
+}
+
+.case-selector .k-dropdownlist .k-input-inner {
+  padding: 5px 8px;
+}
+
+.case-selector .k-dropdownlist .k-input-button {
+  width: 28px;
+}
+
+.case-selector .k-dropdownlist .k-input-button .k-svg-icon,
+.case-selector .k-dropdownlist .k-input-button .k-svg-icon > svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 767px) {
+  .case-selector .k-dropdownlist {
+    /* 16px is the threshold below which iOS zooms the page on focus */
+    font-size: 16px;
+    /* Trimmed from the 44px in Apple's HIG and WCAG 2.5.5 to keep the
+       control compact. Still a comfortable tap target, but if this panel
+       ever needs to pass a strict audit, 44px is the number to go back to. */
+    min-height: 38px;
+  }
+
+  .case-selector .k-dropdownlist .k-input-inner {
+    padding: 7px 10px;
+  }
+
+  .case-selector .k-dropdownlist .k-input-button {
+    width: 36px;
+  }
+
+  .case-selector .k-dropdownlist .k-input-button .k-svg-icon,
+  .case-selector .k-dropdownlist .k-input-button .k-svg-icon > svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* The popup list is portaled onto <body>, so it is out of reach of
+   .case-selector — KendoDropDownList passes this class via popupSettings.
+
+   The placeholder row ("Please select a case number") is a
+   .k-list-optionlabel, not a .k-list-item, so both need naming. */
+.case-selector-popup .k-list-item,
+.case-selector-popup .k-list-optionlabel {
+  font-size: 15px;
+  padding: 5px 8px;
+}
+
+/* Dividers between options — on the bottom edge of every row but the last,
+   so the list has no trailing line. The placeholder is rendered as a sibling
+   div above the list rather than inside it, so it carries its own divider. */
+.case-selector-popup .k-list-item:not(:last-child),
+.case-selector-popup .k-list-optionlabel {
+  border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 767px) {
+  .case-selector-popup .k-list-item,
+  .case-selector-popup .k-list-optionlabel {
+    font-size: 16px;
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   KendoReact DropDownList colors.
+
+   The grey is `--kendo-color-base` (oklch(97.02% 0 0deg)), which the theme
+   paints onto `.k-picker-solid`. Every hover/active/emphasis shade is derived
+   from it with `oklch(from var(--kendo-color-base) ...)`, so overriding these
+   few variables recolors the whole control and its states — no need to chase
+   individual `.k-*` rules.
+
+   Mapping them to the app's own tokens also fixes dark mode: the Kendo theme
+   only ships light colors, so the untouched control stayed pale grey on the
+   dark panel.
+
+   Change the color here and nowhere else.
+   --------------------------------------------------------------------------- */
+.case-selector .k-dropdownlist,
+.case-selector-popup {
+  --kendo-color-base: var(--bg);
+  --kendo-color-border: var(--border);
+  --kendo-color-on-base: var(--text-h);
+
+  /* Open popup: `.k-popup` uses surface-alt, itself derived from surface. */
+  --kendo-color-surface: var(--bg);
+  --kendo-color-on-app-surface: var(--text-h);
+
+  /* Selected / highlighted list item picks up the app's accent. */
+  --kendo-color-primary: var(--accent);
+}
