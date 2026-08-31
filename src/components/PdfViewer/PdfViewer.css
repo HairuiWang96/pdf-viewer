@@ -4,24 +4,47 @@
   flex-direction: column;
   min-width: 0;
   background: var(--code-bg);
-  overflow: auto;
+  /* The pages scroll inside .pdf-canvas, not here, so the pagination bar
+     below stays put instead of scrolling away with the document. */
+  overflow: hidden;
 }
 
 .pdf-canvas {
-  display: flex;
-  justify-content: center;
+  flex: 1;
+  overflow-y: auto;
   padding: 16px;
+}
+
+/* react-pdf's <Document> renders its own wrapper element between .pdf-canvas
+   and the pages, so the page layout has to live here — .pdf-canvas sees only
+   this single child and a gap set there would separate nothing. */
+.pdf-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.pdf-page {
+  /* Anchors scrollIntoView and gives the IntersectionObserver a stable box
+     to measure, since react-pdf's own canvas only appears once rendered. */
+  scroll-margin-top: 16px;
 }
 
 @media (max-width: 767px) {
   .pdf-viewer {
     background: var(--bg);
-    /* Leave room at the bottom for the fixed page navigation bar */
-    padding-bottom: 56px;
   }
 
   .pdf-canvas {
     padding: 8px;
+    /* Room for the fixed page navigation bar. It belongs on the scrolling
+       element now, so the last page clears the bar instead of hiding behind it. */
+    padding-bottom: 64px;
+  }
+
+  .pdf-pages {
+    gap: 8px;
   }
 
   .react-pdf__Page {
