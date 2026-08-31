@@ -43,7 +43,7 @@ src/
 │   ├── Layout/                 # App shell — header + main content area
 │   ├── PageNavigation/         # Prev/next buttons and page number controls
 │   ├── PdfDetails/             # Right sidebar showing document metadata
-│   ├── PdfViewer/              # Main PDF rendering area (uses react-pdf)
+│   ├── KendoPdfViewer/         # Main PDF rendering area (uses KendoReact PDF Viewer)
 │   └── ThumbnailSidebar/       # Left sidebar with clickable page thumbnails
 ├── constants/                  # Named constants (page widths, defaults)
 │   └── pdf.ts
@@ -63,4 +63,41 @@ src/
 - [React 19](https://react.dev/) — UI framework
 - [TypeScript](https://www.typescriptlang.org/) — type safety
 - [Vite](https://vite.dev/) — build tool and dev server
-- [react-pdf](https://github.com/wojtekmaj/react-pdf) — PDF rendering (built on PDF.js)
+- [KendoReact PDF Viewer](https://www.telerik.com/kendo-react-ui/components/pdf-viewer/) — document rendering (commercial, see below)
+- [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist`) — page thumbnails
+
+## KendoReact licensing
+
+This branch (`kendo-pdf-viewer`) drops react-pdf entirely and renders documents
+with the KendoReact PDF Viewer. KendoReact is a **commercial** library: without an
+activated license it still runs, but it renders a watermark over the component
+and logs a license banner in the console.
+
+To activate a trial or paid license:
+
+1. Get a license key from your [Telerik account](https://www.telerik.com/account/your-licenses/license-keys).
+2. Save it as `kendo-ui-license.txt` in the project root, or set the
+   `KENDO_UI_LICENSE` environment variable.
+3. Run `npx kendo-ui-license activate`.
+
+The key file is not committed — keep it out of version control.
+
+### What changes on this branch
+
+- The main pane is a single scrolling document with Kendo's own toolbar
+  (pager, zoom, text selection, search, download, print) instead of the
+  custom `PageNavigation` bar.
+- `react-pdf` is no longer a dependency. The thumbnail rail now renders pages
+  to PNGs with PDF.js directly (`usePdfThumbnails`), importing the same
+  `pdfjs-dist/legacy` build and worker bundle the Kendo viewer uses. Keeping a
+  single PDF.js copy matters: mismatched API and worker versions make PDF.js
+  refuse to load a document, which shows up as an empty viewer reading
+  "0 of 0" pages.
+- Thumbnails and the main view stay in sync: clicking a thumbnail scrolls the
+  Kendo viewer, and scrolling the viewer highlights the matching thumbnail.
+  Note that Kendo's `scrollToPage` takes a zero-based index while its
+  `onPageChange` event reports one-based page numbers.
+- The stamp toggle still works — the stamped blob URL is handed straight to
+  the viewer.
+- `PageNavigation/` is left in the tree but unused; Kendo ships its own pager
+  in the toolbar.

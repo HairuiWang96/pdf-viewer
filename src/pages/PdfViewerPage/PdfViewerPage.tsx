@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import Layout from '../../components/Layout';
 import ThumbnailSidebar from '../../components/ThumbnailSidebar';
-import PdfViewer from '../../components/PdfViewer';
+import KendoPdfViewer from '../../components/KendoPdfViewer';
 import PdfDetails from '../../components/PdfDetails';
 import { usePdfViewer, usePdfStamp, useDetailsPanel } from '../../hooks';
 
@@ -13,7 +13,6 @@ export default function PdfViewerPage() {
     selectedCaseId,
     selectCase,
     currentPage,
-    totalPages,
     handlePageChange,
     handleLoadSuccess,
   } = usePdfViewer();
@@ -52,14 +51,14 @@ export default function PdfViewerPage() {
       <ThumbnailSidebar
         filePath={activePdfPath}
         currentPage={currentPage}
-        totalPages={totalPages}
         onPageChange={handlePageChange}
         isMobile={isMobile}
         isOpen={isThumbnailsOpen}
         onClose={closeThumbnails}
       />
-      <PdfViewer
+      <KendoPdfViewer
         filePath={activePdfPath}
+        fileName={metadata.fileName}
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onLoadSuccess={handleLoadSuccess}

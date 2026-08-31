@@ -1,0 +1,30 @@
+.kendo-pdf-viewer {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The Kendo viewer draws its own chrome; strip the outer border so it sits
+   flush between the thumbnail sidebar and the details panel. */
+.kendo-pdf-viewer .k-pdf-viewer {
+  border: none;
+  border-radius: 0;
+  height: 100%;
+}
+
+.kendo-pdf-viewer .k-pdf-viewer .k-canvas {
+  background: var(--code-bg);
+}
+
+@media (max-width: 767px) {
+  .kendo-pdf-viewer .k-pdf-viewer .k-canvas {
+    background: var(--bg);
+  }
+
+  /* Let the toolbar wrap instead of overflowing on narrow screens */
+  .kendo-pdf-viewer .k-pdf-viewer .k-toolbar {
+    flex-wrap: wrap;
+  }
+}

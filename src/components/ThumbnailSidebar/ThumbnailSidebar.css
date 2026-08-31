@@ -42,10 +42,10 @@
   background: var(--accent-bg);
 }
 
-.thumbnail-item .react-pdf__Page {
+.thumbnail-item img {
+  display: block;
   box-shadow: var(--shadow);
   border-radius: 2px;
-  overflow: hidden;
   pointer-events: none;
 }
 
