@@ -8,16 +8,19 @@ import pdfMetadata from '../data/pdf-metadata.json';
  *
  * Behavior depends on how many cases exist:
  *
+ * Multiple cases:
+ * - No case is selected by default — the dropdown shows a placeholder and
+ *   the user must pick one.
+ * - Before selection: the viewer shows the default PDF and document details
+ *   are hidden (metadata is null).
+ * - After selection: details populate and the stamp toggle becomes available.
+ * - Changing the case resets the stamp toggle back to OFF and resets page
+ *   navigation back to page 1.
+ *
  * Single case:
  * - No dropdown needed — the only case is auto-selected.
  * - Stamp defaults to ON (with stamp).
  * - Document details are visible immediately.
- *
- * Multiple cases:
- * - Dropdown is shown so the user can pick a case number.
- * - Stamp defaults to OFF (without stamp).
- * - Changing the case resets the stamp toggle back to OFF
- *   and resets page navigation back to page 1.
  */
 export default function usePdfViewer() {
   // `pdfMetadata` is imported from a JSON file. TypeScript doesn't automatically
@@ -27,13 +30,25 @@ export default function usePdfViewer() {
   const allCases: PdfMetadata[] = pdfMetadata as PdfMetadata[];
   const hasMultipleCases = allCases.length > 1;
 
-  // Default to the first case in the array
-  const [selectedCaseId, setSelectedCaseId] = useState(allCases[0].id);
+  // Single case → auto-select it; multiple cases → no default selection
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(
+    hasMultipleCases ? null : allCases[0].id,
+  );
   const [currentPage, setCurrentPage] = useState(INITIAL_PAGE);
   const [totalPages, setTotalPages] = useState(0);
+  // Bumped on every selection so the stamp toggle can tell "the user picked a
+  // case" apart from "the file happens to be the same one as before".
+  const [selectionCount, setSelectionCount] = useState(0);
 
-  // Find the metadata for whichever case is currently selected
-  const metadata = allCases.find((c) => c.id === selectedCaseId) ?? allCases[0];
+  // null when no case is selected yet (multiple cases, before the user picks one)
+  const metadata = selectedCaseId
+    ? (allCases.find((c) => c.id === selectedCaseId) ?? null)
+    : null;
+
+  // Before any selection the viewer still needs something to render, so it
+  // falls back to the first case's file.
+  const filePath = metadata?.filePath ?? allCases[0].filePath;
+  const stampText = metadata?.stampText ?? '';
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -49,14 +64,18 @@ export default function usePdfViewer() {
     setSelectedCaseId(caseId);
     setCurrentPage(INITIAL_PAGE);
     setTotalPages(0);
+    setSelectionCount((count) => count + 1);
   }, []);
 
   return {
     allCases,
     hasMultipleCases,
     metadata,
+    filePath,
+    stampText,
     selectedCaseId,
     selectCase,
+    selectionCount,
     currentPage,
     totalPages,
     handlePageChange,
