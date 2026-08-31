@@ -6,9 +6,9 @@ import KendoComboBox from './KendoComboBox';
 import './CaseSelector.css';
 
 interface CaseSelectorProps {
-  cases: PdfMetadata[];
-  selectedCaseId: string | null;
-  onSelectCase: (caseId: string) => void;
+    cases: PdfMetadata[];
+    selectedCaseId: string | null;
+    onSelectCase: (caseId: string) => void;
 }
 
 /**
@@ -25,71 +25,41 @@ interface CaseSelectorProps {
  *
  * Change the ACTIVE_VARIANT constant below to switch between them.
  */
-const ACTIVE_VARIANT: 'custom' | 'dropdown' | 'combobox' = 'custom';
+const ACTIVE_VARIANT: 'custom' | 'dropdown' | 'combobox' = 'dropdown';
 
-export default function CaseSelector({
-  cases,
-  selectedCaseId,
-  onSelectCase,
-}: CaseSelectorProps) {
-  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
-  const infoRef = useRef<HTMLSpanElement>(null);
+export default function CaseSelector({ cases, selectedCaseId, onSelectCase }: CaseSelectorProps) {
+    const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+    const infoRef = useRef<HTMLSpanElement>(null);
 
-  // Position the tooltip relative to the info icon using fixed
-  // positioning so it escapes the sidebar's overflow clipping.
-  const updateTooltipPosition = useCallback(() => {
-    if (!infoRef.current) return;
-    const rect = infoRef.current.getBoundingClientRect();
-    setTooltipStyle({
-      top: rect.top + rect.height / 2,
-      right: window.innerWidth - rect.left + 6,
-      transform: 'translateY(-50%)',
-    });
-  }, []);
+    // Position the tooltip relative to the info icon using fixed
+    // positioning so it escapes the sidebar's overflow clipping.
+    const updateTooltipPosition = useCallback(() => {
+        if (!infoRef.current) return;
+        const rect = infoRef.current.getBoundingClientRect();
+        setTooltipStyle({
+            top: rect.top + rect.height / 2,
+            right: window.innerWidth - rect.left + 6,
+            transform: 'translateY(-50%)',
+        });
+    }, []);
 
-  return (
-    <div className="case-selector">
-      <div className="case-selector-header">
-        <h3>Case Number</h3>
-        <span
-          className="case-selector-info"
-          ref={infoRef}
-          tabIndex={0}
-          role="note"
-          aria-label="Selecting a new case number will refresh all document details"
-          onMouseEnter={updateTooltipPosition}
-          onFocus={updateTooltipPosition}
-        >
-          {'\u24D8'}
-          <span className="case-selector-tooltip" style={tooltipStyle}>
-            Selecting a new case number will refresh all document details
-          </span>
-        </span>
-      </div>
+    return (
+        <div className='case-selector'>
+            <div className='case-selector-header'>
+                <h3>Case Number</h3>
+                <span className='case-selector-info' ref={infoRef} tabIndex={0} role='note' aria-label='Selecting a new case number will refresh all document details' onMouseEnter={updateTooltipPosition} onFocus={updateTooltipPosition}>
+                    {'\u24D8'}
+                    <span className='case-selector-tooltip' style={tooltipStyle}>
+                        Selecting a new case number will refresh all document details
+                    </span>
+                </span>
+            </div>
 
-      {ACTIVE_VARIANT === 'custom' && (
-        <CustomDropdown
-          cases={cases}
-          selectedCaseId={selectedCaseId}
-          onSelectCase={onSelectCase}
-        />
-      )}
+            {ACTIVE_VARIANT === 'custom' && <CustomDropdown cases={cases} selectedCaseId={selectedCaseId} onSelectCase={onSelectCase} />}
 
-      {ACTIVE_VARIANT === 'dropdown' && (
-        <KendoDropDownList
-          cases={cases}
-          selectedCaseId={selectedCaseId}
-          onSelectCase={onSelectCase}
-        />
-      )}
+            {ACTIVE_VARIANT === 'dropdown' && <KendoDropDownList cases={cases} selectedCaseId={selectedCaseId} onSelectCase={onSelectCase} />}
 
-      {ACTIVE_VARIANT === 'combobox' && (
-        <KendoComboBox
-          cases={cases}
-          selectedCaseId={selectedCaseId}
-          onSelectCase={onSelectCase}
-        />
-      )}
-    </div>
-  );
+            {ACTIVE_VARIANT === 'combobox' && <KendoComboBox cases={cases} selectedCaseId={selectedCaseId} onSelectCase={onSelectCase} />}
+        </div>
+    );
 }
