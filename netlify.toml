@@ -1,0 +1,15 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Netlify also reads .nvmrc, but pinning here keeps the build off the image default
+# if .nvmrc is ever missing on a branch. Must stay >=22: .npmrc sets engine-strict.
+[build.environment]
+  NODE_VERSION = "22"
+
+# No client-side router today, so nothing 404s yet. Harmless now, and keeps deep
+# links working the day one is added.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
