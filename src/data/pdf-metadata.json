@@ -8,7 +8,13 @@
     "author": "Global Markets Research Division",
     "description": "Quarterly review of equity, fixed income, commodity, and FX markets for Q1 2026, covering the pre-rate-cut environment.",
     "category": "Market Report",
-    "tags": ["quarterly", "Q1", "equity", "fixed-income", "commodities"],
+    "tags": [
+      "quarterly",
+      "Q1",
+      "equity",
+      "fixed-income",
+      "commodities"
+    ],
     "totalPages": 5,
     "fileSize": "38 KB",
     "createdDate": "2026-04-05",
@@ -26,7 +32,13 @@
     "author": "Global Markets Research Division",
     "description": "Quarterly review of equity, fixed income, commodity, and FX markets for Q2 2026, covering the Fed rate cut and subsequent rally.",
     "category": "Market Report",
-    "tags": ["quarterly", "Q2", "equity", "fixed-income", "rate-cut"],
+    "tags": [
+      "quarterly",
+      "Q2",
+      "equity",
+      "fixed-income",
+      "rate-cut"
+    ],
     "totalPages": 5,
     "fileSize": "40 KB",
     "createdDate": "2026-07-02",
@@ -44,7 +56,13 @@
     "author": "Global Markets Research Division",
     "description": "Comprehensive mid-year review combining Q1 and Q2 analysis with H2 outlook, risk assessment, and strategic recommendations.",
     "category": "Mid-Year Review",
-    "tags": ["semi-annual", "H1", "outlook", "strategy", "risk"],
+    "tags": [
+      "semi-annual",
+      "H1",
+      "outlook",
+      "strategy",
+      "risk"
+    ],
     "totalPages": 5,
     "fileSize": "42 KB",
     "createdDate": "2026-07-15",
@@ -52,5 +70,178 @@
     "language": "English",
     "status": "Under Review",
     "stampText": "DOC-2026-H1-00201 | Restricted Distribution"
+  },
+  {
+    "id": "t1",
+    "caseNumber": "CASE-TEST-AUDIO",
+    "fileName": "case-audio-attachment.pdf",
+    "filePath": "/case-audio-attachment.pdf",
+    "title": "Test: Embedded Audio Attachment",
+    "author": "QA",
+    "description": "PDF with a WAV audio file embedded as a file attachment.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "audio",
+      "attachment"
+    ],
+    "totalPages": 1,
+    "fileSize": "3 KB",
+    "createdDate": "2026-09-03",
+    "lastModified": "2026-09-03",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Audio Attachment"
+  },
+  {
+    "id": "t2",
+    "caseNumber": "CASE-TEST-LINKS",
+    "fileName": "case-hyperlinks.pdf",
+    "filePath": "/case-hyperlinks.pdf",
+    "title": "Test: Hyperlinks",
+    "author": "QA",
+    "description": "PDF with an external URI link and an internal page-jump link.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "hyperlinks"
+    ],
+    "totalPages": 2,
+    "fileSize": "3 KB",
+    "createdDate": "2026-09-03",
+    "lastModified": "2026-09-03",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Hyperlinks"
+  },
+  {
+    "id": "t3",
+    "caseNumber": "CASE-TEST-FORM",
+    "fileName": "case-fillable-form.pdf",
+    "filePath": "/case-fillable-form.pdf",
+    "title": "Test: Fillable Form (Unflattened)",
+    "author": "QA",
+    "description": "PDF with unflattened AcroForm fields: text, checkbox, radio group, multiline.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "form",
+      "acroform"
+    ],
+    "totalPages": 1,
+    "fileSize": "10 KB",
+    "createdDate": "2026-09-03",
+    "lastModified": "2026-09-03",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Fillable Form"
+  },
+  {
+    "id": "t4",
+    "caseNumber": "CASE-TEST-BOOKMARKS",
+    "fileName": "case-bookmarks.pdf",
+    "filePath": "/case-bookmarks.pdf",
+    "title": "Test: Bookmarks (Outline)",
+    "author": "QA",
+    "description": "5-page PDF with a document outline (bookmarks) tree.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "bookmarks",
+      "outline"
+    ],
+    "totalPages": 5,
+    "fileSize": "5 KB",
+    "createdDate": "2026-09-03",
+    "lastModified": "2026-09-03",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Bookmarks"
+  },
+  {
+    "id": "t5",
+    "caseNumber": "CASE-TEST-SCAN",
+    "fileName": "case-scanned-document.pdf",
+    "filePath": "/case-scanned-document.pdf",
+    "title": "Test: Scanned Document (image-only)",
+    "author": "QA",
+    "description": "Single-page PDF containing only a raster image, no text layer -- simulates a scanned page.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "scanned",
+      "image-only"
+    ],
+    "totalPages": 1,
+    "fileSize": "151 KB",
+    "createdDate": "2026-09-03",
+    "lastModified": "2026-09-03",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Scanned Document"
+  },
+  {
+    "id": "t6",
+    "caseNumber": "CASE-TEST-FONTS",
+    "fileName": "case-various-fonts.pdf",
+    "filePath": "/case-various-fonts.pdf",
+    "title": "Test: Various Font Types",
+    "author": "QA",
+    "description": "PDF mixing standard PDF fonts with embedded custom TTF/TTC fonts, including a wide-glyph-coverage font for non-Latin text.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "fonts"
+    ],
+    "totalPages": 1,
+    "fileSize": "32 KB",
+    "createdDate": "2026-09-03",
+    "lastModified": "2026-09-03",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Various Fonts"
+  },
+  {
+    "id": "t7",
+    "caseNumber": "CASE-TEST-LEGACY",
+    "fileName": "case-legacy-pdf12.pdf",
+    "filePath": "/case-legacy-pdf12.pdf",
+    "title": "Test: Legacy PDF Specification (v1.2)",
+    "author": "QA",
+    "description": "PDF declaring itself as version 1.2 (the earliest widely-used PDF spec) with a classic, non-compressed cross-reference table.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "legacy",
+      "pdf1.2"
+    ],
+    "totalPages": 1,
+    "fileSize": "2 KB",
+    "createdDate": "2026-09-03",
+    "lastModified": "2026-09-03",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Legacy PDF 1.2"
+  },
+  {
+    "id": "t8",
+    "caseNumber": "CASE-TEST-SIGNATURE",
+    "fileName": "case-digital-signature.pdf",
+    "filePath": "/case-digital-signature.pdf",
+    "title": "Test: Digital Signature",
+    "author": "QA",
+    "description": "PDF with a real cryptographic signature field (self-signed test certificate) signed via pyHanko.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "digital-signature"
+    ],
+    "totalPages": 2,
+    "fileSize": "10 KB",
+    "createdDate": "2026-09-03",
+    "lastModified": "2026-09-03",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Digital Signature"
   }
 ]
