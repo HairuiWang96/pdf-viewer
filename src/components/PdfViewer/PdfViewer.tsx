@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import PageNavigation from '../PageNavigation';
@@ -31,6 +32,27 @@ interface PdfViewerProps {
 const DESKTOP_WIDTH_PERCENT = 0.85;
 const MOBILE_PADDING = 16; // 8px padding on each side
 
+// pdf.js attachments carry raw bytes and a filename, no MIME type — guess one
+// from the extension so the browser knows how to play/handle the Blob.
+const AUDIO_MIME_TYPES: Record<string, string> = {
+  wav: 'audio/wav',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  ogg: 'audio/ogg',
+  aac: 'audio/aac',
+};
+
+function guessAudioMimeType(filename: string): string | null {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  return ext ? (AUDIO_MIME_TYPES[ext] ?? null) : null;
+}
+
+interface PdfAttachment {
+  filename: string;
+  url: string;
+  mimeType: string | null;
+}
+
 export default function PdfViewer({
   filePath,
   currentPage,
@@ -40,6 +62,7 @@ export default function PdfViewer({
 }: PdfViewerProps) {
   const [totalPages, setTotalPages] = useState(0);
   const [pageWidth, setPageWidth] = useState(0);
+  const [attachments, setAttachments] = useState<PdfAttachment[]>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -70,16 +93,38 @@ export default function PdfViewer({
   }, [isMobile]);
 
   const handleLoadSuccess = useCallback(
-    ({ numPages }: { numPages: number }) => {
+    (pdfDocument: PDFDocumentProxy) => {
       // A different document — drop the previous one's page elements and
       // start back at the top.
       pageRefs.current = [];
       visiblePageRef.current = 1;
-      setTotalPages(numPages);
-      onLoadSuccess(numPages);
+      setTotalPages(pdfDocument.numPages);
+      onLoadSuccess(pdfDocument.numPages);
+
+      // Attachments (e.g. embedded audio) aren't part of the page content,
+      // so react-pdf/pdf.js never render them — pull them out separately and
+      // hand audio ones an <audio> element instead of leaving them invisible.
+      pdfDocument.getAttachments().then((raw) => {
+        const found = Object.values(raw ?? {}) as { filename: string; content: Uint8Array }[];
+        const next = found.map((att) => {
+          const mimeType = guessAudioMimeType(att.filename);
+          const blob = new Blob([att.content], { type: mimeType ?? 'application/octet-stream' });
+          return { filename: att.filename, url: URL.createObjectURL(blob), mimeType };
+        });
+        setAttachments((prev) => {
+          prev.forEach((att) => URL.revokeObjectURL(att.url));
+          return next;
+        });
+      });
     },
     [onLoadSuccess],
   );
+
+  // Revoke blob URLs when the component unmounts so we don't leak memory.
+  useEffect(() => {
+    return () => attachments.forEach((att) => URL.revokeObjectURL(att.url));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Report whichever page occupies most of the viewport, so the page counter
   // and the thumbnail highlight follow the user's scrolling.
@@ -168,6 +213,24 @@ export default function PdfViewer({
           </Document>
         )}
       </div>
+
+      {attachments.length > 0 && (
+        <div className="pdf-attachments">
+          <span className="pdf-attachments-label">Attachments</span>
+          {attachments.map((att) =>
+            att.mimeType?.startsWith('audio/') ? (
+              <div key={att.filename} className="pdf-attachment pdf-attachment-audio">
+                <span className="pdf-attachment-name">{att.filename}</span>
+                <audio controls src={att.url} />
+              </div>
+            ) : (
+              <a key={att.filename} className="pdf-attachment" href={att.url} download={att.filename}>
+                {att.filename}
+              </a>
+            ),
+          )}
+        </div>
+      )}
 
       {totalPages > 0 && (
         <PageNavigation

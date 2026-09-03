@@ -72,3 +72,35 @@
   border-radius: 4px;
   overflow: hidden;
 }
+
+.pdf-attachments {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 13px;
+}
+
+.pdf-attachments-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pdf-attachment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.pdf-attachment-audio audio {
+  height: 28px;
+}
+
+a.pdf-attachment:hover {
+  text-decoration: underline;
+}
