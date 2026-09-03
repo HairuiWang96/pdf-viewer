@@ -11,3 +11,5 @@
 **One-line version:** pdf.js opens and displays PDFs (the engine behind both viewers being compared); pdf-lib builds and modifies PDFs (used both by the app itself for stamping, and to generate the QA test files); pyHanko was a one-off outside tool because neither of the above can do real cryptographic signing.
 
 **Nuance:** pdf-lib can create simple, unsigned form fields, bookmarks, and file attachments — which is why it could build the audio-attachment, forms, bookmarks, and font test PDFs. It just can't cryptographically sign a document; that's pyHanko's whole job.
+
+**"pdf.js" vs. "pdfjs-dist" — aren't those two different things?** No, same library. "pdf.js" is the name of the open-source project (Mozilla's PDF renderer — also what powers Firefox's built-in PDF viewer). "pdfjs-dist" is the npm package name that project is published under, since `package.json` and import statements need an actual installable package name, not just a project name. Installing `pdfjs-dist` *is* installing pdf.js.
