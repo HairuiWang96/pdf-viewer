@@ -1,0 +1,13 @@
+# PDF library comparison — pdf.js vs. pdf-lib vs. pyHanko
+
+| | **pdf.js** (`pdfjs-dist`) | **pdf-lib** | **pyHanko** |
+|---|---|---|---|
+| **What it's for** | *Reading* / rendering existing PDFs | *Creating* / editing PDFs | *Cryptographically signing* PDFs |
+| **Direction** | PDF → pixels on screen | Bytes in → modified bytes out | Existing PDF → signed PDF |
+| **Language** | JavaScript (browser) | JavaScript (browser or Node) | Python |
+| **Used where in this project** | Powers both `react-pdf` and KendoReact's viewer — every page rendered on screen goes through it | `usePdfStamp.ts` — draws the "Internal Use Only" stamp text onto a copy of the PDF before download; also used to generate 7 of the 8 QA test PDFs | Not in the app at all — used standalone to build the one signed test PDF (`case-digital-signature.pdf`) |
+| **Analogy** | A PDF *reader* | A PDF *editor/generator* | A notary stamp |
+
+**One-line version:** pdf.js opens and displays PDFs (the engine behind both viewers being compared); pdf-lib builds and modifies PDFs (used both by the app itself for stamping, and to generate the QA test files); pyHanko was a one-off outside tool because neither of the above can do real cryptographic signing.
+
+**Nuance:** pdf-lib can create simple, unsigned form fields, bookmarks, and file attachments — which is why it could build the audio-attachment, forms, bookmarks, and font test PDFs. It just can't cryptographically sign a document; that's pyHanko's whole job.
