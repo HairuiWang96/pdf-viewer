@@ -18,6 +18,38 @@
   background: var(--code-bg);
 }
 
+.kendo-pdf-viewer .pdf-attachments {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 13px;
+}
+
+.kendo-pdf-viewer .pdf-attachments-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kendo-pdf-viewer .pdf-attachment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.kendo-pdf-viewer .pdf-attachment-audio audio {
+  height: 28px;
+}
+
+.kendo-pdf-viewer a.pdf-attachment:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 767px) {
   .kendo-pdf-viewer .k-pdf-viewer .k-canvas {
     background: var(--bg);
