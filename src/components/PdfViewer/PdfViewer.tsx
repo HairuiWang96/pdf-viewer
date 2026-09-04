@@ -108,7 +108,7 @@ export default function PdfViewer({
         const found = Object.values(raw ?? {}) as { filename: string; content: Uint8Array }[];
         const next = found.map((att) => {
           const mimeType = guessAudioMimeType(att.filename);
-          const blob = new Blob([att.content], { type: mimeType ?? 'application/octet-stream' });
+          const blob = new Blob([new Uint8Array(att.content)], { type: mimeType ?? 'application/octet-stream' });
           return { filename: att.filename, url: URL.createObjectURL(blob), mimeType };
         });
         setAttachments((prev) => {
