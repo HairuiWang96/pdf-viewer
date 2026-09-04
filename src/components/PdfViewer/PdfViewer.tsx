@@ -4,46 +4,52 @@ interface PdfViewerProps {
   filePath: string;
 }
 
+/** Where the prebuilt PDF.js viewer lives under public/. */
+const PDFJS_VIEWER = '/pdfjs/web/viewer.html';
+
 /**
- * Known limitation — mobile iframe PDF rendering:
+ * Self-hosted PDF.js viewer — the third option the iframe branch's comments
+ * listed, now taken.
  *
- * Mobile browsers do not provide their full native PDF viewer inside an
- * <iframe>. Only the first page renders, and it renders at the document's
- * intrinsic size rather than scaled to fit: a US-Letter page is ~612pt wide
- * inside a ~390pt-wide phone iframe, so it must be panned horizontally and
- * vertically to be read. It is not a frozen thumbnail — that one page does
- * scroll — but pages 2..n are unreachable and there is no way to fit it to
- * the screen. Opening the same PDF URL directly in a new tab works fine,
- * because the browser then uses its native viewer for the whole page.
+ * The iframe branch embeds the PDF URL directly, which hands rendering to
+ * whatever viewer the browser ships: PDFium on Chrome, Adobe's engine on
+ * Edge, pdf.js on Firefox, and nothing usable on WebKit — where only page 1
+ * renders, unscaled, with pages 2..n unreachable. The toolbar, the panels,
+ * and the mobile behaviour are all the browser's to decide, not ours.
  *
- * Nothing on this side can change it. The `#view=FitH` / `#zoom=page-fit`
- * PDF Open Parameters are an Adobe convention that Chromium partially honors
- * and WebKit ignores, and no CSS reaches inside the embedded document. The
- * iframe element itself is already sized correctly (100% / 100%).
+ * Pointing the same iframe at our own copy of Mozilla's viewer replaces that
+ * lottery with one renderer we ship and control. It costs ~12 MB of static
+ * assets and buys:
+ *   - the same toolbar in every browser, mobile included
+ *   - the sidebar PDF.js already has: thumbnails, bookmarks/outline, and
+ *     attachments — the two panels the other branches had to hand-build
+ *   - AcroForm filling, find-in-document, print, rotate
  *
- * Related, on desktop: the toolbar is the browser's, not ours, so it differs
- * per engine. Chromium (PDFium) and Firefox (pdf.js) both show one inside an
- * iframe; Safari shows none at all. Since every iOS browser is WebKit —
- * Chrome and Firefox for iOS included — that covers all iPhones and iPads.
+ * It stays entirely inside our own origin: static files, no CDN, no client
+ * ID, no call to anyone. That is what makes it viable where an embedded
+ * third-party viewer service would not be.
  *
- * Tested on iPhone (Safari and Chrome) and desktop Safari.
- * Android behavior is unverified and needs testing.
+ * The legacy build is deliberate — see the react-pdf branch's note on the
+ * `Map.prototype.getOrInsertComputed` polyfill Safari needs.
  *
- * Possible solutions:
- *   - Use a JS PDF library (e.g. react-pdf / PDF.js) to render pages
- *     as canvas elements — see the react-pdf branch, which measures the
- *     container and renders each page to fit its width.
- *   - Use the PDF.js viewer wrapper (pdfjs/viewer.html?file=...) inside
- *     the iframe, which renders via JS instead of the native viewer and so
- *     gives the same toolbar in every browser.
- *   - On mobile, open the PDF in a new tab instead of embedding it.
+ * Assets live in public/pdfjs/ (source maps and Mozilla's bundled sample PDF
+ * removed). Since the viewer is same-origin, `iframe.contentWindow
+ * .PDFViewerApplication` is reachable if this ever needs to sync page state
+ * with the thumbnail sidebar.
  */
 export default function PdfViewer({ filePath }: PdfViewerProps) {
+  // The viewer resolves `file` itself, so it has to survive being a query
+  // value — an unencoded path with a & or # in it would truncate.
+  const viewerSrc = `${PDFJS_VIEWER}?file=${encodeURIComponent(filePath)}`;
+
   return (
     <div className="pdf-viewer">
       <iframe
+        // Remounting on file change resets the viewer's zoom, scroll and
+        // sidebar state for the new document.
+        key={filePath}
         className="pdf-iframe"
-        src={filePath}
+        src={viewerSrc}
         title="PDF Document"
       />
     </div>
