@@ -74,6 +74,9 @@ export default function KendoPdfViewer({
 }: KendoPdfViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
   const [attachments, setAttachments] = useState<PdfAttachment[]>([]);
+  // Starts closed on every document — the viewer remounts on file change
+  // (see `key={filePath}` below), so this resets itself.
+  const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
 
   // Tracks the page the viewer itself is showing. Without this, scrolling the
   // viewer raises onPageChange -> parent state changes -> the effect below
@@ -150,18 +153,36 @@ export default function KendoPdfViewer({
 
       {attachments.length > 0 && (
         <div className="pdf-attachments">
-          <span className="pdf-attachments-label">Attachments</span>
-          {attachments.map((att) =>
-            att.mimeType?.startsWith('audio/') ? (
-              <div key={att.filename} className="pdf-attachment pdf-attachment-audio">
-                <span className="pdf-attachment-name">{att.filename}</span>
-                <audio controls src={att.url} />
-              </div>
-            ) : (
-              <a key={att.filename} className="pdf-attachment" href={att.url} download={att.filename}>
-                {att.filename}
-              </a>
-            ),
+          {/* Collapsed by default: most documents carry no attachments, and a
+              row of players per file crowds the viewer. The count is on the
+              button so their presence is still obvious without expanding. */}
+          <button
+            type="button"
+            className="pdf-attachments-toggle"
+            aria-expanded={isAttachmentsOpen}
+            aria-controls="pdf-attachments-list"
+            onClick={() => setIsAttachmentsOpen((open) => !open)}
+          >
+            <span className="pdf-attachments-caret" aria-hidden="true" />
+            Attachments
+            <span className="pdf-attachments-count">{attachments.length}</span>
+          </button>
+
+          {isAttachmentsOpen && (
+            <ul className="pdf-attachments-list" id="pdf-attachments-list">
+              {attachments.map((att) => (
+                <li key={att.filename} className="pdf-attachment">
+                  <span className="pdf-attachment-name">{att.filename}</span>
+                  {att.mimeType?.startsWith('audio/') ? (
+                    <audio controls src={att.url} />
+                  ) : (
+                    <a className="pdf-attachment-download" href={att.url} download={att.filename}>
+                      Download
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}
