@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PDFViewer, scrollToPage } from '@progress/kendo-react-pdf-viewer';
+import { PDFViewer, scrollToPage } from '@progress/kendo-react-all';
 import type {
   PDFViewerHandle,
   PDFViewerTool,
   PageEvent,
   ErrorEvent,
-} from '@progress/kendo-react-pdf-viewer';
+} from '@progress/kendo-react-all';
 import '@progress/kendo-theme-default/dist/all.css';
 import './KendoPdfViewer.css';
 

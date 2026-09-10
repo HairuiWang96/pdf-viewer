@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { DropDownList } from '@progress/kendo-react-dropdowns';
-import type { DropDownListChangeEvent } from '@progress/kendo-react-dropdowns';
+import { DropDownList } from '@progress/kendo-react-all';
+import type { DropDownListChangeEvent } from '@progress/kendo-react-all';
 import type { PdfMetadata } from '../../types';
 import '@progress/kendo-theme-default/dist/all.css';
 

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { ComboBox } from '@progress/kendo-react-dropdowns';
-import type { ComboBoxChangeEvent } from '@progress/kendo-react-dropdowns';
+import { ComboBox } from '@progress/kendo-react-all';
+import type { ComboBoxChangeEvent } from '@progress/kendo-react-all';
 import type { PdfMetadata } from '../../types';
 import '@progress/kendo-theme-default/dist/all.css';
 
