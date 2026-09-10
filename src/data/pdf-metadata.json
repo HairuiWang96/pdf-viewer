@@ -288,5 +288,28 @@
     "language": "English",
     "status": "Published",
     "stampText": "TEST CASE | Redaction Integrity"
+  },
+  {
+    "id": "t11",
+    "caseNumber": "CASE-TEST-AUDIO-MULTI",
+    "fileName": "case-multi-audio.pdf",
+    "filePath": "/case-multi-audio.pdf",
+    "title": "Test: Multiple Audio Attachments",
+    "author": "QA",
+    "description": "One PDF carrying three audio attachments in two formats (2x MP3, 1x WAV), each at a distinct pitch so it is audible which is playing.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "audio",
+      "attachment",
+      "multiple"
+    ],
+    "totalPages": 1,
+    "fileSize": "45 KB",
+    "createdDate": "2026-09-10",
+    "lastModified": "2026-09-10",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Multiple Audio Attachments"
   }
 ]
