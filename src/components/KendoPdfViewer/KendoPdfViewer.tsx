@@ -7,6 +7,8 @@ import type {
   ErrorEvent,
 } from '@progress/kendo-react-all';
 import '@progress/kendo-theme-default/dist/all.css';
+import { toAttachments } from './attachments';
+import type { PdfAttachment, RawAttachment } from './attachments';
 import './KendoPdfViewer.css';
 
 interface KendoPdfViewerProps {
@@ -18,26 +20,6 @@ interface KendoPdfViewerProps {
   isMobile: boolean;
 }
 
-// pdf.js attachments carry raw bytes and a filename, no MIME type — guess one
-// from the extension so the browser knows how to play/handle the Blob.
-const AUDIO_MIME_TYPES: Record<string, string> = {
-  wav: 'audio/wav',
-  mp3: 'audio/mpeg',
-  m4a: 'audio/mp4',
-  ogg: 'audio/ogg',
-  aac: 'audio/aac',
-};
-
-function guessAudioMimeType(filename: string): string | null {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  return ext ? (AUDIO_MIME_TYPES[ext] ?? null) : null;
-}
-
-interface PdfAttachment {
-  filename: string;
-  url: string;
-  mimeType: string | null;
-}
 
 /**
  * KendoReact PDF Viewer (commercial component — see README for licensing).
@@ -83,11 +65,20 @@ export default function KendoPdfViewer({
   // would scroll the viewer again, fighting the user's scroll.
   const viewerPageRef = useRef(currentPage);
 
+  // Mirrored into a ref so the unmount cleanup below can see the current list.
+  // A cleanup with an empty dependency array closes over the value from the
+  // first render, which is the empty array — it would revoke nothing and the
+  // blob URLs would leak for the life of the tab. Written in an effect rather
+  // than during render, since a render can be discarded before it commits.
+  const attachmentsRef = useRef<PdfAttachment[]>([]);
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
   // The viewer remounts on file change (see `key={filePath}` below), so this
   // only needs to revoke on unmount, not on every document switch.
   useEffect(() => {
-    return () => attachments.forEach((att) => URL.revokeObjectURL(att.url));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => attachmentsRef.current.forEach((att) => URL.revokeObjectURL(att.url));
   }, []);
 
   useEffect(() => {
@@ -119,15 +110,17 @@ export default function KendoPdfViewer({
     // already parsed internally, so we can pull them out from that directly
     // instead of loading the file a second time.
     const pdfDocument = viewerRef.current?.document;
-    pdfDocument?.getAttachments().then((raw: Record<string, { filename: string; content: Uint8Array }> | undefined) => {
-      const found = Object.values(raw ?? {});
-      const next = found.map((att) => {
-        const mimeType = guessAudioMimeType(att.filename);
-        const blob = new Blob([new Uint8Array(att.content)], { type: mimeType ?? 'application/octet-stream' });
-        return { filename: att.filename, url: URL.createObjectURL(blob), mimeType };
+    pdfDocument
+      ?.getAttachments()
+      .then((raw: Record<string, RawAttachment> | undefined) => {
+        setAttachments(toAttachments(raw));
+      })
+      .catch((error: unknown) => {
+        // A malformed or unusual file can reject here. The document itself
+        // still renders, so log it and leave the panel hidden rather than
+        // letting an unhandled rejection take the view down.
+        console.error('Could not read attachments from the document:', error);
       });
-      setAttachments(next);
-    });
   }, [onLoadSuccess]);
 
   const handleError = useCallback((event: ErrorEvent) => {
