@@ -266,5 +266,27 @@
     "language": "English",
     "status": "Published",
     "stampText": "TEST CASE | Audio Attachment (MP3)"
+  },
+  {
+    "id": "t10",
+    "caseNumber": "CASE-TEST-REDACTION",
+    "fileName": "case-redaction.pdf",
+    "filePath": "/case-redaction.pdf",
+    "title": "Test: Redaction Integrity",
+    "author": "QA",
+    "description": "Two identical-looking black bars: one covers text that is still in the file, one covers nothing. Tests whether a viewer lets a reader select, copy or search out cosmetically redacted text.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "redaction",
+      "security"
+    ],
+    "totalPages": 1,
+    "fileSize": "3 KB",
+    "createdDate": "2026-09-10",
+    "lastModified": "2026-09-10",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Redaction Integrity"
   }
 ]
