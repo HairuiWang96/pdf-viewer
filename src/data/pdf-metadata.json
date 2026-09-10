@@ -243,5 +243,28 @@
     "language": "English",
     "status": "Published",
     "stampText": "TEST CASE | Digital Signature"
+  },
+  {
+    "id": "t9",
+    "caseNumber": "CASE-TEST-AUDIO-MP3",
+    "fileName": "case-audio-attachment-mp3.pdf",
+    "filePath": "/case-audio-attachment-mp3.pdf",
+    "title": "Test: Embedded Audio Attachment (MP3)",
+    "author": "QA",
+    "description": "PDF with an MP3 audio file embedded as a file attachment \u2014 the MP3 counterpart to CASE-TEST-AUDIO, which uses WAV.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "audio",
+      "attachment",
+      "mp3"
+    ],
+    "totalPages": 1,
+    "fileSize": "28 KB",
+    "createdDate": "2026-09-10",
+    "lastModified": "2026-09-10",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Audio Attachment (MP3)"
   }
 ]
