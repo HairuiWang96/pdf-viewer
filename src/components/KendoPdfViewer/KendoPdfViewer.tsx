@@ -7,8 +7,8 @@ import type {
   ErrorEvent,
 } from '@progress/kendo-react-all';
 import '@progress/kendo-theme-default/dist/all.css';
-import { toAttachments } from './attachments';
-import type { PdfAttachment, RawAttachment } from './attachments';
+import PdfAttachments from '../PdfAttachments';
+import type { AttachmentSource } from '../PdfAttachments';
 import './KendoPdfViewer.css';
 
 interface KendoPdfViewerProps {
@@ -29,6 +29,9 @@ interface KendoPdfViewerProps {
  * print). So there is no separate PageNavigation bar here — page changes
  * come from the toolbar pager or from scrolling, and are pushed back up
  * so the thumbnail sidebar stays in sync.
+ *
+ * Embedded attachments are not this component's concern: it just hands the
+ * parsed document to PdfAttachments, which renders itself or nothing.
  */
 
 /** Toolbar tools. Mobile drops search/open/print to fit the narrow bar. */
@@ -55,31 +58,14 @@ export default function KendoPdfViewer({
   isMobile,
 }: KendoPdfViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
-  const [attachments, setAttachments] = useState<PdfAttachment[]>([]);
-  // Starts closed on every document — the viewer remounts on file change
-  // (see `key={filePath}` below), so this resets itself.
-  const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
+
+  // Handed to PdfAttachments, which owns everything else about them.
+  const [pdfDocument, setPdfDocument] = useState<AttachmentSource | null>(null);
 
   // Tracks the page the viewer itself is showing. Without this, scrolling the
   // viewer raises onPageChange -> parent state changes -> the effect below
   // would scroll the viewer again, fighting the user's scroll.
   const viewerPageRef = useRef(currentPage);
-
-  // Mirrored into a ref so the unmount cleanup below can see the current list.
-  // A cleanup with an empty dependency array closes over the value from the
-  // first render, which is the empty array — it would revoke nothing and the
-  // blob URLs would leak for the life of the tab. Written in an effect rather
-  // than during render, since a render can be discarded before it commits.
-  const attachmentsRef = useRef<PdfAttachment[]>([]);
-  useEffect(() => {
-    attachmentsRef.current = attachments;
-  }, [attachments]);
-
-  // The viewer remounts on file change (see `key={filePath}` below), so this
-  // only needs to revoke on unmount, not on every document switch.
-  useEffect(() => {
-    return () => attachmentsRef.current.forEach((att) => URL.revokeObjectURL(att.url));
-  }, []);
 
   useEffect(() => {
     if (currentPage === viewerPageRef.current) return;
@@ -105,22 +91,10 @@ export default function KendoPdfViewer({
     const totalPages = viewerRef.current?.pages?.length ?? 0;
     if (totalPages > 0) onLoadSuccess(totalPages);
 
-    // Attachments (e.g. embedded audio) aren't part of the page content, so
-    // Kendo never renders them — but it does expose the pdf.js document it
-    // already parsed internally, so we can pull them out from that directly
-    // instead of loading the file a second time.
-    const pdfDocument = viewerRef.current?.document;
-    pdfDocument
-      ?.getAttachments()
-      .then((raw: Record<string, RawAttachment> | undefined) => {
-        setAttachments(toAttachments(raw));
-      })
-      .catch((error: unknown) => {
-        // A malformed or unusual file can reject here. The document itself
-        // still renders, so log it and leave the panel hidden rather than
-        // letting an unhandled rejection take the view down.
-        console.error('Could not read attachments from the document:', error);
-      });
+    // Kendo exposes the pdf.js document it parsed internally. Passing it down
+    // lets PdfAttachments read the embedded files from the document already in
+    // memory instead of fetching the PDF a second time.
+    setPdfDocument((viewerRef.current?.document as AttachmentSource | undefined) ?? null);
   }, [onLoadSuccess]);
 
   const handleError = useCallback((event: ErrorEvent) => {
@@ -144,41 +118,7 @@ export default function KendoPdfViewer({
         style={{ height: '100%' }}
       />
 
-      {attachments.length > 0 && (
-        <div className="pdf-attachments">
-          {/* Collapsed by default: most documents carry no attachments, and a
-              row of players per file crowds the viewer. The count is on the
-              button so their presence is still obvious without expanding. */}
-          <button
-            type="button"
-            className="pdf-attachments-toggle"
-            aria-expanded={isAttachmentsOpen}
-            aria-controls="pdf-attachments-list"
-            onClick={() => setIsAttachmentsOpen((open) => !open)}
-          >
-            <span className="pdf-attachments-caret" aria-hidden="true" />
-            Attachments
-            <span className="pdf-attachments-count">{attachments.length}</span>
-          </button>
-
-          {isAttachmentsOpen && (
-            <ul className="pdf-attachments-list" id="pdf-attachments-list">
-              {attachments.map((att) => (
-                <li key={att.filename} className="pdf-attachment">
-                  <span className="pdf-attachment-name">{att.filename}</span>
-                  {att.mimeType?.startsWith('audio/') ? (
-                    <audio controls src={att.url} />
-                  ) : (
-                    <a className="pdf-attachment-download" href={att.url} download={att.filename}>
-                      Download
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      <PdfAttachments source={pdfDocument} />
     </div>
   );
 }

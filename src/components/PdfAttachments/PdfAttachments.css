@@ -1,0 +1,108 @@
+.pdf-attachments {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 13px;
+}
+
+/* Collapsed row — one line, whatever the attachment count. */
+.pdf-attachments-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.pdf-attachments-toggle:hover {
+  background: var(--code-bg);
+}
+
+.pdf-attachments-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Chevron drawn from a border so it needs no icon asset; it rotates to
+   point down once the list is open. */
+.pdf-attachments-caret {
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid currentColor;
+  transition: transform 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdf-attachments-caret {
+    transition: none;
+  }
+}
+
+.pdf-attachments-toggle[aria-expanded='true'] .pdf-attachments-caret {
+  transform: rotate(90deg);
+}
+
+.pdf-attachments-count {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.pdf-attachments-list {
+  margin: 0;
+  padding: 0 16px 10px 30px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Fixed-width filename column so the players line up with each other
+   instead of starting wherever the name happens to end. */
+.pdf-attachment {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+}
+
+.pdf-attachment-name {
+  flex: 0 0 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-attachment audio {
+  height: 32px;
+}
+
+.pdf-attachment-download {
+  color: var(--accent);
+}
+
+@media (max-width: 767px) {
+  .pdf-attachment {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pdf-attachment-name {
+    flex: none;
+    max-width: 100%;
+  }
+}
