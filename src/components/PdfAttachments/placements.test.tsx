@@ -163,6 +163,33 @@ describe('Toolbar — the one that costs no space', () => {
     expect(popover.style.right).not.toBe('');
   });
 
+  it('portals the popover out of the toolbar subtree', async () => {
+    const { container } = render(<ToolbarAttachments attachments={mixedAttachments} />);
+
+    await user.click(screen.getByRole('button', { name: /attachments/i }));
+
+    // Kendo's toolbar is position:relative with z-index:1, which makes it a
+    // stacking context — and z-index cannot climb out of one, so the popover
+    // painted *under* the document no matter how large its z-index. Escaping
+    // the context is the only fix, so assert it is genuinely not a descendant
+    // rather than asserting some z-index number that cannot help.
+    const popover = screen.getByRole('dialog');
+    expect(container.contains(popover)).toBe(false);
+    expect(document.body.contains(popover)).toBe(true);
+  });
+
+  it('stays open when the popover itself is clicked', async () => {
+    render(<ToolbarAttachments attachments={mixedAttachments} />);
+
+    await user.click(screen.getByRole('button', { name: /attachments/i }));
+    // The portal puts the popover outside the component's subtree, so a naive
+    // click-outside check counts clicks *inside* it as outside — closing it
+    // the instant anyone reaches for a player.
+    await user.click(screen.getByText('note.mp3'));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
   it('keeps its name in text, because the trigger is icon-only on mobile', () => {
     render(<ToolbarAttachments attachments={[makeAttachment()]} />);
 
