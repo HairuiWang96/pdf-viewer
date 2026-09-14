@@ -39,10 +39,10 @@
   color: var(--accent);
 }
 
+/* Just the word now — the count sits beside it as a sibling, spaced by the
+   button's own flex gap. */
 .toolbar-attachments-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-block;
 }
 
 .toolbar-attachments-count {
@@ -67,8 +67,9 @@
 .toolbar-attachments-popover {
   position: fixed;
   z-index: 15;
-  min-width: 280px;
-  max-width: min(360px, calc(100vw - 16px));
+  /* `width` is set inline from JS, wide enough that the audio scrubber
+     survives. This only guards against it ever being unset. */
+  max-width: calc(100vw - 16px);
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -139,10 +140,6 @@
     transform: translate(35%, -25%);
   }
 
-  /* The measured `right` is already clamped away from the left edge, so this
-     only needs to stop the box demanding a width the screen does not have. */
-  .toolbar-attachments-popover {
-    min-width: 0;
-    max-width: calc(100vw - 16px);
-  }
+  /* Nothing to do for the popover here — its width and offset are measured
+     against the viewport in JS, so they are already correct on a phone. */
 }

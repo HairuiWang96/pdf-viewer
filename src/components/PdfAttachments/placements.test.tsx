@@ -197,6 +197,31 @@ describe('Toolbar — the one that costs no space', () => {
     // icon-only button with no accessible name is announced as "button".
     expect(screen.getByRole('button', { name: /attachments/i })).toBeInTheDocument();
   });
+
+  it('keeps the count outside the label, so hiding one does not hide the other', () => {
+    const { container } = render(<ToolbarAttachments attachments={mixedAttachments} />);
+
+    const label = container.querySelector('.toolbar-attachments-label');
+    const count = container.querySelector('.toolbar-attachments-count');
+
+    // On mobile the label is visually hidden with clip-path, which clips every
+    // descendant whatever its position — so a count nested inside it vanishes
+    // on the one screen where the badge is all that is left of the indicator.
+    expect(count).not.toBeNull();
+    expect(label?.contains(count!)).toBe(false);
+  });
+
+  it('gives the popover an explicit width, so the audio scrubber survives', async () => {
+    render(<ToolbarAttachments attachments={mixedAttachments} />);
+
+    await user.click(screen.getByRole('button', { name: /attachments/i }));
+
+    // Content-sized, the popover shrinks to the filenames and a native <audio>
+    // drops its scrubber below roughly 200px — play button, nothing to seek.
+    const popover = screen.getByRole('dialog');
+    expect(popover.style.width).not.toBe('');
+    expect(parseInt(popover.style.width, 10)).toBeGreaterThanOrEqual(200);
+  });
 });
 
 describe('Details — the one that reads as metadata', () => {

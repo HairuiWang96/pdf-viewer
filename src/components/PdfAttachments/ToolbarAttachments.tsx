@@ -52,12 +52,20 @@ export default function ToolbarAttachments({ attachments }: ToolbarAttachmentsPr
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    setPopoverStyle({
-      top: rect.bottom + 6,
-      // Right-aligned to the button, but never pushed off the left edge on a
-      // narrow screen.
-      right: Math.max(8, window.innerWidth - rect.right),
-    });
+    // An explicit width, not content sizing. Left to size itself the popover
+    // shrinks to fit the filenames, and a native <audio> element drops its
+    // scrubber below roughly 200px wide — leaving a play button and no way to
+    // seek, which is most of the point for a voicemail.
+    const width = Math.min(360, window.innerWidth - 16);
+
+    // Right-aligned to the button, then pulled back so the box cannot hang off
+    // either edge on a narrow screen.
+    const right = Math.min(
+      Math.max(8, window.innerWidth - rect.right),
+      window.innerWidth - width - 8,
+    );
+
+    setPopoverStyle({ top: rect.bottom + 6, right, width });
   }, []);
 
   // Measured on open rather than on every render, and kept honest while open:
@@ -110,10 +118,12 @@ export default function ToolbarAttachments({ attachments }: ToolbarAttachmentsPr
       >
         <span aria-hidden="true">📎</span>
         {/* The icon carries no text, so the name has to say the whole thing. */}
-        <span className="toolbar-attachments-label">
-          Attachments
-          <span className="toolbar-attachments-count">{attachments.length}</span>
-        </span>
+        <span className="toolbar-attachments-label">Attachments</span>
+        {/* A sibling of the label, never a child of it. The label is visually
+            hidden on mobile with clip-path, which clips every descendant
+            whatever its position — nesting the count inside meant the badge
+            vanished on exactly the screen where it is the only thing left. */}
+        <span className="toolbar-attachments-count">{attachments.length}</span>
       </button>
 
       {isOpen &&
