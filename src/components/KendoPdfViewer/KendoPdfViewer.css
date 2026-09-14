@@ -27,6 +27,14 @@
     background: var(--bg);
   }
 
+  /* On mobile the attachments bar is position:fixed, so it overlays the
+     document instead of taking space from it. This lets the last page scroll
+     clear of the bar. :has() keeps the room reserved only when there is a bar
+     to reserve it for — PdfAttachments renders nothing without attachments. */
+  .kendo-pdf-viewer:has(.pdf-attachments) .k-pdf-viewer .k-canvas {
+    padding-bottom: 52px;
+  }
+
   /* Let the toolbar wrap instead of overflowing on narrow screens */
   .kendo-pdf-viewer .k-pdf-viewer .k-toolbar {
     flex-wrap: wrap;

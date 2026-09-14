@@ -120,10 +120,26 @@
   }
 
   /* ── Making the bar findable on a phone ──────────────────────────────
-     On desktop this is a quiet row under a viewer the eye already takes in
-     whole. On a phone the PDF fills the screen and this lands on the bottom
-     edge, where it reads as system chrome — so it is tinted, given a 44px
-     tap target, and led with an icon to look like content worth tapping. */
+     On desktop this is a quiet row under a viewer the eye takes in whole. On
+     a phone the PDF fills the screen and the bar is both hard to reach and
+     easy to dismiss as system chrome, so it gets two changes: it is pinned
+     out of flow, and it is styled to look like content worth tapping.
+
+     Pinned matters most. In flow the bar depends on the viewport ending where
+     the layout thinks it does, which on a phone it does not — leaving it
+     reachable only by scrolling or zooming the page, which nobody does to
+     discover a feature they have not been told about. */
+  .pdf-attachments {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Below the slide-in details and thumbnail panels (both z-index 20), which
+       should cover this while open, but above the document. */
+    z-index: 10;
+    box-shadow: 0 -2px 8px rgb(0 0 0 / 0.12);
+  }
+
   .pdf-attachments-toggle {
     min-height: 44px;
     background: var(--accent-bg);
@@ -151,8 +167,9 @@
     color: var(--bg);
   }
 
-  /* Keep the toggle visible while a long list scrolls under it. */
+  /* Keep the toggle visible while a long list scrolls under it. dvh for the
+     same reason the layout uses it — vh overstates a phone's real viewport. */
   .pdf-attachments-list {
-    max-height: 50vh;
+    max-height: 50dvh;
   }
 }
