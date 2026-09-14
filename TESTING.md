@@ -16,13 +16,117 @@ npm run test:coverage
 
 ## The stack
 
-| Layer | What it is | What it gives you |
+### Why there are five tools
+
+Running a single test needs five separate things, and each package does exactly one of
+them. They are separate so they stay swappable — you could replace jsdom with a real
+browser and keep the other four unchanged.
+
+| # | The need | Tool |
 |---|---|---|
-| **Vitest** | Test runner, Vite-native — same transform pipeline as the build | `describe/it/expect`, the `vi.*` fake toolkit, watch mode, v8 coverage |
-| **jsdom** | A fake DOM in Node | Components render — but **no layout, no paint, no media** |
-| **Testing Library** | `render`, `renderHook`, `screen` | Query the DOM the way a user perceives it, not by CSS class |
-| **user-event** | Realistic interaction | A click fires `pointerdown → mousedown → focus → click`, not one synthetic event |
-| **jest-dom** | Extra matchers | `toBeInTheDocument`, `toHaveAccessibleName`, `toHaveAttribute` |
+| 1 | Something to *run* tests and report pass/fail | **Vitest** — Vite-native, so the same transform pipeline as the build. Also supplies the `vi.*` fake toolkit, watch mode and v8 coverage. |
+| 2 | A `document` to render into — Node has none | **jsdom** |
+| 3 | Render a React component and reach the result | **@testing-library/react** — `render`, `renderHook`, `screen` |
+| 4 | Simulate a user interacting | **@testing-library/user-event** |
+| 5 | Readable assertions about DOM state | **@testing-library/jest-dom** |
+
+### You only import three of them
+
+A test file imports three:
+
+```tsx
+import { describe, it, expect } from 'vitest';            // 1
+import { render, screen } from '@testing-library/react';  // 3
+import userEvent from '@testing-library/user-event';      // 4
+```
+
+The other two are wired up globally, which is why they never appear:
+
+- **jsdom** is `environment: 'jsdom'` in `vite.config.ts`. It is the *world* the test runs
+  in, not something you call.
+- **jest-dom** is `import '@testing-library/jest-dom/vitest'` in `src/test/setup.ts`. It
+  *adds methods to `expect`*, so it changes what `expect` can do without being named in
+  your file.
+
+That is why `toBeInTheDocument()` works with no import. It is not part of Vitest.
+
+### One test, annotated
+
+```tsx
+it('reveals the attachments when the row is clicked', async () => {
+  const user = userEvent.setup();                    // ← 4  user-event
+  render(<BottomBarAttachments … />);                // ← 3  RTL, into jsdom's document (2)
+  const toggle = screen.getByRole('button', {        // ← 3  RTL query
+    name: /attachments/i });
+  await user.click(toggle);                          // ← 4  full event sequence
+  expect(toggle).toHaveAttribute('aria-expanded',    // ← 1 expect, 5 the matcher
+    'true');
+});
+```
+
+`it` and `expect` come from Vitest; `toHaveAttribute` is jest-dom bolted onto Vitest's
+`expect`.
+
+### What "a fake DOM" actually means
+
+This is the load-bearing detail behind everything else in this document. jsdom **parses**
+HTML and CSS and builds a tree. It never **renders** anything — there are no pixels and no
+layout engine. Probed directly:
+
+```js
+el.style.width = '300px';
+
+el.getBoundingClientRect()      // → { width: 0, height: 0, top: 0 }   no measurement
+el.offsetWidth                  // → 0                                 no measurement
+getComputedStyle(el).width      // → "300px"        just echoing the string you assigned
+window.innerWidth               // → 1024           a fixed, fake viewport
+```
+
+`getComputedStyle` answers because jsdom is reading back what you wrote.
+`getBoundingClientRect` cannot, because that would mean working out where the element
+actually lands — and nothing in jsdom does that.
+
+Which is exactly why each of the four device bugs was invisible to a green suite:
+
+| Bug | The missing capability |
+|---|---|
+| `overflow: hidden` clipped the popover | Clipping needs layout. No layout, nothing clips. |
+| z-index put the popover behind the PDF | Stacking is a *paint* concern. Nothing paints. |
+| `clip-path` hid the count badge | Also paint. |
+| The audio scrubber collapsed | Needs a real width *and* a media engine. Neither exists. |
+
+It also explains a quirk in our own code: `ToolbarAttachments`' `position()` calls
+`getBoundingClientRect()` and gets zeros under test, while `window.innerWidth` is a
+hardcoded 1024 — so the width resolves to `min(360, 1008) = 360`. The test proves a width
+is **applied**. It can never prove the width is *right* on a phone.
+
+### Why user-event rather than `element.click()`
+
+A real click is not one event. `user-event` fires the whole sequence —
+`pointerdown → mousedown → focus → pointerup → mouseup → click`.
+
+That is load-bearing here: the toolbar popover's dismiss handler listens for
+**`mousedown`**, not `click`. A bare `element.click()` would never trigger it, and the
+dismiss tests would pass while dismissal was broken in the browser.
+
+### The picture
+
+```text
+┌─ Vitest ─────────────────────────────────────────┐   runs files, collects results
+│  ┌─ jsdom environment ────────────────────────┐  │   provides document / window
+│  │                                            │  │
+│  │   React renders here  ← @testing-library   │  │   render() / screen queries
+│  │                       ← user-event         │  │   realistic interaction
+│  │                                            │  │
+│  └────────────────────────────────────────────┘  │
+│   expect(…) + jest-dom matchers                  │
+└──────────────────────────────────────────────────┘
+        ↑ everything above is text in Node
+        ↓ nothing below the line exists
+   layout · paint · stacking · audio  →  needs a real browser
+```
+
+That bottom line is why the QA section below exists.
 
 Config lives in `vite.config.ts` under `test:`; shared setup in `src/test/setup.ts`.
 
