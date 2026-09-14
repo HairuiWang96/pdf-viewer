@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Children, cloneElement, useCallback, useEffect, useRef } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { PDFViewer, scrollToPage } from '@progress/kendo-react-all';
 import type {
   PDFViewerHandle,
@@ -7,8 +8,12 @@ import type {
   ErrorEvent,
 } from '@progress/kendo-react-all';
 import '@progress/kendo-theme-default/dist/all.css';
-import PdfAttachments from '../PdfAttachments';
-import type { AttachmentSource } from '../PdfAttachments';
+import { BottomBarAttachments, ToolbarAttachments } from '../PdfAttachments';
+import type {
+  AttachmentPlacement,
+  AttachmentSource,
+  PdfAttachment,
+} from '../PdfAttachments';
 import './KendoPdfViewer.css';
 
 interface KendoPdfViewerProps {
@@ -17,7 +22,12 @@ interface KendoPdfViewerProps {
   currentPage: number;
   onPageChange: (page: number) => void;
   onLoadSuccess: (totalPages: number) => void;
+  /** Reports the parsed pdf.js document up, so the page can read attachments
+      out of it — two of the three placements live outside this component. */
+  onDocumentLoad: (document: AttachmentSource | null) => void;
   isMobile: boolean;
+  attachments: PdfAttachment[];
+  placement: AttachmentPlacement;
 }
 
 
@@ -58,14 +68,12 @@ export default function KendoPdfViewer({
   currentPage,
   onPageChange,
   onLoadSuccess,
+  onDocumentLoad,
   isMobile,
+  attachments,
+  placement,
 }: KendoPdfViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
-
-  // Handed to PdfAttachments, which owns everything else about them. State
-  // rather than a ref because it is passed down as a prop, so it has to
-  // re-render to get there — the opposite of viewerPageRef below.
-  const [pdfDocument, setPdfDocument] = useState<AttachmentSource | null>(null);
 
   /**
    * ── Two-way page sync ──────────────────────────────────────────────────
@@ -137,15 +145,38 @@ export default function KendoPdfViewer({
     const totalPages = viewerRef.current?.pages?.length ?? 0;
     if (totalPages > 0) onLoadSuccess(totalPages);
 
-    // Kendo exposes the pdf.js document it parsed internally. Passing it down
-    // lets PdfAttachments read the embedded files from the document already in
-    // memory instead of fetching the PDF a second time.
-    setPdfDocument((viewerRef.current?.document as AttachmentSource | undefined) ?? null);
-  }, [onLoadSuccess]);
+    // Kendo exposes the pdf.js document it parsed internally. Reporting it up
+    // lets the page read embedded files from the document already in memory
+    // instead of fetching the PDF a second time.
+    onDocumentLoad((viewerRef.current?.document as AttachmentSource | undefined) ?? null);
+  }, [onLoadSuccess, onDocumentLoad]);
 
   const handleError = useCallback((event: ErrorEvent) => {
     console.error('KendoReact PDF Viewer failed to load the document:', event.error);
   }, []);
+
+  /**
+   * Appends the attachments button to Kendo's own toolbar.
+   *
+   * `tools` only accepts Kendo's nine built-in names, so a custom tool cannot
+   * go in that way. onRenderToolbar hands over the rendered toolbar element
+   * instead, and cloning it with one extra child puts our button inside the
+   * real bar rather than next to it.
+   *
+   * Kendo's roving tabindex only governs children matching its internal
+   * `buttons` selectors, which ours does not match — so the button keeps its
+   * natural tab stop instead of being skipped.
+   */
+  const renderToolbar = useCallback(
+    (defaultRendering: ReactElement<{ children?: ReactNode }>) =>
+      cloneElement(
+        defaultRendering,
+        undefined,
+        ...Children.toArray(defaultRendering.props.children),
+        <ToolbarAttachments key="attachments" attachments={attachments} />,
+      ),
+    [attachments],
+  );
 
   return (
     <div className="kendo-pdf-viewer">
@@ -161,10 +192,11 @@ export default function KendoPdfViewer({
         onLoad={handleLoad}
         onPageChange={handlePageChange}
         onError={handleError}
+        onRenderToolbar={placement === 'toolbar' ? renderToolbar : undefined}
         style={{ height: '100%' }}
       />
 
-      <PdfAttachments source={pdfDocument} />
+      {placement === 'bottom' && <BottomBarAttachments attachments={attachments} />}
     </div>
   );
 }

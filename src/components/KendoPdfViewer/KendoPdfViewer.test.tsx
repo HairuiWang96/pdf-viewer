@@ -45,15 +45,11 @@ vi.mock('@progress/kendo-react-all', async () => {
   };
 });
 
-// The panel is covered by its own suite; here it only needs to record what
-// the viewer passes down.
-const { attachmentsProps } = vi.hoisted(() => ({ attachmentsProps: [] as unknown[] }));
-
+// The placements have their own suites; here the viewer only has to report
+// the document up and mount the right one.
 vi.mock('../PdfAttachments', () => ({
-  default: (props: { source: unknown }) => {
-    attachmentsProps.push(props.source);
-    return null;
-  },
+  BottomBarAttachments: () => <div data-testid="bottom-bar" />,
+  ToolbarAttachments: () => <div data-testid="toolbar-attachments" />,
 }));
 
 const defaultProps = {
@@ -62,12 +58,15 @@ const defaultProps = {
   currentPage: 1,
   onPageChange: vi.fn(),
   onLoadSuccess: vi.fn(),
+  onDocumentLoad: vi.fn(),
   isMobile: false,
+  attachments: [],
+  placement: 'bottom' as const,
 };
 
 describe('KendoPdfViewer', () => {
   beforeEach(() => {
-    attachmentsProps.length = 0;
+    vi.clearAllMocks();
     mockState.pages = [{}, {}];
   });
 
@@ -88,13 +87,24 @@ describe('KendoPdfViewer', () => {
     expect(onLoadSuccess).not.toHaveBeenCalled();
   });
 
-  it('hands the parsed document to the attachments panel once it loads', async () => {
-    render(<KendoPdfViewer {...defaultProps} />);
+  it('reports the parsed document up once it loads', async () => {
+    const onDocumentLoad = vi.fn();
+    render(<KendoPdfViewer {...defaultProps} onDocumentLoad={onDocumentLoad} />);
 
     await screen.findByTestId('kendo-pdfviewer');
-    // Null on the first render, the document after onLoad — the panel is what
-    // decides whether there is anything to show.
-    expect(attachmentsProps[0]).toBeNull();
-    expect(attachmentsProps.at(-1)).toBe(mockState.document);
+    // The page owns the document, because two of the three attachment
+    // placements render outside this component.
+    expect(onDocumentLoad).toHaveBeenCalledWith(mockState.document);
+  });
+
+  it('mounts only the placement it was given', async () => {
+    const { rerender } = render(<KendoPdfViewer {...defaultProps} placement="bottom" />);
+    await screen.findByTestId('kendo-pdfviewer');
+    expect(screen.getByTestId('bottom-bar')).toBeInTheDocument();
+
+    // 'details' renders in PdfDetails, so the viewer should show neither.
+    rerender(<KendoPdfViewer {...defaultProps} placement="details" />);
+    expect(screen.queryByTestId('bottom-bar')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('toolbar-attachments')).not.toBeInTheDocument();
   });
 });

@@ -1,29 +1,29 @@
 import { useState } from 'react';
-import { useAttachments } from './useAttachments';
-import type { AttachmentSource } from './useAttachments';
-import './PdfAttachments.css';
+import type { PdfAttachment } from './attachments';
+import './BottomBarAttachments.css';
 
-interface PdfAttachmentsProps {
-  /** The parsed PDF document, or null until one has loaded. */
-  source: AttachmentSource | null;
+interface BottomBarAttachmentsProps {
+  attachments: PdfAttachment[];
 }
 
 /**
- * The embedded-file panel that sits under a PDF viewer.
+ * Placement 1 of 3 — a persistent bar pinned under the document.
  *
- * Attachments are not page content, so no viewer renders them — this reads
- * them off the parsed document and gives audio its own player and everything
- * else a download link. It owns the whole concern (reading, blob lifecycle,
- * UI), so a viewer only has to hand over the document it already parsed.
+ * The ambient option: always on screen whenever the document has attachments,
+ * costing a strip of vertical space to buy the guarantee that nobody has to go
+ * looking. Expands in place, pushing nothing aside.
  *
- * Renders nothing at all when the document carries no attachments, which is
- * the common case.
+ * Reads as part of the document rather than part of the tooling, which suits
+ * attachments — they belong to the file, not to the viewer. The cost is that a
+ * permanent bar is also permanently in the way, and on a phone it has to be
+ * loud enough to not be mistaken for browser chrome.
+ *
+ * See placement.ts for the alternatives. Renders nothing when the document has
+ * no attachments, which is the common case.
  */
-export default function PdfAttachments({ source }: PdfAttachmentsProps) {
-  const attachments = useAttachments(source);
-
-  // Starts closed for every document: the panel remounts (or `source` changes)
-  // on file change, so this resets itself.
+export default function BottomBarAttachments({ attachments }: BottomBarAttachmentsProps) {
+  // Starts closed for every document: the page clears attachments on file
+  // change, so this resets itself.
   const [isOpen, setIsOpen] = useState(false);
 
   if (attachments.length === 0) return null;

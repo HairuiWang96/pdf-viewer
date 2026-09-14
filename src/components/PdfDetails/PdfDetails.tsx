@@ -1,5 +1,7 @@
 import type { PdfMetadata } from '../../types';
 import CaseSelector from '../CaseSelector';
+import { DetailsAttachments } from '../PdfAttachments';
+import type { AttachmentPlacement, PdfAttachment } from '../PdfAttachments';
 import './PdfDetails.css';
 
 interface PdfDetailsProps {
@@ -16,6 +18,9 @@ interface PdfDetailsProps {
   hasMultipleCases: boolean;
   selectedCaseId: string | null;
   onSelectCase: (caseId: string) => void;
+  /* Attachments — rendered here only while the details placement is active */
+  attachments: PdfAttachment[];
+  placement: AttachmentPlacement;
 }
 
 export default function PdfDetails({
@@ -31,6 +36,8 @@ export default function PdfDetails({
   hasMultipleCases,
   selectedCaseId,
   onSelectCase,
+  attachments,
+  placement,
 }: PdfDetailsProps) {
   return (
       <aside
@@ -106,6 +113,12 @@ export default function PdfDetails({
             <dd>{metadata.language}</dd>
           </dl>
         </div>
+
+        {/* Sits with File Info because an embedded file is a property of the
+            document. Note it inherits this panel's gating: nothing renders
+            before a case is selected, even though the viewer is already
+            showing a document by then. */}
+        {placement === 'details' && <DetailsAttachments attachments={attachments} />}
 
         <div className="details-section">
           <h3>Dates</h3>

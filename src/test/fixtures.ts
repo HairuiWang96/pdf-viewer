@@ -1,4 +1,5 @@
 import type { PdfMetadata } from '../types';
+import type { PdfAttachment } from '../components/PdfAttachments';
 
 /**
  * Test data shared across the suites.
@@ -43,4 +44,24 @@ export const threeCases: PdfMetadata[] = [
     title: 'H1 2026 Midyear Review',
     filePath: '/h1-midyear-review.pdf',
   }),
+];
+
+/**
+ * Attachments as the three placement components receive them — already read
+ * off the document and turned into blob URLs by useAttachments, which has its
+ * own suite. These fixtures let the presentational tests skip all of that.
+ */
+export function makeAttachment(overrides: Partial<PdfAttachment> = {}): PdfAttachment {
+  return {
+    filename: 'note.mp3',
+    url: 'blob:mock-0',
+    mimeType: 'audio/mpeg',
+    ...overrides,
+  };
+}
+
+/** One audio file and one that is not, which is the branch every variant has. */
+export const mixedAttachments: PdfAttachment[] = [
+  makeAttachment({ filename: 'note.mp3', url: 'blob:mock-0', mimeType: 'audio/mpeg' }),
+  makeAttachment({ filename: 'transcript.pdf', url: 'blob:mock-1', mimeType: null }),
 ];

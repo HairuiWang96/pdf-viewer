@@ -1,0 +1,148 @@
+/* Placement 2: a tool among tools. Styled to sit inside Kendo's toolbar
+   without looking bolted on — flat, no border until hovered, like the zoom
+   and print buttons beside it. */
+
+.toolbar-attachments {
+  position: relative;
+  display: inline-flex;
+}
+
+.toolbar-attachments-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.toolbar-attachments-button:hover {
+  background: var(--code-bg);
+  border-color: var(--border);
+}
+
+.toolbar-attachments-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Pressed state, so the button reads as the thing holding the popover open. */
+.toolbar-attachments-button[aria-expanded='true'] {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.toolbar-attachments-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-attachments-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Anchored under the button. Above the document but below the slide-in
+   panels (z-index 20), matching the bottom bar's stacking. */
+.toolbar-attachments-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 15;
+  min-width: 280px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.15);
+}
+
+.toolbar-attachments-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Long lists scroll inside the popover rather than running off screen. */
+  max-height: 50dvh;
+  overflow-y: auto;
+}
+
+.toolbar-attachment {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.toolbar-attachment-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-attachment audio {
+  height: 32px;
+  width: 100%;
+}
+
+.toolbar-attachment-download {
+  align-self: flex-start;
+  color: var(--accent);
+}
+
+@media (max-width: 767px) {
+  /* The label would push the wrapping mobile toolbar onto another row, which
+     is the exact problem the toolbar placement is supposed to avoid. The
+     accessible name still carries it — see the markup. */
+  .toolbar-attachments-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* With the label gone the count has nothing to sit beside, so it rides the
+     icon as a corner badge instead. */
+  .toolbar-attachments-button {
+    position: relative;
+  }
+
+  .toolbar-attachments-count {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(35%, -25%);
+  }
+
+  .toolbar-attachments-popover {
+    /* Anchored right would hang off the edge on a narrow screen. */
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 0;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+  }
+}

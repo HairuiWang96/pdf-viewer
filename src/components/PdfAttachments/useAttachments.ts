@@ -18,6 +18,17 @@ export interface AttachmentSource {
  * The URLs are revoked when the source changes or the hook unmounts, so a
  * caller never has to think about them — holding them anywhere outside this
  * hook is what leaks them for the life of the tab.
+ *
+ * `source` must be referentially stable — state, a ref, or a memo, not an
+ * object built inline in the render. A fresh identity each render re-runs the
+ * effect, which sets state, which renders again: React stops it with "Maximum
+ * update depth exceeded", but only after the loop has already started. The
+ * page holds it in useState for exactly this reason.
+ *
+ * Call it once per document. Each call builds its own blob URLs, so two
+ * callers sharing a source get two sets of URLs for the same bytes — which is
+ * why the page reads attachments once and passes the list down to whichever
+ * placement is mounted, rather than letting each placement call this.
  */
 export function useAttachments(source: AttachmentSource | null): PdfAttachment[] {
   const [attachments, setAttachments] = useState<PdfAttachment[]>([]);
