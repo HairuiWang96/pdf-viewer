@@ -104,6 +104,17 @@ describe('PdfAttachments', () => {
     expect(screen.queryByText('note.mp3')).not.toBeInTheDocument();
   });
 
+  it('keeps the decorative icon out of the accessible name', async () => {
+    render(<PdfAttachments source={documentWith({ filename: 'note.mp3', content: bytes(1) })} />);
+
+    // The paperclip is presentation only — it exists to make the bar findable
+    // on a phone. If it ever loses aria-hidden, a screen reader announces
+    // "paperclip Attachments 1", so pin the name rather than the markup.
+    // No space before the count: the visual gap is flex `gap`, not text.
+    const toggle = await screen.findByRole('button', { name: /attachments/i });
+    expect(toggle).toHaveAccessibleName('Attachments1');
+  });
+
   it('reveals the attachments when the row is clicked, and hides them again', async () => {
     const user = userEvent.setup();
     render(<PdfAttachments source={documentWith({ filename: 'note.mp3', content: bytes(1) })} />);

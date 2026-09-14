@@ -62,17 +62,54 @@ export default function KendoPdfViewer({
 }: KendoPdfViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
 
-  // Handed to PdfAttachments, which owns everything else about them.
+  // Handed to PdfAttachments, which owns everything else about them. State
+  // rather than a ref because it is passed down as a prop, so it has to
+  // re-render to get there — the opposite of viewerPageRef below.
   const [pdfDocument, setPdfDocument] = useState<AttachmentSource | null>(null);
 
-  // Tracks the page the viewer itself is showing. Without this, scrolling the
-  // viewer raises onPageChange -> parent state changes -> the effect below
-  // would scroll the viewer again, fighting the user's scroll.
+  /**
+   * ── Two-way page sync ──────────────────────────────────────────────────
+   *
+   * `currentPage` lives in the parent rather than here, because the thumbnail
+   * sidebar needs it too. That makes it two-way bound, and two different
+   * things can change it:
+   *
+   *   scroll / Kendo's pager  →  Kendo tells us   →  the parent must update
+   *   a thumbnail click       →  the parent tells us  →  we must scroll
+   *
+   * Both arrive as the same `currentPage` prop. With no way to tell them
+   * apart, the first would trigger the second:
+   *
+   *   1. you scroll to page 3     → Kendo fires onPageChange(3)
+   *   2. → parent setCurrentPage(3)
+   *   3. → re-render, the currentPage prop is now 3
+   *   4. → the effect below fires → scrollToPage(element, 2)
+   *   5. → the viewer yanks back to the top of page 3, mid-scroll
+   *
+   * Step 4 is the bug. The parent was only echoing back what the viewer
+   * itself had just reported, but the effect cannot tell that apart from a
+   * genuine thumbnail click.
+   *
+   * This ref supplies the missing fact: which page the viewer is *already*
+   * showing. Both directions write it before acting — handlePageChange below
+   * when the change came from Kendo, the effect when it came from outside —
+   * so the guard at the top of the effect can read "currentPage already
+   * matches" as "this is my own echo, do nothing". A thumbnail click does not
+   * match, falls through, and scrolls.
+   *
+   * A ref and not state, deliberately: writing it must not cause a render,
+   * and the effect must read it synchronously on the very next render, which
+   * batched state would not give. Contrast `pdfDocument` above, which *is*
+   * state precisely because it has to re-render to reach PdfAttachments.
+   */
   const viewerPageRef = useRef(currentPage);
 
   useEffect(() => {
+    // The echo check. See the note above — this is what keeps a page change
+    // the viewer reported from being scrolled back at the user.
     if (currentPage === viewerPageRef.current) return;
 
+    // Null until React commits the ref, and again before a document loads.
     const element = viewerRef.current?.element;
     if (!element) return;
 
@@ -84,13 +121,19 @@ export default function KendoPdfViewer({
 
   const handlePageChange = useCallback(
     (event: PageEvent) => {
+      // Record it before reporting upward, so that when the parent's state
+      // change comes back down the effect's guard already matches.
       viewerPageRef.current = event.page;
       onPageChange(event.page);
     },
     [onPageChange],
   );
 
+  /** Fires once per document, when Kendo has finished parsing it. */
   const handleLoad = useCallback(() => {
+    // Reported up so the sidebar and details panel know the total. Guarded,
+    // because a failed load leaves `pages` empty and passing 0 up would look
+    // like a real answer rather than an absent one.
     const totalPages = viewerRef.current?.pages?.length ?? 0;
     if (totalPages > 0) onLoadSuccess(totalPages);
 

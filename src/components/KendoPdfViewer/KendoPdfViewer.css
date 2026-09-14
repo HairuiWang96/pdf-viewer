@@ -12,6 +12,10 @@
   border: none;
   border-radius: 0;
   height: 100%;
+  /* Paired with flex-shrink:0 on .pdf-attachments: the viewer is the one that
+     yields the strip of space the attachments bar needs, and min-height:0 is
+     what lets a flex item shrink below its content at all. */
+  min-height: 0;
 }
 
 .kendo-pdf-viewer .k-pdf-viewer .k-canvas {

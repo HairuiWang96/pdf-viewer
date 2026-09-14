@@ -2,6 +2,15 @@
   border-top: 1px solid var(--border);
   background: var(--bg);
   font-size: 13px;
+  /* The viewer above is sized height:100%, so without this the panel is what
+     gives way — it gets shrunk to nothing inside the overflow:hidden column
+     rather than the viewer yielding the strip of space it needs. */
+  flex-shrink: 0;
+}
+
+/* Hidden on desktop; the mobile block at the bottom of this file turns it on. */
+.pdf-attachments-icon {
+  display: none;
 }
 
 /* Collapsed row — one line, whatever the attachment count. */
@@ -68,6 +77,10 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* A document with many attachments would otherwise grow this list until it
+     crowded the viewer off the screen. Past this, the list scrolls itself. */
+  max-height: 40vh;
+  overflow-y: auto;
 }
 
 /* Fixed-width filename column so the players line up with each other
@@ -104,5 +117,42 @@
   .pdf-attachment-name {
     flex: none;
     max-width: 100%;
+  }
+
+  /* ── Making the bar findable on a phone ──────────────────────────────
+     On desktop this is a quiet row under a viewer the eye already takes in
+     whole. On a phone the PDF fills the screen and this lands on the bottom
+     edge, where it reads as system chrome — so it is tinted, given a 44px
+     tap target, and led with an icon to look like content worth tapping. */
+  .pdf-attachments-toggle {
+    min-height: 44px;
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+
+  .pdf-attachments-icon {
+    display: inline-flex;
+    font-size: 15px;
+    /* Not in the tab/reading order — aria-hidden in the markup. */
+    line-height: 1;
+  }
+
+  /* The caret leads on desktop, where it is the only affordance. Here the
+     icon leads and the caret becomes a trailing "there is more" hint, which
+     is the arrangement a phone user expects from a disclosure row. */
+  .pdf-attachments-caret {
+    order: 3;
+    margin-left: auto;
+  }
+
+  /* Solid against the tinted bar; the desktop tint-on-tint would vanish. */
+  .pdf-attachments-count {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  /* Keep the toggle visible while a long list scrolls under it. */
+  .pdf-attachments-list {
+    max-height: 50vh;
   }
 }

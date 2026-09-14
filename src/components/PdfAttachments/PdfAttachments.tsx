@@ -40,6 +40,13 @@ export default function PdfAttachments({ source }: PdfAttachmentsProps) {
         aria-controls="pdf-attachments-list"
         onClick={() => setIsOpen((open) => !open)}
       >
+        {/* Mobile only (see the CSS). A phone shows this bar as a thin strip
+            at the very bottom edge, where it reads as chrome and gets missed;
+            the icon is the cheapest thing that makes it look like content.
+            aria-hidden keeps it out of the button's accessible name. */}
+        <span className="pdf-attachments-icon" aria-hidden="true">
+          📎
+        </span>
         <span className="pdf-attachments-caret" aria-hidden="true" />
         Attachments
         <span className="pdf-attachments-count">{attachments.length}</span>
