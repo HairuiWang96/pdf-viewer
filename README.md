@@ -40,6 +40,18 @@ npm run build
 npm run preview
 ```
 
+### Tests
+
+```bash
+npm test             # run once
+npm run test:watch   # re-run on change
+npm run test:coverage
+```
+
+See [TESTING.md](TESTING.md) for what the suite covers, how to decide what is worth a
+test, and — importantly — the four classes of bug jsdom cannot see, which need a real
+device instead.
+
 ## Project Structure
 
 ```text
