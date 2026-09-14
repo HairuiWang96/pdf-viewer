@@ -45,6 +45,10 @@ export default function KendoDropDownList({
       value={selectedCase}
       onChange={handleChange}
       defaultItem={{ id: null, caseNumber: 'Please select a case number' }}
+      // Kendo gives the control a role but no name of its own, so a screen
+      // reader announces only "combobox". The visible <h3> in CaseSelector is
+      // not wired to it, and cannot be — the variants are used standalone.
+      ariaLabel="Select case number"
     />
   );
 }

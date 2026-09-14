@@ -6,8 +6,13 @@ A React-based PDF viewer with thumbnail navigation, page controls, and a documen
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- npm
+- [Node.js](https://nodejs.org/) v22 or higher
+- npm v12 or higher
+
+Both are enforced by `engines` in `package.json`, with `engine-strict` set in
+`.npmrc`, so `npm install` stops rather than half-installing. npm v12 is the
+floor because Node 22 ships npm 10, and npm 10 cannot resolve this branch's
+`@progress/kendo-react-all` peer dependencies — see commit `ab207fc`.
 
 ### Installation
 
@@ -40,17 +45,25 @@ npm run preview
 ```text
 src/
 ├── components/                 # UI components (each in its own folder)
-│   ├── Layout/                 # App shell — header + main content area
-│   ├── PageNavigation/         # Prev/next buttons and page number controls
-│   ├── PdfDetails/             # Right sidebar showing document metadata
+│   ├── CaseSelector/           # Case-number dropdown — three variants, see below
 │   ├── KendoPdfViewer/         # Main PDF rendering area (uses KendoReact PDF Viewer)
+│   ├── Layout/                 # App shell — header + main content area
+│   ├── PageNavigation/         # Prev/next page controls — UNUSED on this branch,
+│   │                           #   the Kendo toolbar has its own pager
+│   ├── PdfAttachments/         # Embedded-file panel (audio players / downloads)
+│   ├── PdfDetails/             # Right sidebar showing document metadata
 │   └── ThumbnailSidebar/       # Left sidebar with clickable page thumbnails
+├── pages/
+│   └── PdfViewerPage/          # Composes the hooks and the components above
 ├── constants/                  # Named constants (page widths, defaults)
 │   └── pdf.ts
 ├── data/                       # Static/mock data
 │   └── pdf-metadata.json
 ├── hooks/                      # Custom React hooks (business logic)
-│   └── usePdfViewer.ts
+│   ├── useDetailsPanel.ts      # Mobile detection + which side panel is open
+│   ├── usePdfStamp.ts          # Draws the stamp with pdf-lib, returns a blob URL
+│   ├── usePdfThumbnails.ts     # Renders each page to a PNG via PDF.js
+│   └── usePdfViewer.ts         # Selected case, current page, metadata
 ├── types/                      # Shared TypeScript interfaces
 │   └── pdf.ts
 ├── App.tsx                     # Root component — pure composition, no logic
@@ -68,7 +81,7 @@ src/
 
 ## KendoReact licensing
 
-This branch (`kendo-pdf-viewer`) drops react-pdf entirely and renders documents
+This branch (`kendo-react-all`) drops react-pdf entirely and renders documents
 with the KendoReact PDF Viewer. KendoReact is a **commercial** library: without an
 activated license it still runs, but it renders a watermark over the component
 and logs a license banner in the console.

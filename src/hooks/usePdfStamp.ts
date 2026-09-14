@@ -28,12 +28,15 @@ export default function usePdfStamp(
   );
 
   useEffect(() => {
-    if (!showStamp) {
-      setStampedUrl(null);
-      return;
-    }
+    if (!showStamp) return;
 
-    let revoked = false;
+    // The URL this run created, read at cleanup time rather than captured.
+    // Holding it here instead of reading `stampedUrl` in the cleanup is the
+    // point: `stampedUrl` is state, so the cleanup would close over its value
+    // from the render the effect ran in — null, since this run has not set it
+    // yet — and revoke nothing, leaking a whole stamped PDF on every switch.
+    let created: string | null = null;
+    let cancelled = false;
 
     async function stamp() {
       const response = await fetch(filePath);
@@ -59,20 +62,30 @@ export default function usePdfStamp(
       const blob = new Blob([stampedBytes as unknown as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      if (!revoked) {
-        setStampedUrl(url);
-      } else {
+      if (cancelled) {
+        // The cleanup already ran and saw nothing, so nothing else will
+        // revoke this one.
         URL.revokeObjectURL(url);
+        return;
       }
+
+      created = url;
+      setStampedUrl(url);
     }
 
-    stamp();
+    stamp().catch((error: unknown) => {
+      // A file that fails to fetch or parse should leave the viewer on the
+      // unstamped original, not take the page down with an unhandled
+      // rejection. activePdfPath already falls back to filePath.
+      console.error('Could not stamp the document:', error);
+    });
 
     return () => {
-      revoked = true;
-      if (stampedUrl) {
-        URL.revokeObjectURL(stampedUrl);
-      }
+      cancelled = true;
+      if (created) URL.revokeObjectURL(created);
+      // Dropping it here keeps activePdfPath from pointing at a revoked URL
+      // while the next stamp is still rendering.
+      setStampedUrl(null);
     };
   }, [showStamp, filePath, stampText]);
 

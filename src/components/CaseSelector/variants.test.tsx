@@ -104,11 +104,13 @@ describe.each(variants)('$name (shared contract)', ({ Component, expectPlacehold
 // ---------------------------------------------------------------------------
 
 describe('CustomDropdown — what building it ourselves bought', () => {
-  it('gives the control an accessible name', () => {
+  it('gives the control an accessible name without being asked', () => {
     render(<CustomDropdown cases={threeCases} selectedCaseId={null} onSelectCase={vi.fn()} />);
 
-    // A screen reader announces "Select case number, button". Both Kendo
-    // widgets fail this — see below.
+    // A screen reader announces "Select case number, button". All three
+    // variants are named now, but only this one is named by construction —
+    // both Kendo widgets are unnamed until you pass ariaLabel, which is easy
+    // to not know you need. See below.
     expect(screen.getByRole('button', { name: 'Select case number' })).toBeInTheDocument();
   });
 
@@ -170,12 +172,11 @@ describe('KendoDropDownList — the free tier and its limitation', () => {
     expect(onSelectCase).toHaveBeenCalledWith('2');
   });
 
-  it.fails('has no accessible name (documented gap, not a passing behaviour)', () => {
+  it('is named for a screen reader', () => {
     render(<KendoDropDownList cases={threeCases} selectedCaseId={null} onSelectCase={vi.fn()} />);
 
-    // it.fails() means "we expect this assertion to fail today". The suite
-    // stays green while recording the gap — and if a future Kendo release
-    // adds a label, this test starts failing and tells us to update the notes.
+    // Kendo names neither of its dropdowns on its own — both need an explicit
+    // ariaLabel, or they announce as a bare "combobox".
     expect(screen.getByRole('combobox', { name: /case/i })).toBeInTheDocument();
   });
 });
@@ -216,7 +217,7 @@ describe('KendoComboBox — the premium one', () => {
     expect(onSelectCase).toHaveBeenCalledWith('3');
   });
 
-  it.fails('has no accessible name (documented gap)', () => {
+  it('is named for a screen reader, which the placeholder alone does not do', () => {
     render(<KendoComboBox cases={threeCases} selectedCaseId={null} onSelectCase={vi.fn()} />);
 
     expect(screen.getByRole('combobox', { name: /case/i })).toBeInTheDocument();

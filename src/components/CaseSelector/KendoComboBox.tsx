@@ -46,6 +46,9 @@ export default function KendoComboBox({
       onChange={handleChange}
       placeholder="Please select a case number"
       clearButton={false}
+      // A placeholder is not an accessible name: it disappears once the field
+      // has a value, leaving the control unnamed exactly when it matters.
+      ariaLabel="Select case number"
     />
   );
 }

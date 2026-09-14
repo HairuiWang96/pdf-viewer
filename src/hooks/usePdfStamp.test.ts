@@ -126,4 +126,72 @@ describe('usePdfStamp', () => {
     // happen when someone actually asked for it.
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  /**
+   * A stamped PDF is a whole document held in memory, so failing to revoke one
+   * is the most expensive leak in the app — and completely invisible: the
+   * viewer keeps working, nothing logs, memory just climbs.
+   */
+  describe('blob URL lifecycle', () => {
+    it('releases the stamped file when the document changes', async () => {
+      const { result, rerender } = renderHook(
+        ({ path }) => usePdfStamp(path, 'INTERNAL', { defaultOn: true }),
+        { initialProps: { path: '/first.pdf' } },
+      );
+      await waitFor(() => expect(result.current.activePdfPath).toBe('blob:stamped-0'));
+
+      rerender({ path: '/second.pdf' });
+
+      await waitFor(() => {
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stamped-0');
+      });
+      // And the new document gets stamped in its place.
+      await waitFor(() => expect(result.current.activePdfPath).toBe('blob:stamped-1'));
+    });
+
+    it('releases the stamped file when the stamp is switched off', async () => {
+      const { result } = renderHook(() =>
+        usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }),
+      );
+      await waitFor(() => expect(result.current.activePdfPath).toBe('blob:stamped-0'));
+
+      act(() => result.current.toggleStamp(false));
+
+      await waitFor(() => {
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stamped-0');
+      });
+    });
+
+    it('releases the stamped file on unmount', async () => {
+      const { result, unmount } = renderHook(() =>
+        usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }),
+      );
+      await waitFor(() => expect(result.current.activePdfPath).toBe('blob:stamped-0'));
+
+      unmount();
+
+      await waitFor(() => {
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stamped-0');
+      });
+    });
+  });
+
+  it('leaves the original file in place when stamping fails', async () => {
+    // A file that cannot be fetched or parsed should not take the page down
+    // with an unhandled rejection — the viewer just shows it unstamped.
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down');
+      }),
+    );
+
+    const { result } = renderHook(() => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }));
+
+    await waitFor(() => expect(consoleError).toHaveBeenCalled());
+    expect(result.current.activePdfPath).toBe('/case.pdf');
+
+    consoleError.mockRestore();
+  });
 });
