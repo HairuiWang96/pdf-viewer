@@ -148,6 +148,21 @@ describe('Toolbar — the one that costs no space', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('positions the popover with fixed coordinates, not inside the toolbar', async () => {
+    render(<ToolbarAttachments attachments={mixedAttachments} />);
+
+    await user.click(screen.getByRole('button', { name: /attachments/i }));
+
+    // Kendo's .k-toolbar is overflow:hidden. An absolutely positioned popover
+    // is clipped out of existence there — the button lights up and nothing
+    // appears, which is exactly the bug this guards. Fixed positioning escapes
+    // the clip, but only if the coordinates are actually applied.
+    const popover = screen.getByRole('dialog');
+    expect(popover.style.position || getComputedStyle(popover).position).not.toBe('absolute');
+    expect(popover.style.top).not.toBe('');
+    expect(popover.style.right).not.toBe('');
+  });
+
   it('keeps its name in text, because the trigger is icon-only on mobile', () => {
     render(<ToolbarAttachments attachments={[makeAttachment()]} />);
 

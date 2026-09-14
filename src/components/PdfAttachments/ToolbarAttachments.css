@@ -57,15 +57,18 @@
   text-align: center;
 }
 
-/* Anchored under the button. Above the document but below the slide-in
-   panels (z-index 20), matching the bottom bar's stacking. */
+/* Fixed, not absolute, and placed from JS — see the note in the component.
+   Kendo's .k-toolbar is overflow:hidden, so an absolutely positioned popover
+   is clipped out of existence the moment it extends below the bar. `top` and
+   `right` are set inline from the button's measured rect.
+
+   Above the document but below the slide-in panels (z-index 20), matching the
+   bottom bar's stacking. */
 .toolbar-attachments-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
+  position: fixed;
   z-index: 15;
   min-width: 280px;
-  max-width: min(360px, calc(100vw - 32px));
+  max-width: min(360px, calc(100vw - 16px));
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -136,13 +139,10 @@
     transform: translate(35%, -25%);
   }
 
+  /* The measured `right` is already clamped away from the left edge, so this
+     only needs to stop the box demanding a width the screen does not have. */
   .toolbar-attachments-popover {
-    /* Anchored right would hang off the edge on a narrow screen. */
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
     min-width: 0;
-    width: max-content;
-    max-width: calc(100vw - 24px);
+    max-width: calc(100vw - 16px);
   }
 }
