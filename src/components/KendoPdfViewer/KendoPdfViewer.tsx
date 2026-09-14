@@ -34,7 +34,7 @@ interface KendoPdfViewerProps {
  * parsed document to PdfAttachments, which renders itself or nothing.
  */
 
-/** Toolbar tools. Mobile drops search/open/print to fit the narrow bar. */
+/** Toolbar tools. Mobile drops search and open to fit the narrow bar. */
 const DESKTOP_TOOLS: PDFViewerTool[] = [
   'pager',
   'spacer',
@@ -47,7 +47,10 @@ const DESKTOP_TOOLS: PDFViewerTool[] = [
   'print',
 ];
 
-const MOBILE_TOOLS: PDFViewerTool[] = ['pager', 'spacer', 'zoomInOut', 'download'];
+// No 'spacer' here. Kendo's spacer is a flex-grow element, which on the
+// wrapping mobile toolbar (see the CSS) claims whatever is left of the row and
+// pushes the rest onto a second line. Packed left, everything fits one row.
+const MOBILE_TOOLS: PDFViewerTool[] = ['pager', 'zoomInOut', 'download', 'print'];
 
 export default function KendoPdfViewer({
   filePath,

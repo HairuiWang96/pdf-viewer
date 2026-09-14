@@ -27,4 +27,19 @@
   .kendo-pdf-viewer .k-pdf-viewer .k-toolbar {
     flex-wrap: wrap;
   }
+
+  /* The pager is the widest tool by far: prev/next buttons around a
+     NumericTextBox sized for a desktop bar, plus "Page" and "of N" labels.
+     Page numbers here are 1-2 digits, so the box does not need to fit ten. */
+  .kendo-pdf-viewer .k-pdf-viewer .k-pager-input .k-numerictextbox {
+    width: 4em;
+    min-width: 0;
+  }
+
+  /* "Page" is redundant next to the "of N" that follows the box. Kendo hides
+     it at its own breakpoint, but that is based on how many tools are in the
+     pager, not on how much room the bar actually has. */
+  .kendo-pdf-viewer .k-pdf-viewer .k-pager-input > span:first-child {
+    display: none;
+  }
 }
