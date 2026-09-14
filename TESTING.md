@@ -134,6 +134,79 @@ Neither is a failure of the other. Knowing which tool covers which is the whole 
 
 ---
 
+## Working with QA
+
+There is a testing team, so the question is not "how much testing do we do" but "which
+failures are ours to catch". The attachment-indicator work answers it unusually clearly:
+
+| Found by | Bugs |
+|---|---|
+| **The suite** | A stamped PDF leaked on every case switch. Nothing broke, nothing logged, memory just climbed. **No amount of clicking would ever have found it.** |
+| **A person, on a phone** | Popover clipped, popover behind the document, count badge gone, audio scrubber collapsed. **Four bugs past a green suite.** |
+
+Neither side was slacking. They catch different classes of failure, and each is genuinely
+bad at the other's.
+
+### The split
+
+**Developers answer: does the code do what I intended?**
+Logic, contracts, lifecycle, silent failures. Fast, runs on every save, blocks the merge.
+The unique advantage is catching what has *no visible symptom* — leaks, stale closures, an
+off-by-one in page indexing, a missing accessible name. Nobody clicks their way to a
+memory leak.
+
+**QA answers: does the product do what the user needs?**
+Layout, paint, real devices, real documents, cross-browser, whole journeys, usability. The
+unique advantage is being in a real browser with real eyes, which is precisely what jsdom
+structurally cannot provide.
+
+### Four rules for the developer side
+
+1. **Test anything you would be embarrassed to receive as a ticket.** If QA files "the
+   second player plays the first file", that should have been a unit test — it is
+   mechanical, deterministic and cheap, and spending a person's afternoon on it is waste.
+
+2. **Do not chase what QA is better placed to find.** Reaching for layout assertions in
+   jsdom does not merely fail to help; it manufactures false confidence. See the popover
+   tests above, which passed while the feature was invisible.
+
+3. **Every QA bug that is mechanically checkable comes back as a test.** That is the
+   ratchet. Pin the mechanism, not the visual symptom — the count-badge bug became "the
+   count is not a descendant of the label", which is checkable and is what actually
+   regressed.
+
+4. **Tell QA what you could not cover.** The most commonly skipped step. A handoff note —
+   "jsdom sees no layout, paint or media; the popover and the mobile bar need real-device
+   eyes" — turns guesswork into targeted testing. It is a handoff, not a disclaimer.
+
+### What developers owe QA beyond the code
+
+- **Reproducible environments.** Every branch has its own Netlify deploy, so QA tests an
+  exact commit rather than "works on my machine". Verify a push is actually live by
+  comparing the deployed bundle hash against a local build — a green push is not proof.
+- **Fixtures that exercise the edges.** The eleven `CASE-TEST-*` documents — multi-audio,
+  redaction, legacy PDF 1.2, digital signature, scanned — are a dev-built QA asset. They
+  are why someone can probe signature handling without going hunting for a sample file.
+- **Affordances for testing.** The attachment placement switcher exists so all three
+  options can be compared without a rebuild. Building that was dev work in service of
+  testing.
+
+### The gap worth naming
+
+There is a missing middle rung: **no real-browser automation**. Playwright would have
+caught all four of the bugs above. In a team with QA that layer is usually co-owned —
+developers write it, QA defines which journeys matter. Right now the whole band is manual,
+which is fine for a comparison prototype and would not be fine for a shipping product.
+Worth raising as a shared roadmap item rather than deciding alone.
+
+### The mindset to avoid
+
+"QA will catch it." Some classes they never will — the stamp leak would have run in
+production for months. And everything else costs more the later it is found: a failing
+test is seconds, a QA ticket is a day of round-trip.
+
+---
+
 ## Tools, by the problem they solve
 
 | Problem | Tool |
