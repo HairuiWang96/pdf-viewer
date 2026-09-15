@@ -22,30 +22,30 @@ Running a single test needs five separate things, and each package does exactly 
 them. They are separate so they stay swappable — you could replace jsdom with a real
 browser and keep the other four unchanged.
 
-| # | The need | Tool |
-|---|---|---|
-| 1 | Something to *run* tests and report pass/fail | **Vitest** — Vite-native, so the same transform pipeline as the build. Also supplies the `vi.*` fake toolkit, watch mode and v8 coverage. |
-| 2 | A `document` to render into — Node has none | **jsdom** |
-| 3 | Render a React component and reach the result | **@testing-library/react** — `render`, `renderHook`, `screen` |
-| 4 | Simulate a user interacting | **@testing-library/user-event** |
-| 5 | Readable assertions about DOM state | **@testing-library/jest-dom** |
+| #   | The need                                      | Tool                                                                                                                                      |
+| --- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Something to _run_ tests and report pass/fail | **Vitest** — Vite-native, so the same transform pipeline as the build. Also supplies the `vi.*` fake toolkit, watch mode and v8 coverage. |
+| 2   | A `document` to render into — Node has none   | **jsdom**                                                                                                                                 |
+| 3   | Render a React component and reach the result | **@testing-library/react** — `render`, `renderHook`, `screen`                                                                             |
+| 4   | Simulate a user interacting                   | **@testing-library/user-event**                                                                                                           |
+| 5   | Readable assertions about DOM state           | **@testing-library/jest-dom**                                                                                                             |
 
 ### You only import three of them
 
 A test file imports three:
 
 ```tsx
-import { describe, it, expect } from 'vitest';            // 1
-import { render, screen } from '@testing-library/react';  // 3
-import userEvent from '@testing-library/user-event';      // 4
+import { describe, it, expect } from 'vitest'; // 1
+import { render, screen } from '@testing-library/react'; // 3
+import userEvent from '@testing-library/user-event'; // 4
 ```
 
 The other two are wired up globally, which is why they never appear:
 
-- **jsdom** is `environment: 'jsdom'` in `vite.config.ts`. It is the *world* the test runs
+- **jsdom** is `environment: 'jsdom'` in `vite.config.ts`. It is the _world_ the test runs
   in, not something you call.
 - **jest-dom** is `import '@testing-library/jest-dom/vitest'` in `src/test/setup.ts`. It
-  *adds methods to `expect`*, so it changes what `expect` can do without being named in
+  _adds methods to `expect`_, so it changes what `expect` can do without being named in
   your file.
 
 That is why `toBeInTheDocument()` works with no import. It is not part of Vitest.
@@ -76,10 +76,10 @@ layout engine. Probed directly:
 ```js
 el.style.width = '300px';
 
-el.getBoundingClientRect()      // → { width: 0, height: 0, top: 0 }   no measurement
-el.offsetWidth                  // → 0                                 no measurement
-getComputedStyle(el).width      // → "300px"        just echoing the string you assigned
-window.innerWidth               // → 1024           a fixed, fake viewport
+el.getBoundingClientRect(); // → { width: 0, height: 0, top: 0 }   no measurement
+el.offsetWidth; // → 0                                 no measurement
+getComputedStyle(el).width; // → "300px"        just echoing the string you assigned
+window.innerWidth; // → 1024           a fixed, fake viewport
 ```
 
 `getComputedStyle` answers because jsdom is reading back what you wrote.
@@ -88,17 +88,17 @@ actually lands — and nothing in jsdom does that.
 
 Which is exactly why each of the four device bugs was invisible to a green suite:
 
-| Bug | The missing capability |
-|---|---|
-| `overflow: hidden` clipped the popover | Clipping needs layout. No layout, nothing clips. |
-| z-index put the popover behind the PDF | Stacking is a *paint* concern. Nothing paints. |
-| `clip-path` hid the count badge | Also paint. |
-| The audio scrubber collapsed | Needs a real width *and* a media engine. Neither exists. |
+| Bug                                    | The missing capability                                   |
+| -------------------------------------- | -------------------------------------------------------- |
+| `overflow: hidden` clipped the popover | Clipping needs layout. No layout, nothing clips.         |
+| z-index put the popover behind the PDF | Stacking is a _paint_ concern. Nothing paints.           |
+| `clip-path` hid the count badge        | Also paint.                                              |
+| The audio scrubber collapsed           | Needs a real width _and_ a media engine. Neither exists. |
 
 It also explains a quirk in our own code: `ToolbarAttachments`' `position()` calls
 `getBoundingClientRect()` and gets zeros under test, while `window.innerWidth` is a
 hardcoded 1024 — so the width resolves to `min(360, 1008) = 360`. The test proves a width
-is **applied**. It can never prove the width is *right* on a phone.
+is **applied**. It can never prove the width is _right_ on a phone.
 
 ### Why user-event rather than `element.click()`
 
@@ -140,7 +140,7 @@ restate the implementation and catch nothing. Ask:
 > **What could break here without anyone noticing?**
 
 A bug that throws, blanks the page, or fails the build does not need a test; you will find
-it in seconds. Tests earn their keep on failures that *look fine*.
+it in seconds. Tests earn their keep on failures that _look fine_.
 
 Four places cases come from:
 
@@ -158,7 +158,7 @@ nothing else in the world will tell you:
   climbs for the life of the tab. `useAttachments.test.ts` and `usePdfStamp.test.ts` both
   have a `blob URL lifecycle` block for exactly this.
 - **Accessible names.** If the paperclip in the bottom bar loses `aria-hidden`, the page
-  looks *identical* and screen readers begin announcing "paperclip Attachments 1".
+  looks _identical_ and screen readers begin announcing "paperclip Attachments 1".
 - **Every player pointing at the first attachment.** Three players render, the UI looks
   right, and it is wrong only once someone presses play.
 
@@ -170,7 +170,7 @@ exist because the bug happened.
 
 ### 4. Decisions someone could innocently undo
 
-Collapsed-by-default is a *choice*. Someone could reasonably think "why not open it, it is
+Collapsed-by-default is a _choice_. Someone could reasonably think "why not open it, it is
 friendlier" without realising it was deliberate. The test is a note to that person.
 
 ---
@@ -203,12 +203,12 @@ Every bug-fix test in this repo was confirmed this way before being committed.
 This is not a footnote. During the attachment-indicator work, **four separate bugs shipped
 past a green suite**, every one found by looking at a real phone:
 
-| Bug | Why jsdom could not see it |
-|---|---|
-| Popover clipped by `.k-toolbar { overflow: hidden }` | No layout, so no clipping |
-| Popover painted behind the PDF (stacking context) | No paint, so no z-order |
-| Count badge clipped away with its `clip-path` parent | No layout |
-| Audio scrubber collapsed in a content-sized popover | No layout, no media |
+| Bug                                                  | Why jsdom could not see it |
+| ---------------------------------------------------- | -------------------------- |
+| Popover clipped by `.k-toolbar { overflow: hidden }` | No layout, so no clipping  |
+| Popover painted behind the PDF (stacking context)    | No paint, so no z-order    |
+| Count badge clipped away with its `clip-path` parent | No layout                  |
+| Audio scrubber collapsed in a content-sized popover  | No layout, no media        |
 
 The first two are the instructive ones. The tests asserted
 `expect(screen.getByRole('dialog')).toBeInTheDocument()` and passed the **entire time** the
@@ -220,13 +220,13 @@ popover was invisible in a real browser.
 ### What to do instead
 
 When a device bug turns up, pin the **mechanism**, not the appearance. The mechanism is
-checkable in jsdom; the appearance is not.
+checkable in jsdom; the appearance is not.‼️
 
-| Instead of | Assert |
-|---|---|
+| Instead of               | Assert                                                                   |
+| ------------------------ | ------------------------------------------------------------------------ |
 | "the popover is visible" | it is **not a descendant** of the toolbar (escaped the stacking context) |
-| "the scrubber shows" | an explicit **width is applied** |
-| "the badge is on screen" | the count is **not inside** the visually-hidden label |
+| "the scrubber shows"     | an explicit **width is applied**                                         |
+| "the badge is on screen" | the count is **not inside** the visually-hidden label                    |
 
 ### The division of labour
 
@@ -243,10 +243,10 @@ Neither is a failure of the other. Knowing which tool covers which is the whole 
 There is a testing team, so the question is not "how much testing do we do" but "which
 failures are ours to catch". The attachment-indicator work answers it unusually clearly:
 
-| Found by | Bugs |
-|---|---|
-| **The suite** | A stamped PDF leaked on every case switch. Nothing broke, nothing logged, memory just climbed. **No amount of clicking would ever have found it.** |
-| **A person, on a phone** | Popover clipped, popover behind the document, count badge gone, audio scrubber collapsed. **Four bugs past a green suite.** |
+| Found by                 | Bugs                                                                                                                                               |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The suite**            | A stamped PDF leaked on every case switch. Nothing broke, nothing logged, memory just climbed. **No amount of clicking would ever have found it.** |
+| **A person, on a phone** | Popover clipped, popover behind the document, count badge gone, audio scrubber collapsed. **Four bugs past a green suite.**                        |
 
 Neither side was slacking. They catch different classes of failure, and each is genuinely
 bad at the other's.
@@ -255,7 +255,7 @@ bad at the other's.
 
 **Developers answer: does the code do what I intended?**
 Logic, contracts, lifecycle, silent failures. Fast, runs on every save, blocks the merge.
-The unique advantage is catching what has *no visible symptom* — leaks, stale closures, an
+The unique advantage is catching what has _no visible symptom_ — leaks, stale closures, an
 off-by-one in page indexing, a missing accessible name. Nobody clicks their way to a
 memory leak.
 
@@ -313,16 +313,16 @@ test is seconds, a QA ticket is a day of round-trip.
 
 ## Tools, by the problem they solve
 
-| Problem | Tool |
-|---|---|
-| A dependency will not run in jsdom | `vi.mock` — Kendo's `PDFViewer`, `pdf-lib` |
-| A mock factory needs mutable state | `vi.hoisted` — `vi.mock` hoists above imports, so shared state must too |
-| jsdom lacks a browser API | `vi.stubGlobal` — `URL.createObjectURL`, `fetch` |
-| Watch a real function | `vi.spyOn` — `console.error` on failure paths |
-| Record a callback | `vi.fn` — every `onPageChange`, `onSelectCase` prop |
-| Testing a hook, not a component | `renderHook` |
-| Something resolves asynchronously | `waitFor` |
-| One contract, several implementations | `describe.each` |
+| Problem                               | Tool                                                                    |
+| ------------------------------------- | ----------------------------------------------------------------------- |
+| A dependency will not run in jsdom    | `vi.mock` — Kendo's `PDFViewer`, `pdf-lib`                              |
+| A mock factory needs mutable state    | `vi.hoisted` — `vi.mock` hoists above imports, so shared state must too |
+| jsdom lacks a browser API             | `vi.stubGlobal` — `URL.createObjectURL`, `fetch`                        |
+| Watch a real function                 | `vi.spyOn` — `console.error` on failure paths                           |
+| Record a callback                     | `vi.fn` — every `onPageChange`, `onSelectCase` prop                     |
+| Testing a hook, not a component       | `renderHook`                                                            |
+| Something resolves asynchronously     | `waitFor`                                                               |
+| One contract, several implementations | `describe.each`                                                         |
 
 ---
 
@@ -345,7 +345,9 @@ Kendo's `PDFViewer` is replaced with a stand-in exposing only `pages` and `docum
 the entire contract our code depends on:
 
 ```tsx
-vi.mock('@progress/kendo-react-all', async () => { /* … */ });
+vi.mock('@progress/kendo-react-all', async () => {
+    /* … */
+});
 ```
 
 This tests our code without testing Telerik's, and a version bump that drops those fields
@@ -354,7 +356,7 @@ you deleted your own file and kept the library** — those test the vendor, not 
 
 ### Fixtures, never real data
 
-`src/test/fixtures.ts` builds cases and attachments by hand, deliberately *not* importing
+`src/test/fixtures.ts` builds cases and attachments by hand, deliberately _not_ importing
 `src/data/pdf-metadata.json`, so editing real content never breaks a test. The shape is
 typed, so TypeScript catches drift if an interface changes.
 
@@ -362,7 +364,7 @@ typed, so TypeScript catches drift if an interface changes.
 
 Both comparison suites (`CaseSelector/variants.test.tsx`, `PdfAttachments/placements.test.tsx`)
 run a shared contract over every implementation with `describe.each`, then record where
-they deliberately diverge. This makes a design comparison *executable* — evidence rather
+they deliberately diverge. This makes a design comparison _executable_ — evidence rather
 than a comment someone has to take on trust.
 
 Both suites turned up a finding just by being written: each variant needed its own adapter
@@ -382,12 +384,12 @@ the other.
 `src/components/PdfAttachments/BottomBarAttachments.test.tsx` — four tests, one from each
 category above:
 
-| Test | Category | Why it exists |
-|---|---|---|
-| `renders nothing when the document has no attachments` | Contract | The empty case is the *common* case; a stray empty bar would ship unnoticed |
-| `starts collapsed, showing only a count` | Decision | Collapsed-by-default is deliberate, and the count must be readable without interacting |
-| `reveals the attachments when the row is clicked, and hides them again` | Contract | The core interaction, both directions — closing is where toggles usually break |
-| `keeps the decorative icon out of the accessible name` | Silent failure | Invisible to the eye; only detectable here |
+| Test                                                                    | Category       | Why it exists                                                                          |
+| ----------------------------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------- |
+| `renders nothing when the document has no attachments`                  | Contract       | The empty case is the _common_ case; a stray empty bar would ship unnoticed            |
+| `starts collapsed, showing only a count`                                | Decision       | Collapsed-by-default is deliberate, and the count must be readable without interacting |
+| `reveals the attachments when the row is clicked, and hides them again` | Contract       | The core interaction, both directions — closing is where toggles usually break         |
+| `keeps the decorative icon out of the accessible name`                  | Silent failure | Invisible to the eye; only detectable here                                             |
 
 ### What is deliberately absent
 
