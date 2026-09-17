@@ -58,51 +58,60 @@ export default function KendoPdfViewer({
   const viewerRef = useRef<PDFViewerHandle | null>(null);
 
   /**
-   * ── Two-way page sync ──────────────────────────────────────────────────
+   * ── Two-way page sync: the sticky note ─────────────────────────────────
    *
-   * `currentPage` lives in the parent rather than here, because the thumbnail
-   * sidebar needs it too. That makes it two-way bound, and two different
-   * things can change it:
+   * In one line: this ref is a sticky note where the viewer writes down "I am
+   * currently showing page N", so it can tell a real instruction apart from
+   * its own words coming back at it.
    *
-   *   scroll / Kendo's pager  →  Kendo tells us   →  the parent must update
-   *   a thumbnail click       →  the parent tells us  →  we must scroll
+   * The page number is not stored here. It lives in the parent, because the
+   * thumbnail sidebar needs it too — so this component never simply *knows*
+   * the page, it gets *told*. Two things can do the telling:
    *
-   * Both arrive as the same `currentPage` prop. With no way to tell them
-   * apart, the first would trigger the second:
+   *   You click a thumbnail
+   *     parent → viewer:  "The page is 7. Go there."
+   *     viewer:           scrolls to page 7.                  correct
    *
-   *   1. you scroll to page 3     → Kendo fires onPageChange(3)
-   *   2. → parent setCurrentPage(3)
-   *   3. → re-render, the currentPage prop is now 3
-   *   4. → the effect below fires → scrollToPage(element, 2)
-   *   5. → the viewer yanks back to the top of page 3, mid-scroll
+   *   You scroll the PDF yourself
+   *     viewer → parent:  "I'm on page 3 now."
+   *     parent → viewer:  "The page is 3. Go there."
+   *     viewer:           scrolls to page 3.                  wrong
    *
-   * Step 4 is the bug. The parent was only echoing back what the viewer
-   * itself had just reported, but the effect cannot tell that apart from a
-   * genuine thumbnail click.
+   * The second is the bug. You were already on page 3 — you put yourself
+   * there by scrolling. "Going" there yanks you back to the top of the page
+   * mid-scroll, which reads as the viewer fighting you.
    *
-   * This ref supplies the missing fact: which page the viewer is *already*
-   * showing. Both directions write it before acting — handlePageChange below
-   * when the change came from Kendo, the effect when it came from outside —
-   * so the guard at the top of the effect can read "currentPage already
-   * matches" as "this is my own echo, do nothing". A thumbnail click does not
-   * match, falls through, and scrolls.
+   * And here is the trap: both messages from the parent are *identical*.
    *
-   * A ref and not state, deliberately, for two reasons: writing it must not
-   * cause a render — it is bookkeeping about the DOM, not something displayed
-   * — and the effect must read it synchronously on the very next render,
-   * which batched state would not give.
+   *     "The page is 7."   ← a real instruction
+   *     "The page is 3."   ← your own words echoing back
+   *
+   * Same prop, same shape. Nothing in the message says which is which.
+   *
+   * Hence the note. When a message arrives, check the note first:
+   *
+   *     message says 3, note says 3  →  "that's just me"  →  ignore
+   *     message says 7, note says 3  →  "that's new"      →  scroll
+   *
+   * That single comparison is the whole mechanism.
+   *
+   * A ref rather than state, for two plain reasons. Writing to it must not
+   * redraw anything — it is a private note about where the viewer is, not
+   * something shown on screen. And it must be readable *immediately*: state
+   * updates are delayed a beat, and the note has to be accurate before the
+   * parent's reply arrives.
    */
   const viewerPageRef = useRef(currentPage);
 
   useEffect(() => {
-    // The echo check. See the note above — this is what keeps a page change
-    // the viewer reported from being scrolled back at the user.
+    // Read the note. Same page? Then this is our own echo — sit still.
     if (currentPage === viewerPageRef.current) return;
 
     // Null until React commits the ref, and again before a document loads.
     const element = viewerRef.current?.element;
     if (!element) return;
 
+    // A real instruction: update the note, then actually move.
     viewerPageRef.current = currentPage;
     // Kendo's scrollToPage takes a zero-based page index, while its
     // onPageChange event reports one-based page numbers.
@@ -111,8 +120,11 @@ export default function KendoPdfViewer({
 
   const handlePageChange = useCallback(
     (event: PageEvent) => {
-      // Record it before reporting upward, so that when the parent's state
-      // change comes back down the effect's guard already matches.
+      // Write the note BEFORE telling the parent. The order is load-bearing:
+      // the parent's reply comes back a moment later, and the note has to
+      // already say 3 for that reply to be recognised as an echo. Write it
+      // afterwards and the reply arrives first, and the viewer scrolls at the
+      // user anyway.
       viewerPageRef.current = event.page;
       onPageChange(event.page);
     },

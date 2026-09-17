@@ -102,13 +102,19 @@ describe('KendoPdfViewer', () => {
   });
 
   /**
-   * `currentPage` is two-way bound: the parent owns it because the thumbnail
-   * sidebar needs it too, so a change can arrive from either side. Both
-   * directions run through the same prop, which is what makes this fragile —
-   * without a way to tell them apart, a scroll would bounce straight back at
-   * the user as a re-scroll.
+   * The page number lives in the parent, so this component never knows the
+   * page — it gets told. Two things do the telling, and both arrive as the
+   * same `currentPage` prop:
    *
-   * None of this needs layout, so it is squarely testable here.
+   *   a thumbnail click   →  a real instruction  →  scroll
+   *   the user scrolling  →  our own words back  →  sit still
+   *
+   * Nothing in the message distinguishes them, so the component keeps a note
+   * of the page it is already showing and compares. See the long note in the
+   * component for the full picture; these tests exercise both directions and
+   * the comparison between them.
+   *
+   * None of it needs layout, so it is squarely testable here.
    */
   describe('page sync', () => {
     it('scrolls the viewer when the parent changes the page', async () => {
