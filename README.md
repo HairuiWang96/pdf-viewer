@@ -62,7 +62,6 @@ src/
 │   ├── Layout/                 # App shell — header + main content area
 │   ├── PageNavigation/         # Prev/next page controls — UNUSED on this branch,
 │   │                           #   the Kendo toolbar has its own pager
-│   ├── PdfAttachments/         # Embedded-file panel (audio players / downloads)
 │   ├── PdfDetails/             # Right sidebar showing document metadata
 │   └── ThumbnailSidebar/       # Left sidebar with clickable page thumbnails
 ├── pages/

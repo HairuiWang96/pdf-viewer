@@ -1,5 +1,4 @@
-import { Children, cloneElement, useCallback, useEffect, useRef } from 'react';
-import type { ReactElement, ReactNode } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { PDFViewer, scrollToPage } from '@progress/kendo-react-all';
 import type {
   PDFViewerHandle,
@@ -8,12 +7,6 @@ import type {
   ErrorEvent,
 } from '@progress/kendo-react-all';
 import '@progress/kendo-theme-default/dist/all.css';
-import { BottomBarAttachments, ToolbarAttachments } from '../PdfAttachments';
-import type {
-  AttachmentPlacement,
-  AttachmentSource,
-  PdfAttachment,
-} from '../PdfAttachments';
 import './KendoPdfViewer.css';
 
 interface KendoPdfViewerProps {
@@ -22,12 +15,7 @@ interface KendoPdfViewerProps {
   currentPage: number;
   onPageChange: (page: number) => void;
   onLoadSuccess: (totalPages: number) => void;
-  /** Reports the parsed pdf.js document up, so the page can read attachments
-      out of it — two of the three placements live outside this component. */
-  onDocumentLoad: (document: AttachmentSource | null) => void;
   isMobile: boolean;
-  attachments: PdfAttachment[];
-  placement: AttachmentPlacement;
 }
 
 
@@ -39,9 +27,6 @@ interface KendoPdfViewerProps {
  * print). So there is no separate PageNavigation bar here — page changes
  * come from the toolbar pager or from scrolling, and are pushed back up
  * so the thumbnail sidebar stays in sync.
- *
- * Embedded attachments are not this component's concern: it just hands the
- * parsed document to PdfAttachments, which renders itself or nothing.
  */
 
 /** Toolbar tools. Mobile drops search and open to fit the narrow bar. */
@@ -68,10 +53,7 @@ export default function KendoPdfViewer({
   currentPage,
   onPageChange,
   onLoadSuccess,
-  onDocumentLoad,
   isMobile,
-  attachments,
-  placement,
 }: KendoPdfViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
 
@@ -105,10 +87,10 @@ export default function KendoPdfViewer({
    * matches" as "this is my own echo, do nothing". A thumbnail click does not
    * match, falls through, and scrolls.
    *
-   * A ref and not state, deliberately: writing it must not cause a render,
-   * and the effect must read it synchronously on the very next render, which
-   * batched state would not give. Contrast `pdfDocument` above, which *is*
-   * state precisely because it has to re-render to reach PdfAttachments.
+   * A ref and not state, deliberately, for two reasons: writing it must not
+   * cause a render — it is bookkeeping about the DOM, not something displayed
+   * — and the effect must read it synchronously on the very next render,
+   * which batched state would not give.
    */
   const viewerPageRef = useRef(currentPage);
 
@@ -144,39 +126,11 @@ export default function KendoPdfViewer({
     // like a real answer rather than an absent one.
     const totalPages = viewerRef.current?.pages?.length ?? 0;
     if (totalPages > 0) onLoadSuccess(totalPages);
-
-    // Kendo exposes the pdf.js document it parsed internally. Reporting it up
-    // lets the page read embedded files from the document already in memory
-    // instead of fetching the PDF a second time.
-    onDocumentLoad((viewerRef.current?.document as AttachmentSource | undefined) ?? null);
-  }, [onLoadSuccess, onDocumentLoad]);
+  }, [onLoadSuccess]);
 
   const handleError = useCallback((event: ErrorEvent) => {
     console.error('KendoReact PDF Viewer failed to load the document:', event.error);
   }, []);
-
-  /**
-   * Appends the attachments button to Kendo's own toolbar.
-   *
-   * `tools` only accepts Kendo's nine built-in names, so a custom tool cannot
-   * go in that way. onRenderToolbar hands over the rendered toolbar element
-   * instead, and cloning it with one extra child puts our button inside the
-   * real bar rather than next to it.
-   *
-   * Kendo's roving tabindex only governs children matching its internal
-   * `buttons` selectors, which ours does not match — so the button keeps its
-   * natural tab stop instead of being skipped.
-   */
-  const renderToolbar = useCallback(
-    (defaultRendering: ReactElement<{ children?: ReactNode }>) =>
-      cloneElement(
-        defaultRendering,
-        undefined,
-        ...Children.toArray(defaultRendering.props.children),
-        <ToolbarAttachments key="attachments" attachments={attachments} />,
-      ),
-    [attachments],
-  );
 
   return (
     <div className="kendo-pdf-viewer">
@@ -192,11 +146,8 @@ export default function KendoPdfViewer({
         onLoad={handleLoad}
         onPageChange={handlePageChange}
         onError={handleError}
-        onRenderToolbar={placement === 'toolbar' ? renderToolbar : undefined}
         style={{ height: '100%' }}
       />
-
-      {placement === 'bottom' && <BottomBarAttachments attachments={attachments} />}
     </div>
   );
 }

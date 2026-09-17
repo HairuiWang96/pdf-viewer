@@ -21,10 +21,9 @@
   display: flex;
   flex-direction: column;
   /* 100vh on a phone is the height with the browser chrome *retracted*, so the
-     bottom of this column sits behind the URL bar until you scroll the page.
-     Anything last in the column — the attachments bar — is invisible there.
-     dvh tracks the chrome as it shows and hides; vh stays as the fallback for
-     browsers without it. */
+     bottom of this column sits behind the URL bar until you scroll the page —
+     anything last in the column is invisible there. dvh tracks the chrome as
+     it shows and hides; vh stays as the fallback for browsers without it. */
   height: 100vh;
   height: 100dvh;
 }
