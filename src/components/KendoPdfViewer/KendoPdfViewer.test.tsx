@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import { scrollToPage } from '@progress/kendo-react-all';
 import KendoPdfViewer from './KendoPdfViewer';
 
 /**
@@ -14,33 +15,59 @@ import KendoPdfViewer from './KendoPdfViewer';
  * Kendo's.
  */
 
+interface FakeViewerProps {
+  onLoad?: () => void;
+  onPageChange?: (event: { page: number }) => void;
+  url?: string;
+}
+
 const { mockState } = vi.hoisted(() => ({
   mockState: {
     pages: [{}, {}] as unknown[],
+    // The props the fake viewer last received. Tests reach through this to
+    // raise Kendo's own onPageChange, which is how a scroll or a toolbar
+    // pager click arrives in the real component.
+    props: null as FakeViewerProps | null,
   },
 }));
 
 vi.mock('@progress/kendo-react-all', async () => {
   const React = await import('react');
   return {
-    PDFViewer: React.forwardRef(
-      (props: { onLoad?: () => void; url?: string }, ref: React.Ref<unknown>) => {
-        React.useImperativeHandle(ref, () => ({
-          element: null,
-          props,
-          pages: mockState.pages,
-        }));
-        // Kendo fires onLoad once the document is parsed; that is when the
-        // component reaches for the page count and the document.
-        React.useEffect(() => {
-          props.onLoad?.();
-        }, []);
-        return <div data-testid="kendo-pdfviewer" />;
-      },
-    ),
+    PDFViewer: React.forwardRef((props: FakeViewerProps, ref: React.Ref<unknown>) => {
+      const elementRef = React.useRef<HTMLDivElement>(null);
+      mockState.props = props;
+
+      // Getters, like the real component's handle — `element` has to be read
+      // at call time, since the node does not exist when the handle is built.
+      React.useImperativeHandle(ref, () => ({
+        get element() {
+          return elementRef.current;
+        },
+        props,
+        get pages() {
+          return mockState.pages;
+        },
+      }));
+
+      // Kendo fires onLoad once the document is parsed; that is when the
+      // component reaches for the page count.
+      React.useEffect(() => {
+        props.onLoad?.();
+      }, []);
+
+      return <div data-testid="kendo-pdfviewer" ref={elementRef} />;
+    }),
     scrollToPage: vi.fn(),
   };
 });
+
+/** Raise Kendo's onPageChange, as scrolling or the toolbar pager would. */
+function viewerScrollsTo(page: number) {
+  act(() => {
+    mockState.props?.onPageChange?.({ page });
+  });
+}
 
 const defaultProps = {
   filePath: '/case.pdf',
@@ -74,4 +101,82 @@ describe('KendoPdfViewer', () => {
     expect(onLoadSuccess).not.toHaveBeenCalled();
   });
 
+  /**
+   * `currentPage` is two-way bound: the parent owns it because the thumbnail
+   * sidebar needs it too, so a change can arrive from either side. Both
+   * directions run through the same prop, which is what makes this fragile —
+   * without a way to tell them apart, a scroll would bounce straight back at
+   * the user as a re-scroll.
+   *
+   * None of this needs layout, so it is squarely testable here.
+   */
+  describe('page sync', () => {
+    it('scrolls the viewer when the parent changes the page', async () => {
+      const { rerender } = render(<KendoPdfViewer {...defaultProps} currentPage={1} />);
+      await screen.findByTestId('kendo-pdfviewer');
+
+      // A thumbnail click, arriving as a new prop.
+      rerender(<KendoPdfViewer {...defaultProps} currentPage={3} />);
+
+      // Kendo's onPageChange reports 1-based pages, but scrollToPage takes a
+      // 0-based index — so page 3 is index 2. Asserting the argument rather
+      // than just the call is what pins that conversion.
+      expect(scrollToPage).toHaveBeenCalledWith(expect.any(HTMLElement), 2);
+    });
+
+    it('does not scroll when the page prop is unchanged', async () => {
+      const { rerender } = render(<KendoPdfViewer {...defaultProps} currentPage={2} />);
+      await screen.findByTestId('kendo-pdfviewer');
+      vi.mocked(scrollToPage).mockClear();
+
+      rerender(<KendoPdfViewer {...defaultProps} currentPage={2} />);
+
+      expect(scrollToPage).not.toHaveBeenCalled();
+    });
+
+    it('reports a page change made in the viewer up to the parent', async () => {
+      const onPageChange = vi.fn();
+      render(<KendoPdfViewer {...defaultProps} onPageChange={onPageChange} />);
+      await screen.findByTestId('kendo-pdfviewer');
+
+      viewerScrollsTo(4);
+
+      // One-based on the way up, matching what Kendo reported.
+      expect(onPageChange).toHaveBeenCalledWith(4);
+    });
+
+    it('does not scroll back when the change came from the viewer itself', async () => {
+      const onPageChange = vi.fn();
+      const { rerender } = render(
+        <KendoPdfViewer {...defaultProps} currentPage={1} onPageChange={onPageChange} />,
+      );
+      await screen.findByTestId('kendo-pdfviewer');
+      vi.mocked(scrollToPage).mockClear();
+
+      // The user scrolls to page 3; the parent stores it and sends it back
+      // down. The component must recognise its own echo and sit still.
+      viewerScrollsTo(3);
+      rerender(
+        <KendoPdfViewer {...defaultProps} currentPage={3} onPageChange={onPageChange} />,
+      );
+
+      // Without the guard this scrolls to the top of page 3 mid-flick, which
+      // reads as the viewer fighting the user.
+      expect(scrollToPage).not.toHaveBeenCalled();
+    });
+
+    it('still scrolls for a genuine change after one the viewer reported', async () => {
+      const { rerender } = render(<KendoPdfViewer {...defaultProps} currentPage={1} />);
+      await screen.findByTestId('kendo-pdfviewer');
+
+      viewerScrollsTo(3);
+      rerender(<KendoPdfViewer {...defaultProps} currentPage={3} />);
+      vi.mocked(scrollToPage).mockClear();
+
+      // A thumbnail click now. The guard must not have latched shut.
+      rerender(<KendoPdfViewer {...defaultProps} currentPage={5} />);
+
+      expect(scrollToPage).toHaveBeenCalledWith(expect.any(HTMLElement), 4);
+    });
+  });
 });
