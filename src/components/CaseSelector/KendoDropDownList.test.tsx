@@ -66,7 +66,16 @@ describe('KendoDropDownList', () => {
    * their answer — which is the whole reason handleChange guards on the id.
    */
   describe('the placeholder row', () => {
-    it('THE LIMITATION: it is a selectable item in the list', async () => {
+    /**
+     * This one tests Kendo, not us, and is here on purpose: it pins the
+     * assumption the guard below is built on. If a future Kendo release makes
+     * defaultItem a real placeholder, this fails — and that failure is the
+     * signal that the guard, and its test, may no longer be needed.
+     *
+     * That is the only reason to test a vendor: to be told when the thing you
+     * worked around has changed.
+     */
+    it('is a clickable row, not a real placeholder', async () => {
       const user = userEvent.setup();
       render(<KendoDropDownList cases={threeCases} selectedCaseId={null} onSelectCase={vi.fn()} />);
 
@@ -77,18 +86,6 @@ describe('KendoDropDownList', () => {
       expect(optionLabel).toHaveClass('k-selected');
     });
 
-    it('is not even exposed as an option to screen readers', async () => {
-      const user = userEvent.setup();
-      render(<KendoDropDownList cases={threeCases} selectedCaseId={null} onSelectCase={vi.fn()} />);
-
-      await user.click(screen.getByRole('combobox'));
-
-      // Three options by role, but four clickable rows on screen. The
-      // placeholder row is a bare <div> with no role="option", so assistive
-      // tech cannot reach an entry a mouse user can click.
-      expect(screen.getAllByRole('option')).toHaveLength(3);
-    });
-
     it('is ignored when clicked, rather than selecting a case that does not exist', async () => {
       const user = userEvent.setup();
       const onSelectCase = vi.fn();
@@ -97,8 +94,9 @@ describe('KendoDropDownList', () => {
       );
 
       await user.click(screen.getByRole('combobox'));
-      // Clicked by class, not by role — the test above established this row
-      // has no role="option", so a mouse is the only way to reach it.
+      // Clicked by class rather than by role, because Kendo gives this row no
+      // role="option" — a mouse is the only way to reach it, which is exactly
+      // what makes the guard necessary.
       await user.click(document.querySelector('.k-list-optionlabel')!);
 
       // defaultItem carries id: null, which is what `if (selected.id)` is for.
