@@ -362,13 +362,17 @@ typed, so TypeScript catches drift if an interface changes.
 
 ### One contract across variants
 
-Both comparison suites (`CaseSelector/variants.test.tsx`, `PdfAttachments/placements.test.tsx`)
-run a shared contract over every implementation with `describe.each`, then record where
-they deliberately diverge. This makes a design comparison _executable_ — evidence rather
-than a comment someone has to take on trust.
+Neither comparison suite survives on this branch — the dropdown variants and the
+attachment placements were both narrowed to one — but the technique is worth keeping,
+and `kendo-react-all` still has both.
+
+When several implementations are being weighed against each other, run a shared contract
+over all of them with `describe.each`, then record where they deliberately diverge. That
+makes a design comparison _executable_ — evidence rather than a comment someone has to
+take on trust.
 
 Both suites turned up a finding just by being written: each variant needed its own adapter
-to read what it displays, which is itself proof they are not drop-in replacements.
+to read what it displays, which is itself proof they were not drop-in replacements.
 
 ### Split tests along the code's seams
 

@@ -11,7 +11,7 @@ afterEach(() => {
 // jsdom does not implement these, and our components call them:
 //
 // - matchMedia:      useDetailsPanel watches the mobile breakpoint with it
-// - scrollIntoView:  CustomDropdown scrolls the arrow-key focused option
+// - scrollIntoView:  Kendo's DropDownList scrolls the highlighted option
 //                    into view
 // - requestAnimationFrame is implemented by jsdom, so it is left alone.
 if (!window.matchMedia) {

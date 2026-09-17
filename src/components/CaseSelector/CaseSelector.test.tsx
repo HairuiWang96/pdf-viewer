@@ -8,13 +8,12 @@ import { threeCases } from '../../test/fixtures';
  * Tests for the CaseSelector wrapper.
  *
  * The wrapper owns very little: a heading, the ⓘ note and its tooltip, and the
- * decision of which dropdown to render. The dropdowns themselves are tested in
- * CustomDropdown.test.tsx and variants.test.tsx, so this file stays away from
- * their internals.
+ * dropdown it renders. The dropdown itself is tested in
+ * KendoDropDownList.test.tsx, so this file stays away from its internals.
  *
- * Deliberately *not* mocked here, unlike in PdfDetails.test.tsx — the whole
- * job of this component is choosing a variant, so stubbing the variant out
- * would leave nothing worth asserting.
+ * Deliberately *not* mocked here, unlike in PdfDetails.test.tsx — rendering
+ * the dropdown is most of what this component does, so stubbing it out would
+ * leave little worth asserting.
  */
 
 function renderSelector(selectedCaseId: string | null = null) {
@@ -31,19 +30,9 @@ function renderSelector(selectedCaseId: string | null = null) {
   return { onSelectCase, user: userEvent.setup() };
 }
 
-/**
- * Find the case-selection control whichever variant is active.
- *
- * CustomDropdown renders a <button>; both Kendo widgets render role="combobox".
- * Written this way, flipping ACTIVE_VARIANT does not break this file — which
- * is the point, since switching variants is the thing this project exists to
- * do.
- */
+/** The dropdown itself — Kendo renders it as role="combobox". */
 function findControl() {
-  return (
-    screen.queryByRole('combobox') ??
-    screen.queryByRole('button', { name: 'Select case number' })
-  );
+  return screen.queryByRole('combobox');
 }
 
 describe('CaseSelector', () => {

@@ -9,16 +9,14 @@ import { makeCase, threeCases } from '../../test/fixtures';
  *
  * ── Why CaseSelector is mocked ──
  *
- * PdfDetails renders <CaseSelector>, which renders whichever dropdown
- * ACTIVE_VARIANT points at — currently the KendoReact one. Pulling a
- * third-party widget into these tests would mean:
- *
- *   - re-testing Kendo's behaviour, which its own suite already covers
- *   - breaking every test in this file the day someone flips ACTIVE_VARIANT
+ * PdfDetails renders <CaseSelector>, which renders KendoReact's DropDownList.
+ * Pulling a third-party widget into these tests would mean re-testing Kendo's
+ * behaviour, which its own suite already covers, and breaking every test in
+ * this file the day the dropdown changes.
  *
  * A unit test should fail for one reason. So we swap in a stand-in and assert
- * only that PdfDetails decided to render it. The dropdowns are tested properly
- * in CustomDropdown.test.tsx.
+ * only that PdfDetails decided to render it. The dropdown is tested properly
+ * in KendoDropDownList.test.tsx.
  *
  * The stand-in is found by test id rather than by role: the "query by role"
  * rule is about testing real UI, and this is deliberately not real UI.
