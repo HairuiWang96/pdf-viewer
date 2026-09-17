@@ -21,6 +21,16 @@ interface FakeViewerProps {
   url?: string;
 }
 
+/**
+ * `vi.hoisted` runs this block *before* the imports, so the vi.mock factory
+ * below — which Vitest also moves to the very top of the file — can reach
+ * `mockState` when it runs.
+ *
+ * A plain `const mockState = {...}` would not work. vi.mock calls are hoisted
+ * above every import, so the factory would run first and find mockState still
+ * undefined. vi.hoisted lifts the variable up there too, so the two arrive
+ * together.
+ */
 const { mockState } = vi.hoisted(() => ({
   mockState: {
     pages: [{}, {}] as unknown[],

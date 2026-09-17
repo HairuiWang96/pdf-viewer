@@ -121,7 +121,7 @@ export default function KendoPdfViewer({ filePath, fileName, currentPage, onPage
      *   handleLoad     ours.          The function Kendo calls.
      *   onLoadSuccess  the parent's.  "Tell me the page count when you know."
      *
-     *   Kendo finishes reading the PDF
+     *   Kendo finishes reading the PDF‼️‼️
      *        ↓  calls the onLoad we handed it (see the JSX below)
      *   handleLoad()
      *        ↓  counts the pages
@@ -164,7 +164,7 @@ export default function KendoPdfViewer({ filePath, fileName, currentPage, onPage
                 tools={isMobile ? MOBILE_TOOLS : DESKTOP_TOOLS}
                 defaultZoom={isMobile ? 0.75 : 1}
                 // Kendo's own prop names. onLoad fires once the file is read;
-                // onPageChange fires on every scroll and pager click.
+                // onPageChange fires on every scroll and pager click.‼️
                 onLoad={handleLoad}
                 onPageChange={handlePageChange}
                 onError={handleError}
