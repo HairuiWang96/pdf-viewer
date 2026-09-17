@@ -79,33 +79,46 @@ describe('CaseSelector', () => {
       expect(note).toHaveFocus();
     });
 
-    it('positions its tooltip when focused', async () => {
+    /**
+     * These two check that the positioning code *ran*, not where the tooltip
+     * ended up. jsdom has no layout — getBoundingClientRect returns zeroes —
+     * so the pixel values here are meaningless and deliberately not asserted.
+     *
+     * They are two tests because they are two separate wires:
+     * onFocus for keyboard, onMouseEnter for mouse. Removing either is a real
+     * bug for half the users, and neither would fail the other's test.
+     *
+     * What goes wrong when nothing fires: the tooltip is position:fixed with
+     * no top/right, so it lands in the top-left corner of the screen instead
+     * of beside the icon.
+     */
+    it('gives the tooltip coordinates when focused', async () => {
       const { user } = renderSelector();
 
       const note = screen.getByRole('note');
       const tooltip = note.querySelector('.case-selector-tooltip') as HTMLElement;
 
-      // Before focus the tooltip has no computed position.
+      // Nothing written yet — this is what stops the assertion below being
+      // vacuous, by showing the style appears *because of* the interaction.
       expect(tooltip.style.top).toBe('');
 
       await user.tab();
 
-      // The tooltip uses position: fixed to escape the sidebar's overflow
-      // clipping, which means JS has to supply the coordinates. jsdom reports
-      // zeroes for getBoundingClientRect, so assert the style was *written*
-      // rather than checking a specific pixel value.
-      expect(tooltip.style.transform).toBe('translateY(-50%)');
       expect(tooltip.style.top).not.toBe('');
+      expect(tooltip.style.transform).toBe('translateY(-50%)');
     });
 
-    it('positions its tooltip on hover too', async () => {
+    it('gives the tooltip coordinates on hover too', async () => {
       const { user } = renderSelector();
 
       const note = screen.getByRole('note');
       const tooltip = note.querySelector('.case-selector-tooltip') as HTMLElement;
 
+      expect(tooltip.style.top).toBe('');
+
       await user.hover(note);
 
+      expect(tooltip.style.top).not.toBe('');
       expect(tooltip.style.transform).toBe('translateY(-50%)');
     });
   });
