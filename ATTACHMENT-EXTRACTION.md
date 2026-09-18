@@ -391,3 +391,83 @@ browser and per device class:
 5. On mobile specifically: does **backgrounding the tab** during playback lose the blob?
 
 See `TESTING.md` for why none of this can live in the suite.
+
+---
+
+## 12. Open research: the other four ways a PDF can hold audio
+
+**Nothing here is implemented. This section exists to be taken to a product owner.**
+
+The RichMedia document in §1 was not an exotic one-off — it was the second of *six*
+mechanisms the PDF specification provides for embedding sound, and we support two. The
+other four were probed by building a minimal fixture for each and running the shipped
+reader against it. Those fixtures were throwaway and are not in `public/`; building them
+again is an afternoon, not a project.
+
+```
+1. /Names /EmbeddedFiles      -> interview-part-1.mp3, interview-part-2.mp3, voicemail-evidence.wav
+2. /FileAttachment annot      -> NOT FOUND
+3. /Sound annot (PDF 1.2)     -> NOT FOUND
+4. /Movie annot (PDF 1.2)     -> NOT FOUND
+5. /Screen + Rendition (1.5)  -> NOT FOUND
+6. /RichMedia (Flash)         -> 2017-1506.mp3
+```
+
+| # | Mechanism | Era | Where the audio lives | Supported |
+|---|---|---|---|---|
+| 1 | `/Names /EmbeddedFiles` | 1.3+ | Catalog name tree → filespec → stream | **Yes** |
+| 2 | `/FileAttachment` annotation | 1.3+ | Annotation `/FS` → filespec | No |
+| 3 | `/Sound` annotation | 1.2 | Raw samples in a stream — no container | No |
+| 4 | `/Movie` annotation | 1.2 | `/Movie /F` → filespec | No |
+| 5 | `/Screen` + Rendition | 1.5 | `/Rendition` → `/MediaClip` → `/D` → filespec | No |
+| 6 | `/RichMedia` annotation | 1.7 Ext3 | Annotation `/Assets` name tree | **Yes** |
+
+Two further cases were not probed: **Sound and Rendition *actions***, hung off a link or
+button rather than an annotation, and **`/AF` associated files** (PDF 2.0), which in
+practice also appear in the `/EmbeddedFiles` tree and so are already caught by #1.
+
+### What each gap is worth
+
+**#5 `/Screen` + Rendition is the one that matters.** It is the standard mechanism for
+embedded media from PDF 1.5 until RichMedia — roughly 2003 to 2020, and the non-Flash
+route throughout that window. A real case file with audio in it is more likely to use
+this than RichMedia. Structurally it is the closest to what already works: an annotation
+pointing at a filespec with an `/EF` stream, so the existing walk extends to it rather
+than needing new machinery.
+
+**#2 `/FileAttachment` is less alarming than the table suggests.** Acrobat writes the
+annotation *and* an `/EmbeddedFiles` entry for the same file, so real documents are
+normally caught by #1. Only a tool that writes the annotation alone slips through. The
+fixture that failed above was built deliberately pathological to prove the gap exists.
+Cheap to close alongside #5, since the shape is nearly identical.
+
+**#3 `/Sound` is a different kind of problem.** The stream holds raw PCM or µ-law
+samples with sample rate, channel count and bit depth in the dictionary — **not a
+playable file, and carrying no filename.** Supporting it means synthesising a WAV
+container from those fields and inventing a name to show. That is real work rather than
+an extension of the walk, and it is 1.2-era, so it should probably be an explicit
+*won't* rather than a backlog item.
+
+**#4 `/Movie`** is the same era and effectively extinct.
+
+### The question for the product owner
+
+The failure mode is the one you already saw: the document plainly contains audio, and
+the viewer says nothing. It is silent, it looks like nothing is wrong, and no error is
+logged — which is exactly why it went unnoticed until someone opened that file in
+Acrobat and compared.
+
+So the decision is not really "which of these should we build". It is:
+
+1. **What actually arrives?** Nobody has sampled the real corpus. The cheapest next step
+   by a wide margin is to run a scan over real case files counting which of the six
+   mechanisms appear, before any of this is built. Six-of-six coverage is pointless if
+   the corpus is 99% #1.
+2. **Is silence acceptable when we cannot read one?** Today an unsupported mechanism is
+   indistinguishable from a document with no audio. An alternative is to detect the
+   annotation subtypes we cannot read and say so — "this document contains media this
+   viewer cannot play" — which is far cheaper than supporting them and removes the
+   dangerous part, which is not knowing.
+
+Point 2 is worth raising first. It is small, it closes the whole class rather than one
+case at a time, and it converts a silent gap into a visible one.
