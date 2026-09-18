@@ -1,79 +1,66 @@
 /**
  * Locates every embedded file in a document — without reading any of them.
  *
- * This is the discovery half of attachments, and it deliberately stops at the
- * stream object. Walking the object graph is cheap and tells us everything an
- * indicator needs: the filename, the declared size, and that the file is there
- * at all. Decoding is what costs, and it is left to the caller to do per file,
- * on demand. See PdfAttachment for why that split exists.
+ * This is the discovery half of attachments, and it deliberately stops short
+ * of the bytes. Walking the object graph is cheap and tells us everything an
+ * indicator needs: the filename, the declared size and type, and that the file
+ * is there at all. Decoding is what costs, and it is left to `readAttachment`
+ * to do per file, on demand. See PdfAttachment for why that split exists.
  *
  * ── The two places a PDF can keep a file ──
  *
  * 1. /Names /EmbeddedFiles on the catalog. The attachment model proper — what
- *    a viewer means by "this document has attachments", and the only thing
- *    pdf.js's getAttachments() looks at.
+ *    a viewer means by "this document has attachments". `@libpdf/core` has a
+ *    first-class API for this, so we use it rather than walking by hand: its
+ *    `getAttachments()` lists names, sizes and declared types without reading
+ *    a single file, and `getAttachment(name)` reads one when asked.
  *
  * 2. A RichMedia annotation's own /Assets tree. The Flash era: the annotation
- *    names a player .swf and passes it the audio through FlashVars. A file in
- *    here is invisible to getAttachments() — it returns null, and every
- *    indicator correctly shows nothing, because as far as the spec's
- *    attachment model goes the document has no attachments. Acrobat still
- *    plays these: it ignores the dead .swf and plays the audio beside it,
- *    which is usually an ordinary MP3. So do we.
+ *    names a player .swf and passes it the audio through FlashVars. Nothing
+ *    treats a file in here as an attachment — by the spec's own model the
+ *    document has none — which is why every viewer showed nothing for it.
+ *    Acrobat plays it anyway: it ignores the dead .swf and plays the audio
+ *    beside it, which is usually an ordinary MP3. So do we.
  *
- * pdf-lib rather than pdf.js for both, for two reasons. pdf.js has no
- * RichMedia support at all (it logs "Unimplemented annotation type" and falls
- * back to a base annotation, discarding the content dictionary), so case 2 is
- * unreachable through it. And its getAttachments() decodes every attachment up
- * front, which is exactly the eagerness this module exists to avoid.
+ * `getAnnotations()` will not help with case 2 — it models a fixed set of
+ * annotation subtypes and RichMedia is not one of them, so the page comes back
+ * with an empty list. The low-level PdfDict/PdfArray API reaches it, which is
+ * the whole reason this file can exist.
  */
-import {
-  PDFArray,
-  PDFDict,
-  PDFDocument,
-  PDFHexString,
-  PDFName,
-  PDFNumber,
-  PDFRawStream,
-  PDFString,
-} from 'pdf-lib';
+import { PDF, PdfDict, PdfStream, type PdfObject, type PdfRef } from '@libpdf/core';
 import { guessAudioMimeType } from './attachments';
 
+/** Which tree a file came from — decides how `readAttachment` reads it back. */
+export type AttachmentSource = 'embedded' | 'richmedia';
+
 /** A file found in the document, located but not read. */
-export interface AttachmentStream {
+export interface AttachmentEntry {
   filename: string;
   /** Bytes as the document declares them, or null when it does not say. */
   size: number | null;
-  /** The undecoded stream. Decoding it is the caller's business. */
-  stream: PDFRawStream;
+  /** MIME type the document declares, or null — not guessed from the name. */
+  mimeType: string | null;
+  source: AttachmentSource;
 }
 
 /** A name tree deep enough to hit this is malformed or hostile. */
 const MAX_NAME_TREE_DEPTH = 32;
 
 /**
- * A pdf-lib class used as a value, for `instanceof`. Written in terms of
- * `prototype` rather than a construct signature because pdf-lib keeps its
- * constructors private — the classes are built through static factories — and
- * a private constructor is not assignable to a `new (...)` type.
+ * Follows indirect references.
+ *
+ * Every typed getter below takes one of these and dereferences automatically,
+ * which is what keeps this file free of the "forgot to resolve a PdfRef" bug
+ * that the equivalent pdf-lib code has to guard against by hand.
  */
-type PdfObjectClass<T> = Function & { prototype: T };
+type Resolve = (ref: PdfRef) => PdfObject | null;
 
-/**
- * pdf-lib's typed `lookup(key, Type)` throws when the key is missing rather
- * than returning undefined, which would make every optional key below a
- * try/catch. This looks up untyped and narrows instead, so an absent key and a
- * key of the wrong type both come back as undefined.
- */
-function lookupAs<T>(
-  dict: PDFDict | undefined,
-  key: string,
-  type: PdfObjectClass<T>,
-): T | undefined {
-  const value = dict?.lookup(PDFName.of(key));
-  // The cast is what the `prototype` form costs: TypeScript narrows on
-  // instanceof only for a construct signature, which pdf-lib cannot give us.
-  return value instanceof type ? (value as T) : undefined;
+const resolverFor = (pdf: PDF): Resolve => (ref) => pdf.context.resolve(ref);
+
+/** Streams have no typed getter — PdfStream extends PdfDict, so narrow by hand. */
+function streamAt(dict: PdfDict | undefined, key: string, resolve: Resolve) {
+  const value = dict?.get(key, resolve);
+  return value instanceof PdfStream ? value : undefined;
 }
 
 /**
@@ -82,25 +69,30 @@ function lookupAs<T>(
  * A node holds leaves in /Names — a flat array alternating key, value, key,
  * value — or branches in /Kids, and the spec permits both on the same node, so
  * this reads each independently rather than treating them as alternatives.
- * Only the odd indices of /Names are values; the even ones are the lookup keys,
+ * Only the odd indices of /Names are values; the even ones are lookup keys,
  * which we ignore because the file specification carries a better name.
  */
-function collectFileSpecs(node: PDFDict | undefined, found: PDFDict[], depth = 0): void {
+function collectFileSpecs(
+  node: PdfDict | undefined,
+  resolve: Resolve,
+  found: PdfDict[],
+  depth = 0,
+): void {
   if (!node || depth > MAX_NAME_TREE_DEPTH) return;
 
-  const names = lookupAs(node, 'Names', PDFArray);
+  const names = node.getArray('Names', resolve);
   if (names) {
-    for (let index = 1; index < names.size(); index += 2) {
-      const spec = names.lookup(index);
-      if (spec instanceof PDFDict) found.push(spec);
+    for (let index = 1; index < names.length; index += 2) {
+      const spec = names.at(index, resolve);
+      if (spec instanceof PdfDict) found.push(spec);
     }
   }
 
-  const kids = lookupAs(node, 'Kids', PDFArray);
+  const kids = node.getArray('Kids', resolve);
   if (kids) {
-    for (let index = 0; index < kids.size(); index += 1) {
-      const kid = kids.lookup(index);
-      if (kid instanceof PDFDict) collectFileSpecs(kid, found, depth + 1);
+    for (let index = 0; index < kids.length; index += 1) {
+      const kid = kids.at(index, resolve);
+      if (kid instanceof PdfDict) collectFileSpecs(kid, resolve, found, depth + 1);
     }
   }
 }
@@ -109,86 +101,110 @@ function collectFileSpecs(node: PDFDict | undefined, found: PDFDict[], depth = 0
  * The filename a file specification declares. /UF is the Unicode form and /F
  * the legacy one; Acrobat writes both, so prefer /UF and fall back.
  */
-function fileSpecName(spec: PDFDict): string | undefined {
-  const name = spec.lookup(PDFName.of('UF')) ?? spec.lookup(PDFName.of('F'));
-  return name instanceof PDFHexString || name instanceof PDFString
-    ? name.decodeText()
-    : undefined;
-}
-
-/**
- * The size of a file specification's stream, without touching its bytes.
- *
- * /Params /Size is the real, decoded length and the one worth showing. /Length
- * is the fallback, and only equals it when the stream is stored uncompressed —
- * which for audio and video, already compressed formats, it usually is.
- */
-function streamSize(stream: PDFRawStream): number | null {
-  const params = lookupAs(stream.dict, 'Params', PDFDict);
-  const declared =
-    lookupAs(params, 'Size', PDFNumber) ?? lookupAs(stream.dict, 'Length', PDFNumber);
-  return declared ? declared.asNumber() : null;
+function fileSpecName(spec: PdfDict): string | undefined {
+  return (spec.getString('UF') ?? spec.getString('F'))?.asString();
 }
 
 /** The stream a file specification points at, if it has one. */
-function fileSpecStream(spec: PDFDict): PDFRawStream | undefined {
-  return lookupAs(lookupAs(spec, 'EF', PDFDict), 'F', PDFRawStream);
+function fileSpecStream(spec: PdfDict, resolve: Resolve): PdfStream | undefined {
+  return streamAt(spec.getDict('EF', resolve), 'F', resolve);
+}
+
+/**
+ * Size and type, read from the stream dictionary rather than the stream.
+ *
+ * /Params /Size is the decoded length and the one worth showing; /Length is
+ * the encoded one, and only matches when the file is stored uncompressed —
+ * which for audio and video, already-compressed formats, it usually is.
+ * /Subtype carries the MIME type the author declared, which beats guessing
+ * from the extension.
+ */
+function streamFacts(stream: PdfStream, resolve: Resolve) {
+  const declared =
+    stream.getDict('Params', resolve)?.getNumber('Size', resolve) ??
+    stream.getNumber('Length', resolve);
+
+  return {
+    size: declared?.value ?? null,
+    mimeType: stream.getName('Subtype')?.value ?? null,
+  };
 }
 
 /** Case 1 — the catalog's attachment tree. Every file in it counts. */
-function collectEmbeddedFiles(document: PDFDocument, found: Map<string, AttachmentStream>): void {
-  const tree = lookupAs(lookupAs(document.catalog, 'Names', PDFDict), 'EmbeddedFiles', PDFDict);
+function collectEmbeddedFiles(pdf: PDF, found: Map<string, AttachmentEntry>): void {
+  for (const [key, info] of pdf.getAttachments()) {
+    const filename = info.filename || key;
+    if (found.has(filename)) continue;
 
-  const specs: PDFDict[] = [];
-  collectFileSpecs(tree, specs);
+    found.set(filename, {
+      filename,
+      size: info.size ?? null,
+      mimeType: info.mimeType ?? null,
+      source: 'embedded',
+    });
+  }
+}
 
-  for (const spec of specs) {
-    const filename = fileSpecName(spec);
-    const stream = filename ? fileSpecStream(spec) : undefined;
-    if (!filename || !stream || found.has(filename)) continue;
+/**
+ * Walks every RichMedia annotation's assets, handing each file specification
+ * to `visit`. Stops early if `visit` returns false.
+ *
+ * Shared by discovery and reading so the two cannot drift: a file listed here
+ * is reachable by exactly the same route when somebody asks to play it.
+ */
+function eachRichMediaAsset(
+  pdf: PDF,
+  visit: (spec: PdfDict, resolve: Resolve) => boolean,
+): void {
+  const resolve = resolverFor(pdf);
 
-    found.set(filename, { filename, size: streamSize(stream), stream });
+  for (const page of pdf.getPages()) {
+    const annotations = page.dict.getArray('Annots', resolve);
+    if (!annotations) continue;
+
+    for (let index = 0; index < annotations.length; index += 1) {
+      const annotation = annotations.at(index, resolve);
+      if (!(annotation instanceof PdfDict)) continue;
+      if (annotation.getName('Subtype')?.value !== 'RichMedia') continue;
+
+      const assets = annotation.getDict('RichMediaContent', resolve)?.getDict('Assets', resolve);
+
+      const specs: PdfDict[] = [];
+      collectFileSpecs(assets, resolve, specs);
+
+      for (const spec of specs) {
+        if (!visit(spec, resolve)) return;
+      }
+    }
   }
 }
 
 /** Case 2 — RichMedia annotation assets. Audio only; see the note below. */
-function collectRichMediaAudio(document: PDFDocument, found: Map<string, AttachmentStream>): void {
-  for (const page of document.getPages()) {
-    const annotations = lookupAs(page.node, 'Annots', PDFArray);
-    if (!annotations) continue;
+function collectRichMediaAudio(pdf: PDF, found: Map<string, AttachmentEntry>): void {
+  eachRichMediaAsset(pdf, (spec, resolve) => {
+    const filename = fileSpecName(spec);
+    // One asset can be referenced from several annotations, and a name already
+    // claimed by a real attachment wins.
+    if (!filename || found.has(filename)) return true;
 
-    for (let index = 0; index < annotations.size(); index += 1) {
-      const annotation = annotations.lookup(index);
-      if (!(annotation instanceof PDFDict)) continue;
-      if (annotation.get(PDFName.of('Subtype'))?.toString() !== '/RichMedia') continue;
+    const stream = fileSpecStream(spec, resolve);
+    if (!stream) return true;
 
-      const assets = lookupAs(
-        lookupAs(annotation, 'RichMediaContent', PDFDict),
-        'Assets',
-        PDFDict,
-      );
+    const facts = streamFacts(stream, resolve);
+    // Unlike the attachment tree, this one is filtered to audio. These assets
+    // are a player's internals rather than files the author meant to attach,
+    // and this is what drops the .swf sitting beside the audio — the one asset
+    // here a browser can do nothing with.
+    //
+    // The declared /Subtype decides it when there is one, and the extension
+    // only when there is not. Filtering on the declaration alone would drop a
+    // perfectly good .mp3 from any tool that omitted it.
+    const effective = facts.mimeType ?? guessAudioMimeType(filename);
+    if (!effective?.startsWith('audio/')) return true;
 
-      const specs: PDFDict[] = [];
-      collectFileSpecs(assets, specs);
-
-      for (const spec of specs) {
-        const filename = fileSpecName(spec);
-        // Unlike the attachment tree, this one is filtered to audio. These
-        // assets are a player's internals rather than files the author meant
-        // to attach, and the extension check is what drops the .swf sitting
-        // beside the audio — the one asset here a browser can do nothing with.
-        if (!filename || !guessAudioMimeType(filename)) continue;
-        // One asset can be referenced from several annotations, and a name
-        // already claimed by a real attachment wins.
-        if (found.has(filename)) continue;
-
-        const stream = fileSpecStream(spec);
-        if (!stream) continue;
-
-        found.set(filename, { filename, size: streamSize(stream), stream });
-      }
-    }
-  }
+    found.set(filename, { filename, source: 'richmedia', ...facts });
+    return true;
+  });
 }
 
 /**
@@ -197,9 +213,33 @@ function collectRichMediaAudio(document: PDFDocument, found: Map<string, Attachm
  * Real attachments first, so that if a RichMedia asset happens to share a name
  * with one, the attachment is what people get.
  */
-export function collectAttachmentStreams(document: PDFDocument): Map<string, AttachmentStream> {
-  const found = new Map<string, AttachmentStream>();
-  collectEmbeddedFiles(document, found);
-  collectRichMediaAudio(document, found);
+export function collectAttachments(pdf: PDF): Map<string, AttachmentEntry> {
+  const found = new Map<string, AttachmentEntry>();
+  collectEmbeddedFiles(pdf, found);
+  collectRichMediaAudio(pdf, found);
+  return found;
+}
+
+/**
+ * Reads one file's bytes, finding it again by name.
+ *
+ * Looking it up a second time rather than holding the stream from discovery is
+ * what keeps discovery cheap — see the note in useAttachments.
+ */
+export function readAttachment(pdf: PDF, entry: AttachmentEntry): Uint8Array {
+  if (entry.source === 'embedded') {
+    const bytes = pdf.getAttachment(entry.filename);
+    if (!bytes) throw new Error(`${entry.filename} is no longer in the document`);
+    return bytes;
+  }
+
+  let found: Uint8Array | undefined;
+  eachRichMediaAsset(pdf, (spec, resolve) => {
+    if (fileSpecName(spec) !== entry.filename) return true;
+    found = fileSpecStream(spec, resolve)?.getDecodedData();
+    return false;
+  });
+
+  if (!found) throw new Error(`${entry.filename} is no longer in the document`);
   return found;
 }

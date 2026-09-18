@@ -4,11 +4,11 @@ import {
   PDFHexString,
   PDFName,
   PDFString,
-  decodePDFRawStream,
   type PDFContext,
   type PDFObject,
 } from 'pdf-lib';
-import { collectAttachmentStreams } from './attachmentStreams';
+import { PDF } from '@libpdf/core';
+import { collectAttachments, readAttachment } from './attachmentStreams';
 
 /**
  * Finding the files a document carries, from both places one can hide them:
@@ -29,6 +29,8 @@ interface Asset {
   bytes: Uint8Array;
   /** Written as /Params /Size, the decoded length a real file specifies. */
   declaredSize?: number;
+  /** Written as /Subtype — the MIME type the author declares for the file. */
+  mimeType?: string;
 }
 
 /** One file specification with its bytes attached, registered and referenced. */
@@ -36,6 +38,11 @@ function fileSpec(context: PDFContext, asset: Asset) {
   const stream = context.stream(asset.bytes);
   if (asset.declaredSize !== undefined) {
     stream.dict.set(PDFName.of('Params'), context.obj({ Size: asset.declaredSize }));
+  }
+  if (asset.mimeType !== undefined) {
+    // A PDF name, not a string — and "/" has to be escaped as "#2F" inside one,
+    // which is how "audio/mpeg" is actually stored.
+    stream.dict.set(PDFName.of('Subtype'), PDFName.of(asset.mimeType));
   }
 
   return context.register(
@@ -66,19 +73,24 @@ function nameTree(context: PDFContext, assets: Asset[], nest: boolean) {
 }
 
 /**
- * Round-trips a built document through save and parse.
+ * Saves a built document and reopens it with the library under test.
  *
- * Everything here is written by hand, and a hand-built pdf-lib document is not
- * quite a parsed one — /Length, for instance, is only computed when the file
- * is written. Parsing what we saved means these tests see the same shape the
- * hook sees in the browser rather than a convenient in-memory approximation.
+ * The fixtures are built with pdf-lib and read with @libpdf/core, which is
+ * deliberate on this branch: it means the reader is never checked against its
+ * own writer, and a disagreement between the two shows up as a failing test
+ * rather than as a file neither of them questions.
+ *
+ * Saving also matters on its own. A hand-built document is not quite a parsed
+ * one — /Length, for instance, is only computed when the file is written — so
+ * parsing what we saved is what makes these tests see the shape the hook sees
+ * in the browser.
  */
-async function reparse(document: PDFDocument) {
-  return PDFDocument.load(await document.save(), { throwOnInvalidObject: false });
+async function reparse(document: PDFDocument): Promise<PDF> {
+  return PDF.load(await document.save());
 }
 
 /** A document whose assets sit in the catalog's attachment tree. */
-async function withEmbeddedFiles(assets: Asset[], { nest = false } = {}) {
+async function withEmbeddedFiles(assets: Asset[], { nest = false } = {}): Promise<PDF> {
   const document = await PDFDocument.create();
   document.addPage();
 
@@ -88,7 +100,7 @@ async function withEmbeddedFiles(assets: Asset[], { nest = false } = {}) {
 }
 
 /** A document whose assets sit inside a RichMedia annotation instead. */
-async function withRichMedia(assets: Asset[], { nest = false } = {}) {
+async function withRichMedia(assets: Asset[], { nest = false } = {}): Promise<PDF> {
   const document = await PDFDocument.create();
   const page = document.addPage();
   const context = document.context;
@@ -109,9 +121,9 @@ async function withRichMedia(assets: Asset[], { nest = false } = {}) {
   return reparse(document);
 }
 
-const names = (document: PDFDocument) => [...collectAttachmentStreams(document).keys()];
+const names = (pdf: PDF) => [...collectAttachments(pdf).keys()];
 
-describe('collectAttachmentStreams', () => {
+describe('collectAttachments', () => {
   describe('the catalog attachment tree', () => {
     it('finds an embedded file', async () => {
       expect(names(await withEmbeddedFiles([{ name: 'clip.mp3', bytes: MP3 }]))).toEqual([
@@ -153,7 +165,7 @@ describe('collectAttachmentStreams', () => {
         }),
       );
 
-      expect(names(document)).toEqual([]);
+      expect(names(await reparse(document))).toEqual([]);
     });
   });
 
@@ -189,7 +201,7 @@ describe('collectAttachmentStreams', () => {
       );
       page.node.set(PDFName.of('Annots'), context.obj([annotation]));
 
-      expect(names(document)).toEqual([]);
+      expect(names(await reparse(document))).toEqual([]);
     });
   });
 
@@ -197,7 +209,7 @@ describe('collectAttachmentStreams', () => {
     const document = await PDFDocument.create();
     document.addPage();
 
-    expect(names(document)).toEqual([]);
+    expect(names(await reparse(document))).toEqual([]);
   });
 
   describe('what it reports per file', () => {
@@ -208,40 +220,68 @@ describe('collectAttachmentStreams', () => {
         { name: 'clip.mp3', bytes: MP3, declaredSize: 8_257_667 },
       ]);
 
-      expect(collectAttachmentStreams(document).get('clip.mp3')?.size).toBe(8_257_667);
+      expect(collectAttachments(document).get('clip.mp3')?.size).toBe(8_257_667);
     });
 
     it('falls back to the stream length when no size is declared', async () => {
       const document = await withEmbeddedFiles([{ name: 'clip.mp3', bytes: MP3 }]);
 
-      expect(collectAttachmentStreams(document).get('clip.mp3')?.size).toBe(MP3.length);
+      expect(collectAttachments(document).get('clip.mp3')?.size).toBe(MP3.length);
     });
 
-    it('hands back the stream undecoded, so listing costs nothing', async () => {
-      // The contract this module exists for: discovery locates files, and the
-      // caller decides which of them is worth decoding.
+    it('describes a file without reading it, and reads it only when asked', async () => {
+      // The contract this module exists for: discovery locates files and
+      // reports what they are, and the caller decides which is worth decoding.
       const document = await withEmbeddedFiles([{ name: 'clip.mp3', bytes: MP3 }]);
-      const found = collectAttachmentStreams(document).get('clip.mp3');
+      const found = collectAttachments(document).get('clip.mp3');
 
-      expect(found).toBeDefined();
-      expect(decodePDFRawStream(found!.stream).decode()).toEqual(MP3);
+      expect(found).toEqual({
+        filename: 'clip.mp3',
+        size: MP3.length,
+        // Null, not "audio/mpeg": this fixture declares no /Subtype, and
+        // discovery reports what the document says rather than inferring from
+        // the name. Guessing from the extension is useAttachments' job.
+        mimeType: null,
+        source: 'embedded',
+      });
+      expect(readAttachment(document, found!)).toEqual(MP3);
+    });
+
+    it('reports the MIME type the document declares, rather than guessing', async () => {
+      // The extension says nothing useful here; /Subtype does. Reading the
+      // declaration is what the pdf-lib version could not do.
+      const document = await withEmbeddedFiles([
+        { name: 'recording.bin', bytes: MP3, mimeType: 'audio/mpeg' },
+      ]);
+
+      expect(collectAttachments(document).get('recording.bin')?.mimeType).toBe('audio/mpeg');
     });
   });
 
   it('lets a real attachment win a name a RichMedia asset also uses', async () => {
-    const document = await withEmbeddedFiles([{ name: 'clip.mp3', bytes: MP3 }]);
+    const document = await PDFDocument.create();
+    const page = document.addPage();
     const context = document.context;
 
+    document.catalog.set(
+      PDFName.of('Names'),
+      context.obj({ EmbeddedFiles: nameTree(context, [{ name: 'clip.mp3', bytes: MP3 }], false) }),
+    );
+
     const content = context.register(
-      context.obj({ Assets: nameTree(context, [{ name: 'clip.mp3', bytes: SWF }], false) }),
+      context.obj({
+        Assets: nameTree(context, [{ name: 'clip.mp3', bytes: SWF, mimeType: 'audio/mpeg' }], false),
+      }),
     );
     const annotation = context.register(
       context.obj({ Type: 'Annot', Subtype: 'RichMedia', RichMediaContent: content }),
     );
-    document.getPages()[0].node.set(PDFName.of('Annots'), context.obj([annotation]));
+    page.node.set(PDFName.of('Annots'), context.obj([annotation]));
 
-    const found = collectAttachmentStreams(document);
+    const reopened = await reparse(document);
+    const found = collectAttachments(reopened);
     expect(found.size).toBe(1);
-    expect(decodePDFRawStream(found.get('clip.mp3')!.stream).decode()).toEqual(MP3);
+    expect(found.get('clip.mp3')?.source).toBe('embedded');
+    expect(readAttachment(reopened, found.get('clip.mp3')!)).toEqual(MP3);
   });
 });

@@ -218,3 +218,53 @@ audio, leaving the download branch of the indicator unexercised in the browser.
   the file is the browser's own player menu, which means loading and playing it.
 - **`/Params /Size` is trusted, not verified.** A document declaring a wrong size would
   show a wrong size. Harmless, but it is a claim by the file rather than a measurement.
+
+---
+
+## 10. This branch: the same job with `@libpdf/core`
+
+`libpdf-attachments` is this branch. Everything above still describes *why* the
+reading moved off pdf.js; this section records what changed when the reader itself
+was swapped for [`@libpdf/core`](https://github.com/LibPDF-js/core), the library a
+colleague already uses server-side.
+
+`usePdfStamp` deliberately stays on pdf-lib. That means both libraries ship here,
+which would be the wrong call in production and is the right one for a comparison
+branch — the point is to see the attachment layer side by side, not to finish a
+migration.
+
+### What got better
+
+| | pdf-lib branch | this branch |
+|---|---|---|
+| `/EmbeddedFiles` | hand-walked name tree, ~60 lines | `pdf.getAttachments()` — one call |
+| MIME type | guessed from the file extension | **declared by the document** (`/Subtype`) |
+| Also free | — | description, creation and modification dates |
+| Dereferencing | manual, easy to forget | every typed getter takes a resolver |
+| Encrypted PDFs | **cannot open them at all** | `PDF.load(bytes, { credentials })` |
+
+The MIME row is the visible one: `interview-transcript.txt` now reports `text/plain`
+and `evidence-log.csv` reports `text/csv` because the file says so, where the pdf-lib
+branch only knew they were "not audio".
+
+### What did not change
+
+RichMedia still needs the low-level walk. `getAnnotations()` models a fixed set of
+subtypes and RichMedia is not among them, so the page comes back empty — the same
+blind spot pdf.js has, reached the same way, through `PdfDict`/`PdfArray`. Listing
+without decoding also survives: `getAttachments()` is metadata-only and `PdfStream.data`
+hands back raw bytes.
+
+### What it costs
+
+- **Bundle: 2,769 kB → 3,733 kB** (gzip 897 → 1,143 kB), because both libraries ship.
+  Dropping pdf-lib entirely is what would make this a win rather than a wash.
+- **`@libpdf/core` is 0.4.2 and self-describes as beta.** pdf-lib is 1.17.1 and stable.
+  This is the layer the viewer's correctness rests on.
+
+### Verified
+
+Identical results to the pdf-lib branch on every fixture, byte for byte — including
+`2017-1506.mp3` at 8,257,667 bytes out of the RichMedia annotation. The unit tests
+build fixtures with pdf-lib and read them with `@libpdf/core`, so the reader is never
+checked against its own writer.

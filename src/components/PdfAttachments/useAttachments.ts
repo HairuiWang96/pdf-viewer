@@ -1,31 +1,27 @@
 import { useEffect, useState } from 'react';
-import { PDFDocument, decodePDFRawStream } from 'pdf-lib';
+import { PDF } from '@libpdf/core';
 import { guessAudioMimeType } from './attachments';
 import type { PdfAttachment } from './attachments';
-import { collectAttachmentStreams } from './attachmentStreams';
+import { collectAttachments, readAttachment } from './attachmentStreams';
+import type { AttachmentEntry } from './attachmentStreams';
 
 /** Parses a document from its URL. The fetch is the browser's to cache. */
-async function loadDocument(filePath: string): Promise<PDFDocument> {
+async function loadDocument(filePath: string): Promise<PDF> {
   const response = await fetch(filePath);
-  // These files are often old and written by tools that predate a lot of
-  // tightening, so one unparseable object should cost us that object rather
-  // than the whole document.
-  return PDFDocument.load(await response.arrayBuffer(), { throwOnInvalidObject: false });
+  return PDF.load(new Uint8Array(await response.arrayBuffer()));
 }
 
 /**
- * Reads one file's bytes, re-finding it by name in a freshly parsed document.
+ * The MIME type to hand an <audio> element, or null if this is not playable.
  *
- * Looking it up again rather than holding the stream from discovery is what
- * keeps discovery cheap — see the note in the hook below.
+ * The document's own /Subtype is preferred — it is what the author declared —
+ * and the extension guess is only a fallback for files that declare nothing.
+ * The guess still has to run: plenty of tools attach a file without saying
+ * what it is.
  */
-async function readAttachment(
-  parse: () => Promise<PDFDocument>,
-  filename: string,
-): Promise<Uint8Array> {
-  const found = collectAttachmentStreams(await parse()).get(filename);
-  if (!found) throw new Error(`${filename} is no longer in the document`);
-  return decodePDFRawStream(found.stream).decode();
+function playableType(entry: AttachmentEntry): string | null {
+  if (entry.mimeType) return entry.mimeType.startsWith('audio/') ? entry.mimeType : null;
+  return guessAudioMimeType(entry.filename);
 }
 
 /**
@@ -66,27 +62,25 @@ export function useAttachments(filePath: string | undefined): PdfAttachment[] {
      * the discovery parse is left to be collected and paid for again only if
      * somebody actually asks.
      */
-    let reparse: Promise<PDFDocument> | undefined;
+    let reparse: Promise<PDF> | undefined;
     const parse = () => (reparse ??= loadDocument(filePath));
 
     loadDocument(filePath)
       .then((document) => {
         if (cancelled) return;
 
-        // Note what is copied out here: names and sizes, nothing else. An
-        // AttachmentStream holds a live pdf-lib object, and capturing one in
-        // the `read` closure below would pin the discovery parse in memory —
-        // silently undoing the paragraph above, with nothing to show for it.
-        const listed = [...collectAttachmentStreams(document).values()].map(
-          ({ filename, size }) => ({ filename, size }),
-        );
+        // An AttachmentEntry is plain data — names, sizes, a source tag — and
+        // holds nothing reachable from the parsed document. That is what lets
+        // the `read` closure below capture one without pinning the discovery
+        // parse in memory, which would silently undo the paragraph above.
+        const listed = [...collectAttachments(document).values()];
 
         setAttachments(
-          listed.map(({ filename, size }) => ({
-            filename,
-            size,
-            mimeType: guessAudioMimeType(filename),
-            read: () => readAttachment(parse, filename),
+          listed.map((entry) => ({
+            filename: entry.filename,
+            size: entry.size,
+            mimeType: playableType(entry),
+            read: async () => readAttachment(await parse(), entry),
           })),
         );
       })
