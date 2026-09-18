@@ -228,11 +228,44 @@ checkable in jsdom; the appearance is not.‼️
 | "the scrubber shows"     | an explicit **width is applied**                                         |
 | "the badge is on screen" | the count is **not inside** the visually-hidden label                    |
 
+### A fifth thing jsdom cannot see: memory
+
+The four above are all layout and paint. Attachment size is a different class, and it is
+worth naming separately because a green suite says nothing at all about it.
+
+An attachment can be hundreds of megabytes. Playing one costs roughly **4× its size** in
+peak memory — the fetched PDF, the Blob copy, and the garbage in between. Measured in
+Node, a 200 MB attachment peaks around 800 MB.
+
+Node is not the constraint, though. A phone is:
+
+| Environment | Expected ceiling | Confidence |
+| ----------- | ---------------- | ---------- |
+| Desktop Chrome / Edge | ~4 GB per tab; 200 MB comfortable | high |
+| Desktop Firefox / Safari | similar order, untested | medium |
+| **Mobile Safari** | **tabs killed in the low hundreds of MB** | high that a limit exists, low on where |
+| Mobile Chrome (Android) | lower than desktop, device-dependent | low |
+
+Only the first column is measured, and only in Node — the rest is expectation. That gap
+is the point: **nothing in the suite, and nothing in Node, can tell you what a phone
+does with a 200 MB attachment.**
+
+The failure mode is also unlike the others. A layout bug looks wrong; this one takes the
+tab away. `useAttachmentUrl` reports a read that threw, but it cannot report a process
+the OS killed, so there is no error handling to write and no test to assert. The only
+control is not shipping documents that large, and knowing where the line is.
+
+What the suite _can_ hold, and does: that listing never reads a file (`useAttachments`
+laziness tests), and that every Blob URL is revoked (`useAttachmentUrl` lifecycle tests).
+Both are invisible to the eye and cheap in jsdom — the exact inverse of the layout bugs
+above. The size ladder to run on real devices is in `ATTACHMENT-EXTRACTION.md` §11.
+
 ### The division of labour
 
 - **Tests** own logic, structure, contracts, accessible names, lifecycle. They catch what
   eyes cannot: a leak is invisible, a stale closure looks fine.
-- **A real device** owns layout, paint, stacking, and media. Nothing in Node substitutes.
+- **A real device** owns layout, paint, stacking, media, and memory. Nothing in Node
+  substitutes.
 
 Neither is a failure of the other. Knowing which tool covers which is the whole skill.
 

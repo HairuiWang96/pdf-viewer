@@ -320,3 +320,74 @@ Identical results to the pdf-lib branch on every fixture, byte for byte — incl
 `2017-1506.mp3` at 8,257,667 bytes out of the RichMedia annotation. The unit tests
 build fixtures with pdf-lib and read them with `@libpdf/core`, so the reader is never
 checked against its own writer.
+
+---
+
+## 11. How big can an attachment be?
+
+There is no limit in the PDF format and none in this code. The ceiling is memory, and
+where it sits depends entirely on the device.
+
+### Measured
+
+Node 22 / V8 on macOS, one process per row, RSS deltas per phase. **This is not a
+browser** — see the caveat below — but it is the same engine doing the same work, so
+the shape of the cost is real even where the absolute numbers are not.
+
+Uncompressed attachments, which is what encoded audio and video always are:
+
+| Attachment | fetch | `PDF.load` | list | read | Blob | peak RSS |
+|---|---|---|---|---|---|---|
+| 10 MB | 20 MB | 0 | 0 | 0 | 10 MB | 239 MB |
+| 50 MB | 94 MB | 0 | 0 | 0 | 50 MB | 301 MB |
+| 200 MB | 400 MB | 0 | 0 | 0 | 200 MB | 799 MB |
+
+Three things worth reading off that table:
+
+- **`PDF.load` costs nothing.** It parses lazily off the buffer rather than copying it.
+- **Listing costs nothing, at any size.** 0 MB and 0 ms for 10 MB and for 200 MB alike.
+  That is the design's central claim, and it holds for compressed files too since the
+  size fix in §10.
+- **The cost is all in `fetch` and the Blob**, both of which only happen because
+  somebody pressed a control.
+
+**Rule of thumb: peak ≈ 4× the attachment size**, once a file is actually played —
+the fetched PDF, the Blob copy, and the garbage in between.
+
+Time is negligible for stored files (load 1–3 ms, read ~0 ms at 200 MB) because
+decoding an unfiltered stream is a slice, not a decompression. A *compressed* 200 MB
+attachment takes ~250 ms to decode, which is real but only paid on play.
+
+### Not measured — and this is the part that decides real limits
+
+Every number above is Node. None of it tells you what a phone will do, and the phone
+is the binding constraint. What is **expected** rather than verified:
+
+| Environment | Expected ceiling | Confidence |
+|---|---|---|
+| Desktop Chrome / Edge | ~4 GB per tab; 200 MB comfortable | high |
+| Desktop Firefox / Safari | similar order; untested here | medium |
+| **Mobile Safari** | **tabs killed in the low hundreds of MB total** | high that a limit exists, low on where |
+| Mobile Chrome (Android) | lower than desktop, device-dependent | low |
+| Any engine, hard cap | ~2 GB per ArrayBuffer on 64-bit | high, but unreachable in practice |
+
+The mobile row is the one to take seriously. A 200 MB attachment that is fine on a
+laptop can kill a tab on a phone, and the failure mode is not an exception this code
+can catch — the tab simply dies. `useAttachmentUrl` reports a failed *read*; it cannot
+report a process the OS took away.
+
+### What to actually test on a device
+
+The fixtures top out at 8.3 MB (`case-embedded-audio-media.pdf`), so none of this is
+exercised today. Worth building a ladder — 10 MB, 50 MB, 200 MB — and checking, per
+browser and per device class:
+
+1. Does the **indicator** appear promptly? It should, at every size, since listing is
+   free — if it stalls, laziness has regressed somewhere.
+2. Does **Play** work, and how long between the press and audio?
+3. Does the tab **survive** it, and survive switching to another case afterwards?
+4. Does the Blob get **released**? Play, switch documents, repeat — memory should not
+   climb. `useAttachmentUrl` revokes on unmount, and nothing in Node proves it worked.
+5. On mobile specifically: does **backgrounding the tab** during playback lose the blob?
+
+See `TESTING.md` for why none of this can live in the suite.
