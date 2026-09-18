@@ -113,51 +113,83 @@ function fileSpecStream(spec: PdfDict, resolve: Resolve): PdfStream | undefined 
 /**
  * Size and type, read from the stream dictionary rather than the stream.
  *
- * /Params /Size is the decoded length and the one worth showing; /Length is
- * the encoded one, and only matches when the file is stored uncompressed —
- * which for audio and video, already-compressed formats, it usually is.
+ * /Params /Size is the decoded length — the real one, and the only one worth
+ * showing someone deciding whether to press play.
+ *
+ * /Length is the *encoded* length, so it stands in for the real size only when
+ * the file is stored uncompressed — which for audio and video, already
+ * compressed formats, it usually is. When there is a /Filter and no declared
+ * /Size, the two disagree and there is no way to reconcile them short of
+ * decoding the whole file, which is the one thing this module will not do. A
+ * 200 MB attachment compresses to a /Length of 2.4 MB, and showing "2.4 MB"
+ * against a file that takes 200 MB to open is worse than showing nothing. So
+ * that case reports null, and the UI omits the size rather than inventing one.
+ *
  * /Subtype carries the MIME type the author declared, which beats guessing
  * from the extension.
  */
 function streamFacts(stream: PdfStream, resolve: Resolve) {
-  const declared =
-    stream.getDict('Params', resolve)?.getNumber('Size', resolve) ??
-    stream.getNumber('Length', resolve);
+  const declaredSize = stream.getDict('Params', resolve)?.getNumber('Size', resolve);
+  const isEncoded = stream.get('Filter', resolve) !== undefined;
+  const length = isEncoded ? undefined : stream.getNumber('Length', resolve);
 
   return {
-    size: declared?.value ?? null,
+    size: (declaredSize ?? length)?.value ?? null,
     mimeType: stream.getName('Subtype')?.value ?? null,
   };
 }
 
-/** Case 1 — the catalog's attachment tree. Every file in it counts. */
-function collectEmbeddedFiles(pdf: PDF, found: Map<string, AttachmentEntry>): void {
-  for (const [key, info] of pdf.getAttachments()) {
-    const filename = info.filename || key;
-    if (found.has(filename)) continue;
-
-    found.set(filename, {
-      filename,
-      size: info.size ?? null,
-      mimeType: info.mimeType ?? null,
-      source: 'embedded',
-    });
-  }
+/** What a walk hands back for one file, before anything decides to keep it. */
+interface FoundFile {
+  filename: string;
+  stream: PdfStream;
+  source: AttachmentSource;
+  resolve: Resolve;
 }
 
 /**
- * Walks every RichMedia annotation's assets, handing each file specification
- * to `visit`. Stops early if `visit` returns false.
+ * Walks both trees, handing every file it finds to `visit`. Stops early if
+ * `visit` returns false.
  *
  * Shared by discovery and reading so the two cannot drift: a file listed here
- * is reachable by exactly the same route when somebody asks to play it.
+ * is reachable by exactly the same route, under the same name, when somebody
+ * asks to play it.
+ *
+ * ── Why this is hand-written rather than `pdf.getAttachments()` ──
+ *
+ * The library's own attachment API is a single call and reports description
+ * and timestamps for free, which this does not. It was used here until a
+ * measurement killed it: asked for a compressed attachment that does not
+ * declare /Params /Size, it decodes the entire file to find the size out. For
+ * a 200 MB attachment that is 382 MB of memory and 239 ms spent to render a
+ * badge — exactly the eagerness this module exists to prevent.
+ *
+ * Reading the size the document declares, and accepting null when it declares
+ * none, costs about sixty lines and makes listing genuinely free at any file
+ * size. Nothing displays the description or the dates, so nothing is lost.
  */
-function eachRichMediaAsset(
-  pdf: PDF,
-  visit: (spec: PdfDict, resolve: Resolve) => boolean,
-): void {
+function eachFile(pdf: PDF, visit: (file: FoundFile) => boolean): void {
   const resolve = resolverFor(pdf);
 
+  const offer = (spec: PdfDict, source: AttachmentSource): boolean => {
+    const filename = fileSpecName(spec);
+    const stream = filename ? fileSpecStream(spec, resolve) : undefined;
+    if (!filename || !stream) return true;
+    return visit({ filename, stream, source, resolve });
+  };
+
+  // Case 1 — the catalog's attachment tree.
+  const embedded: PdfDict[] = [];
+  collectFileSpecs(
+    pdf.getCatalog().getDict('Names', resolve)?.getDict('EmbeddedFiles', resolve),
+    resolve,
+    embedded,
+  );
+  for (const spec of embedded) {
+    if (!offer(spec, 'embedded')) return;
+  }
+
+  // Case 2 — RichMedia annotation assets.
   for (const page of pdf.getPages()) {
     const annotations = page.dict.getArray('Annots', resolve);
     if (!annotations) continue;
@@ -173,50 +205,46 @@ function eachRichMediaAsset(
       collectFileSpecs(assets, resolve, specs);
 
       for (const spec of specs) {
-        if (!visit(spec, resolve)) return;
+        if (!offer(spec, 'richmedia')) return;
       }
     }
   }
 }
 
-/** Case 2 — RichMedia annotation assets. Audio only; see the note below. */
-function collectRichMediaAudio(pdf: PDF, found: Map<string, AttachmentEntry>): void {
-  eachRichMediaAsset(pdf, (spec, resolve) => {
-    const filename = fileSpecName(spec);
-    // One asset can be referenced from several annotations, and a name already
-    // claimed by a real attachment wins.
-    if (!filename || found.has(filename)) return true;
-
-    const stream = fileSpecStream(spec, resolve);
-    if (!stream) return true;
-
-    const facts = streamFacts(stream, resolve);
-    // Unlike the attachment tree, this one is filtered to audio. These assets
-    // are a player's internals rather than files the author meant to attach,
-    // and this is what drops the .swf sitting beside the audio — the one asset
-    // here a browser can do nothing with.
-    //
-    // The declared /Subtype decides it when there is one, and the extension
-    // only when there is not. Filtering on the declaration alone would drop a
-    // perfectly good .mp3 from any tool that omitted it.
-    const effective = facts.mimeType ?? guessAudioMimeType(filename);
-    if (!effective?.startsWith('audio/')) return true;
-
-    found.set(filename, { filename, source: 'richmedia', ...facts });
-    return true;
-  });
-}
-
 /**
  * Every embedded file in the document, keyed by filename.
  *
- * Real attachments first, so that if a RichMedia asset happens to share a name
- * with one, the attachment is what people get.
+ * Attachments are walked before RichMedia assets, so that if an asset happens
+ * to share a name with a real attachment, the attachment is what people get.
  */
 export function collectAttachments(pdf: PDF): Map<string, AttachmentEntry> {
   const found = new Map<string, AttachmentEntry>();
-  collectEmbeddedFiles(pdf, found);
-  collectRichMediaAudio(pdf, found);
+
+  eachFile(pdf, ({ filename, stream, source, resolve }) => {
+    // One asset can be referenced from several annotations, and the first
+    // claim on a name wins.
+    if (found.has(filename)) return true;
+
+    const facts = streamFacts(stream, resolve);
+
+    // The attachment tree is taken whole — an author who attached a .csv meant
+    // it to be there. RichMedia assets are filtered to audio: they are a
+    // player's internals rather than files anyone chose to attach, and this is
+    // what drops the .swf sitting beside the audio, the one asset here a
+    // browser can do nothing with.
+    //
+    // The declared /Subtype decides that when there is one, and the extension
+    // only when there is not. Filtering on the declaration alone would drop a
+    // perfectly good .mp3 from any tool that omitted it.
+    if (source === 'richmedia') {
+      const effective = facts.mimeType ?? guessAudioMimeType(filename);
+      if (!effective?.startsWith('audio/')) return true;
+    }
+
+    found.set(filename, { filename, source, ...facts });
+    return true;
+  });
+
   return found;
 }
 
@@ -224,22 +252,18 @@ export function collectAttachments(pdf: PDF): Map<string, AttachmentEntry> {
  * Reads one file's bytes, finding it again by name.
  *
  * Looking it up a second time rather than holding the stream from discovery is
- * what keeps discovery cheap — see the note in useAttachments.
+ * what keeps discovery cheap — see the note in useAttachments. This is the one
+ * place decoding is meant to happen.
  */
 export function readAttachment(pdf: PDF, entry: AttachmentEntry): Uint8Array {
-  if (entry.source === 'embedded') {
-    const bytes = pdf.getAttachment(entry.filename);
-    if (!bytes) throw new Error(`${entry.filename} is no longer in the document`);
-    return bytes;
-  }
+  let bytes: Uint8Array | undefined;
 
-  let found: Uint8Array | undefined;
-  eachRichMediaAsset(pdf, (spec, resolve) => {
-    if (fileSpecName(spec) !== entry.filename) return true;
-    found = fileSpecStream(spec, resolve)?.getDecodedData();
+  eachFile(pdf, (file) => {
+    if (file.filename !== entry.filename || file.source !== entry.source) return true;
+    bytes = file.stream.getDecodedData();
     return false;
   });
 
-  if (!found) throw new Error(`${entry.filename} is no longer in the document`);
-  return found;
+  if (!bytes) throw new Error(`${entry.filename} is no longer in the document`);
+  return bytes;
 }

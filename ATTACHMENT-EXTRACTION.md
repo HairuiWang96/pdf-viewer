@@ -237,15 +237,40 @@ migration.
 
 | | pdf-lib branch | this branch |
 |---|---|---|
-| `/EmbeddedFiles` | hand-walked name tree, ~60 lines | `pdf.getAttachments()` — one call |
 | MIME type | guessed from the file extension | **declared by the document** (`/Subtype`) |
-| Also free | — | description, creation and modification dates |
 | Dereferencing | manual, easy to forget | every typed getter takes a resolver |
 | Encrypted PDFs | **cannot open them at all** | `PDF.load(bytes, { credentials })` |
+| `/EmbeddedFiles` | hand-walked name tree | hand-walked name tree — see below |
 
 The MIME row is the visible one: `interview-transcript.txt` now reports `text/plain`
 and `evidence-log.csv` reports `text/csv` because the file says so, where the pdf-lib
 branch only knew they were "not audio".
+
+### The convenience API that had to be given back
+
+`pdf.getAttachments()` replaced the hand-walked name tree for a while: one call,
+and description and timestamps reported for free. A measurement ended that. Asked
+about a compressed attachment that declares no `/Params /Size`, it decodes the whole
+file to find the size out:
+
+```
+200 MB compressed, /Params /Size declared:      0 MB,   0 ms
+200 MB compressed, not declared:              382 MB, 239 ms
+```
+
+382 MB of memory to render a badge is the precise thing this module exists to
+prevent, so the walk came back — about sixty lines, and listing is free again at
+every size. Nothing displayed the description or the dates, so nothing was lost.
+
+`getAttachment()` is unused too: reading now goes through the same walk as RichMedia,
+which also removes a latent bug, since that API is keyed by the name-tree key and we
+had been passing it a filename.
+
+**A file whose size cannot be known is now reported as unknown.** `/Length` is the
+*encoded* length, so it stands in for the real size only on an uncompressed file. A
+compressed 200 MB attachment has a `/Length` of 2.4 MB, and showing "2.4 MB" against
+a file that takes 200 MB to open is worse than showing nothing — so that case reports
+null and the control omits the size.
 
 ### What did not change
 

@@ -31,11 +31,15 @@ interface Asset {
   declaredSize?: number;
   /** Written as /Subtype — the MIME type the author declares for the file. */
   mimeType?: string;
+  /** Stored with a /Filter, so the encoded and decoded lengths differ. */
+  compressed?: boolean;
 }
 
 /** One file specification with its bytes attached, registered and referenced. */
 function fileSpec(context: PDFContext, asset: Asset) {
-  const stream = context.stream(asset.bytes);
+  const stream = asset.compressed
+    ? context.flateStream(asset.bytes)
+    : context.stream(asset.bytes);
   if (asset.declaredSize !== undefined) {
     stream.dict.set(PDFName.of('Params'), context.obj({ Size: asset.declaredSize }));
   }
@@ -223,10 +227,32 @@ describe('collectAttachments', () => {
       expect(collectAttachments(document).get('clip.mp3')?.size).toBe(8_257_667);
     });
 
-    it('falls back to the stream length when no size is declared', async () => {
+    it('falls back to the stream length when the file is stored uncompressed', async () => {
+      // With no /Filter, the encoded and decoded lengths are the same number,
+      // so /Length is the real size. This is the common case for audio.
       const document = await withEmbeddedFiles([{ name: 'clip.mp3', bytes: MP3 }]);
 
       expect(collectAttachments(document).get('clip.mp3')?.size).toBe(MP3.length);
+    });
+
+    it('reports no size at all rather than a compressed one', async () => {
+      // A compressed file that declares no /Params /Size cannot be sized
+      // without decoding it, which is the one thing discovery will not do.
+      // /Length here is the *compressed* length — a 200 MB attachment reports
+      // 2.4 MB — so claiming it would be worse than admitting we do not know.
+      const document = await withEmbeddedFiles([
+        { name: 'clip.mp3', bytes: MP3, compressed: true },
+      ]);
+
+      expect(collectAttachments(document).get('clip.mp3')?.size).toBeNull();
+    });
+
+    it('still reports a compressed file’s size when the document declares it', async () => {
+      const document = await withEmbeddedFiles([
+        { name: 'clip.mp3', bytes: MP3, compressed: true, declaredSize: 8_257_667 },
+      ]);
+
+      expect(collectAttachments(document).get('clip.mp3')?.size).toBe(8_257_667);
     });
 
     it('describes a file without reading it, and reads it only when asked', async () => {
