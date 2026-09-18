@@ -311,5 +311,52 @@
     "language": "English",
     "status": "Published",
     "stampText": "TEST CASE | Multiple Audio Attachments"
+  },
+  {
+    "id": "t12",
+    "caseNumber": "CASE-TEST-AUDIO-RICHMEDIA",
+    "fileName": "case-embedded-audio-media.pdf",
+    "filePath": "/case-embedded-audio-media.pdf",
+    "title": "Test: RichMedia (Flash) Audio",
+    "author": "QA",
+    "description": "An 8 MB MP3 embedded as a RichMedia annotation played by a bundled AudioPlayer.swf. The file has no document-level EmbeddedFiles tree, so the audio is reachable only through Flash — nothing a browser can run.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "audio",
+      "richmedia",
+      "flash",
+      "unsupported"
+    ],
+    "totalPages": 1,
+    "fileSize": "8.3 MB",
+    "createdDate": "2026-09-18",
+    "lastModified": "2026-09-18",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | RichMedia Flash Audio"
+  },
+  {
+    "id": "t13",
+    "caseNumber": "CASE-TEST-DOC-ATTACHMENTS",
+    "fileName": "case-document-attachments.pdf",
+    "filePath": "/case-document-attachments.pdf",
+    "title": "Test: Non-Audio Attachments",
+    "author": "QA",
+    "description": "A case file carrying a .txt transcript and a .csv evidence log. Every other attachment case is audio, so this is the only document that exercises the indicator's download branch rather than its player.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "attachment",
+      "download",
+      "non-audio"
+    ],
+    "totalPages": 1,
+    "fileSize": "3 KB",
+    "createdDate": "2026-09-18",
+    "lastModified": "2026-09-18",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Non-Audio Attachments"
   }
 ]
