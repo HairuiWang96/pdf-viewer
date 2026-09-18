@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDF, StandardFonts, measureText, rgb } from '@libpdf/core';
+
+/**
+ * A Standard 14 font needs no embedding here — it is named rather than
+ * supplied, and `measureText` works off the same name. pdf-lib needed an
+ * `embedFont` round trip before it could measure anything.
+ */
+const STAMP_FONT = StandardFonts.HelveticaBold;
+const STAMP_SIZE = 10;
 
 /**
  * Draws the stamp text onto the PDF client-side and hands back a blob URL.
@@ -42,24 +50,21 @@ export default function usePdfStamp(
       const response = await fetch(filePath);
       const originalBytes = await response.arrayBuffer();
 
-      const doc = await PDFDocument.load(originalBytes);
-      const font = await doc.embedFont(StandardFonts.HelveticaBold);
+      const doc = await PDF.load(new Uint8Array(originalBytes));
+      const textWidth = measureText(stampText, STAMP_FONT, STAMP_SIZE);
 
       for (const page of doc.getPages()) {
-        const { width } = page.getSize();
-        const textWidth = font.widthOfTextAtSize(stampText, 10);
-
         page.drawText(stampText, {
-          x: width - textWidth - 50,
-          y: page.getHeight() - 25,
-          size: 10,
-          font,
+          x: page.width - textWidth - 50,
+          y: page.height - 25,
+          size: STAMP_SIZE,
+          font: STAMP_FONT,
           color: rgb(0.8, 0, 0),
         });
       }
 
       const stampedBytes = await doc.save();
-      const blob = new Blob([stampedBytes as unknown as ArrayBuffer], { type: 'application/pdf' });
+      const blob = new Blob([stampedBytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       if (cancelled) {

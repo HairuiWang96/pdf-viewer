@@ -257,10 +257,37 @@ hands back raw bytes.
 
 ### What it costs
 
-- **Bundle: 2,769 kB → 3,733 kB** (gzip 897 → 1,143 kB), because both libraries ship.
-  Dropping pdf-lib entirely is what would make this a win rather than a wash.
-- **`@libpdf/core` is 0.4.2 and self-describes as beta.** pdf-lib is 1.17.1 and stable.
-  This is the layer the viewer's correctness rests on.
+`usePdfStamp` was ported too, so pdf-lib is gone from the bundle — verified, not
+assumed: `PDFHexString`, `PDFRawStream`, `PDFArray` and `decodePDFRawStream` all
+appear zero times in the built JS. It stays a devDependency, used only by the
+fixture scripts and the unit tests, neither of which is bundled.
+
+That makes the bundle comparison a fair one, and it does not say what was expected:
+
+| Bundle | raw | gzip |
+|---|---|---|
+| pdf-lib only (`pdf-lib-attachments`) | 2,769 kB | 897 kB |
+| both libraries | 3,733 kB | 1,143 kB |
+| **`@libpdf/core` only (this branch)** | **3,311 kB** | **967 kB** |
+
+**`@libpdf/core` is the bigger library here — +541 kB raw, +70 kB gzip over pdf-lib.**
+An earlier note in this file predicted dropping pdf-lib would turn the size into a win.
+It does not, and that prediction was wrong.
+
+The reason is visible in the output: `pkijs`, `SignedData` and `OCSPResponse` are all
+in the bundle. That is the digital-signature and certificate-validation machinery,
+which this app never touches — it is not being tree-shaken away, most likely because
+the `PDF` class reaches its signing methods. So the overhead is not inherent to
+reading attachments; it is unused functionality that a future version, or an upstream
+issue about side-effect-free signing imports, could remove.
+
+Two other costs:
+
+- **`@libpdf/core` is 0.4.2 and self-describes as beta**, with a pre-1.0 API that will
+  move. This is the layer the viewer's correctness rests on.
+- **Against that, pdf-lib's last release was 1.17.1 on 2021-11-06** — nearly five years
+  ago. "Stable versus beta" is the wrong frame for that pair; it is closer to
+  "unmaintained versus young".
 
 ### Verified
 

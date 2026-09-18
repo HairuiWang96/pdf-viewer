@@ -5,10 +5,15 @@ import usePdfStamp from './usePdfStamp';
 /**
  * Tests for the hook that stamps the PDF client-side.
  *
- * pdf-lib is mocked out: it does real cryptographic-grade PDF surgery and
- * would need a genuine file, while everything worth testing here is the
- * toggle's state machine — what the default is, when it resets, and which
- * URL callers are handed.
+ * The PDF library is mocked out: it does real PDF surgery and would need a
+ * genuine file, while everything worth testing here is the toggle's state
+ * machine — what the default is, when it resets, and which URL callers are
+ * handed.
+ *
+ * The mock is thinner than the pdf-lib one it replaces, and that is the port
+ * showing through rather than a gap in coverage: a Standard 14 font is named
+ * rather than embedded, and pages expose width/height as plain properties, so
+ * there is no embedFont round trip or getSize() call left to stand in for.
  */
 
 const { pdfMock } = vi.hoisted(() => ({
@@ -18,21 +23,15 @@ const { pdfMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('pdf-lib', () => ({
-  PDFDocument: {
+vi.mock('@libpdf/core', () => ({
+  PDF: {
     load: vi.fn(async () => ({
-      embedFont: vi.fn(async () => ({ widthOfTextAtSize: () => 40 })),
-      getPages: () => [
-        {
-          getSize: () => ({ width: 595, height: 842 }),
-          getHeight: () => 842,
-          drawText: pdfMock.drawText,
-        },
-      ],
+      getPages: () => [{ width: 595, height: 842, drawText: pdfMock.drawText }],
       save: pdfMock.save,
     })),
   },
   StandardFonts: { HelveticaBold: 'Helvetica-Bold' },
+  measureText: () => 40,
   rgb: (r: number, g: number, b: number) => ({ r, g, b }),
 }));
 
