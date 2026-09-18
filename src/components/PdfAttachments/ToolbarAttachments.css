@@ -108,7 +108,7 @@
   width: 100%;
 }
 
-.toolbar-attachment-download {
+.toolbar-attachment-action {
   align-self: flex-start;
   color: var(--accent);
 }

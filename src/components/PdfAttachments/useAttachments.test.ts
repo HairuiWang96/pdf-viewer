@@ -1,28 +1,63 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFContext } from 'pdf-lib';
 import { useAttachments } from './useAttachments';
-import type { AttachmentSource } from './useAttachments';
-import { guessAudioMimeType } from './attachments';
+import { guessAudioMimeType, formatSize } from './attachments';
 
 /**
- * The data half of attachments: reading them off a document and owning the
- * blob URLs. The three placement components are presentational and take the
- * finished list, so they have their own suites and none of them repeat this.
+ * Listing what a document carries, without reading any of it.
  *
- * The source is a stand-in with only the `getAttachments` method the hook
- * calls — no viewer and no pdf.js involved.
+ * The hook fetches and parses the file itself rather than taking a pdf.js
+ * document, so these tests stub fetch with real PDF bytes. The three placement
+ * components take the finished list and have their own suites; nothing here
+ * renders anything.
  */
 
-function bytes(...values: number[]) {
-  return new Uint8Array(values);
+/** A one-page PDF with the given files in the catalog's attachment tree. */
+async function pdfWithAttachments(files: { name: string; bytes: Uint8Array }[]) {
+  const document = await PDFDocument.create();
+  document.addPage();
+  const context: PDFContext = document.context;
+
+  const names = files.flatMap((file) => [
+    PDFHexString.fromText(file.name),
+    context.register(
+      context.obj({
+        Type: 'Filespec',
+        F: PDFString.of(file.name),
+        UF: PDFHexString.fromText(file.name),
+        EF: context.obj({ F: context.register(context.stream(file.bytes)) }),
+      }),
+    ),
+  ]);
+
+  document.catalog.set(
+    PDFName.of('Names'),
+    context.obj({ EmbeddedFiles: context.obj({ Names: context.obj(names) }) }),
+  );
+  return document.save();
 }
 
-function documentWith(
-  ...files: { filename: string; content: Uint8Array }[]
-): AttachmentSource {
-  const raw = Object.fromEntries(files.map((file, index) => [`file${index}`, file]));
-  return { getAttachments: () => Promise.resolve(raw) };
+/** Serves each path its own bytes, and counts the requests. */
+function stubFetch(files: Record<string, Uint8Array>) {
+  const fetched: string[] = [];
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: string) => {
+      fetched.push(input);
+      const bytes = files[input];
+      if (!bytes) return Promise.reject(new Error(`no such file: ${input}`));
+      // A fresh copy per call, so a consumed buffer cannot affect the next.
+      return Promise.resolve({ arrayBuffer: () => Promise.resolve(bytes.slice().buffer) });
+    }),
+  );
+
+  return fetched;
 }
+
+const AUDIO = new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x05, 0x06]);
+const OTHER = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
 
 describe('guessAudioMimeType', () => {
   it.each([
@@ -52,118 +87,168 @@ describe('guessAudioMimeType', () => {
   });
 });
 
-describe('useAttachments', () => {
-  let createdUrls: string[];
-
-  beforeEach(() => {
-    createdUrls = [];
-
-    // jsdom implements neither, and the hook depends on both.
-    let counter = 0;
-    vi.stubGlobal('URL', {
-      ...URL,
-      createObjectURL: vi.fn(() => {
-        const url = `blob:mock-${counter++}`;
-        createdUrls.push(url);
-        return url;
-      }),
-      revokeObjectURL: vi.fn(),
-    });
+describe('formatSize', () => {
+  it.each([
+    [512, '512 B'],
+    [2048, '2.0 KB'],
+    [8_257_667, '7.9 MB'],
+    [15_000_000, '14 MB'],
+    [3_221_225_472, '3.0 GB'],
+  ])('renders %i as %s', (bytes, expected) => {
+    expect(formatSize(bytes)).toBe(expected);
   });
 
+  it('says nothing when the document declared no size', () => {
+    expect(formatSize(null)).toBeNull();
+  });
+});
+
+describe('useAttachments', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('returns nothing before a document has loaded', () => {
-    const { result } = renderHook(() => useAttachments(null));
+  it('returns nothing before there is a file to read', () => {
+    const { result } = renderHook(() => useAttachments(undefined));
 
     expect(result.current).toEqual([]);
   });
 
-  it('returns nothing for a document with no attachments', async () => {
-    const source = documentWith();
-    const { result } = renderHook(() => useAttachments(source));
+  it('lists the files a document carries', async () => {
+    stubFetch({ '/case.pdf': await pdfWithAttachments([{ name: 'note.mp3', bytes: AUDIO }]) });
+    const { result } = renderHook(() => useAttachments('/case.pdf'));
 
-    await waitFor(() => expect(result.current).toEqual([]));
-    expect(createdUrls).toHaveLength(0);
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    expect(result.current[0].filename).toBe('note.mp3');
   });
 
-  it('turns each embedded file into its own blob URL', async () => {
-    const source = documentWith(
-      { filename: 'part1.mp3', content: bytes(1) },
-      { filename: 'part2.mp3', content: bytes(2) },
-    );
-    const { result } = renderHook(() => useAttachments(source));
+  it('returns nothing for a document with no attachments', async () => {
+    const empty = await PDFDocument.create().then((doc) => {
+      doc.addPage();
+      return doc.save();
+    });
+    const fetched = stubFetch({ '/plain.pdf': empty });
 
-    await waitFor(() => expect(result.current).toHaveLength(2));
-    // The failure this guards against is every entry sharing one URL, which
-    // looks correct until you press play on the second player.
-    expect(new Set(result.current.map((a) => a.url)).size).toBe(2);
+    const { result } = renderHook(() => useAttachments('/plain.pdf'));
+
+    await waitFor(() => expect(fetched).toEqual(['/plain.pdf']));
+    expect(result.current).toEqual([]);
   });
 
   it('guesses a MIME type per file, which is what picks player vs download', async () => {
-    const source = documentWith(
-      { filename: 'note.mp3', content: bytes(1) },
-      { filename: 'transcript.pdf', content: bytes(2) },
-    );
-    const { result } = renderHook(() => useAttachments(source));
+    stubFetch({
+      '/case.pdf': await pdfWithAttachments([
+        { name: 'note.mp3', bytes: AUDIO },
+        { name: 'transcript.pdf', bytes: OTHER },
+      ]),
+    });
+    const { result } = renderHook(() => useAttachments('/case.pdf'));
 
     await waitFor(() => expect(result.current).toHaveLength(2));
     expect(result.current.map((a) => a.mimeType)).toEqual(['audio/mpeg', null]);
   });
 
-  /**
-   * Failing to revoke is invisible: nothing breaks and nothing logs, memory
-   * just climbs for the life of the tab. These are the only thing that catches
-   * it.
-   */
-  describe('blob URL lifecycle', () => {
-    it('releases its URLs on unmount', async () => {
-      const source = documentWith(
-        { filename: 'note.mp3', content: bytes(1) },
-        { filename: 'other.wav', content: bytes(2) },
-      );
-      const { result, unmount } = renderHook(() => useAttachments(source));
+  it('reports a size, so the indicator can say what a click will cost', async () => {
+    stubFetch({ '/case.pdf': await pdfWithAttachments([{ name: 'note.mp3', bytes: AUDIO }]) });
+    const { result } = renderHook(() => useAttachments('/case.pdf'));
 
-      await waitFor(() => expect(result.current).toHaveLength(2));
-      unmount();
-
-      await waitFor(() => {
-        expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
-      });
-    });
-
-    it('releases the old URLs when the document changes', async () => {
-      const { result, rerender } = renderHook(
-        ({ source }) => useAttachments(source),
-        { initialProps: { source: documentWith({ filename: 'first.mp3', content: bytes(1) }) } },
-      );
-
-      await waitFor(() => expect(result.current).toHaveLength(1));
-      const firstUrl = result.current[0].url;
-
-      rerender({ source: documentWith({ filename: 'second.mp3', content: bytes(2) }) });
-
-      await waitFor(() => {
-        expect(URL.revokeObjectURL).toHaveBeenCalledWith(firstUrl);
-      });
-    });
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    expect(result.current[0].size).toBe(AUDIO.length);
   });
 
-  it('survives a document whose attachments cannot be read', async () => {
-    // A malformed or unusual file can reject here; the hook should report an
-    // empty list rather than letting an unhandled rejection take the view down.
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const source: AttachmentSource = {
-      getAttachments: () => Promise.reject(new Error('unreadable')),
-    };
+  it('drops the previous file’s attachments when the document changes', async () => {
+    stubFetch({
+      '/first.pdf': await pdfWithAttachments([{ name: 'first.mp3', bytes: AUDIO }]),
+      '/second.pdf': await pdfWithAttachments([{ name: 'second.mp3', bytes: AUDIO }]),
+    });
 
-    const { result } = renderHook(() => useAttachments(source));
+    const { result, rerender } = renderHook(({ path }) => useAttachments(path), {
+      initialProps: { path: '/first.pdf' },
+    });
+    await waitFor(() => expect(result.current[0]?.filename).toBe('first.mp3'));
+
+    rerender({ path: '/second.pdf' });
+
+    // The guard here is against the old list lingering against the new
+    // document, which reads as the new file having attachments it does not.
+    await waitFor(() => expect(result.current[0]?.filename).toBe('second.mp3'));
+  });
+
+  it('survives a document that cannot be read', async () => {
+    // A malformed or missing file should leave the viewer running with no
+    // panel, rather than taking the view down with an unhandled rejection.
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    stubFetch({});
+
+    const { result } = renderHook(() => useAttachments('/missing.pdf'));
 
     await waitFor(() => expect(consoleError).toHaveBeenCalled());
     expect(result.current).toEqual([]);
 
     consoleError.mockRestore();
+  });
+
+  /**
+   * The point of the whole design: an attachment can be hundreds of megabytes,
+   * and almost nobody plays one. Listing must not read them.
+   */
+  describe('laziness', () => {
+    it('does not read any attachment just to list it', async () => {
+      const fetched = stubFetch({
+        '/case.pdf': await pdfWithAttachments([
+          { name: 'huge.mp3', bytes: AUDIO },
+          { name: 'also-huge.wav', bytes: AUDIO },
+        ]),
+      });
+
+      const { result } = renderHook(() => useAttachments('/case.pdf'));
+      await waitFor(() => expect(result.current).toHaveLength(2));
+
+      // One fetch — the parse that produced the list. Nothing has been
+      // decoded, and no second request has been made on any file's behalf.
+      expect(fetched).toEqual(['/case.pdf']);
+    });
+
+    it('reads the bytes only when an attachment is actually asked for', async () => {
+      stubFetch({ '/case.pdf': await pdfWithAttachments([{ name: 'note.mp3', bytes: AUDIO }]) });
+
+      const { result } = renderHook(() => useAttachments('/case.pdf'));
+      await waitFor(() => expect(result.current).toHaveLength(1));
+
+      expect(await result.current[0].read()).toEqual(AUDIO);
+    });
+
+    it('reads each file separately, so one player does not pull in the rest', async () => {
+      stubFetch({
+        '/case.pdf': await pdfWithAttachments([
+          { name: 'wanted.mp3', bytes: AUDIO },
+          { name: 'unwanted.mp3', bytes: OTHER },
+        ]),
+      });
+
+      const { result } = renderHook(() => useAttachments('/case.pdf'));
+      await waitFor(() => expect(result.current).toHaveLength(2));
+
+      expect(await result.current[0].read()).toEqual(AUDIO);
+    });
+
+    it('reuses one re-parse across several attachments', async () => {
+      const fetched = stubFetch({
+        '/case.pdf': await pdfWithAttachments([
+          { name: 'one.mp3', bytes: AUDIO },
+          { name: 'two.mp3', bytes: OTHER },
+        ]),
+      });
+
+      const { result } = renderHook(() => useAttachments('/case.pdf'));
+      await waitFor(() => expect(result.current).toHaveLength(2));
+
+      await result.current[0].read();
+      await result.current[1].read();
+
+      // The listing parse, plus exactly one re-parse shared by both reads —
+      // not one per attachment.
+      expect(fetched).toEqual(['/case.pdf', '/case.pdf']);
+    });
   });
 });

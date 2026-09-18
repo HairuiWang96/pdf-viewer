@@ -17,8 +17,6 @@ import KendoPdfViewer from './KendoPdfViewer';
 const { mockState } = vi.hoisted(() => ({
   mockState: {
     pages: [{}, {}] as unknown[],
-    // Stands in for the pdf.js document Kendo parsed internally.
-    document: { getAttachments: () => Promise.resolve({}) },
   },
 }));
 
@@ -31,10 +29,9 @@ vi.mock('@progress/kendo-react-all', async () => {
           element: null,
           props,
           pages: mockState.pages,
-          document: mockState.document,
         }));
         // Kendo fires onLoad once the document is parsed; that is when the
-        // component reaches for the page count and the document.
+        // component reaches for the page count.
         React.useEffect(() => {
           props.onLoad?.();
         }, []);
@@ -58,7 +55,6 @@ const defaultProps = {
   currentPage: 1,
   onPageChange: vi.fn(),
   onLoadSuccess: vi.fn(),
-  onDocumentLoad: vi.fn(),
   isMobile: false,
   attachments: [],
   placement: 'bottom' as const,
@@ -85,16 +81,6 @@ describe('KendoPdfViewer', () => {
 
     await screen.findByTestId('kendo-pdfviewer');
     expect(onLoadSuccess).not.toHaveBeenCalled();
-  });
-
-  it('reports the parsed document up once it loads', async () => {
-    const onDocumentLoad = vi.fn();
-    render(<KendoPdfViewer {...defaultProps} onDocumentLoad={onDocumentLoad} />);
-
-    await screen.findByTestId('kendo-pdfviewer');
-    // The page owns the document, because two of the three attachment
-    // placements render outside this component.
-    expect(onDocumentLoad).toHaveBeenCalledWith(mockState.document);
   });
 
   it('mounts only the placement it was given', async () => {

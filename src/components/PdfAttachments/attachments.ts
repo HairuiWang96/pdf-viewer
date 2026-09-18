@@ -1,13 +1,13 @@
 /**
- * Helpers for the embedded-file attachments the PDF carries.
+ * The shape the attachment UI works in, and the small pure helpers around it.
  *
- * Kept out of the component file so the pure logic can be unit tested
- * directly, and so the component module only exports a component (which is
- * what React Fast Refresh expects).
+ * Kept out of the component files so the logic can be unit tested directly,
+ * and so each component module only exports a component (which is what React
+ * Fast Refresh expects).
  */
 
-// pdf.js attachments carry raw bytes and a filename, no MIME type — guess one
-// from the extension so the browser knows how to play/handle the Blob.
+// Attachments carry raw bytes and a filename, no MIME type — guess one from
+// the extension so the browser knows how to play/handle the Blob.
 const AUDIO_MIME_TYPES: Record<string, string> = {
   wav: 'audio/wav',
   mp3: 'audio/mpeg',
@@ -22,28 +22,49 @@ export function guessAudioMimeType(filename: string): string | null {
   return ext ? (AUDIO_MIME_TYPES[ext] ?? null) : null;
 }
 
+/**
+ * One embedded file, described but not yet read.
+ *
+ * The split between describing and reading is the whole point of this type.
+ * Everything an indicator needs — that the file exists, what it is called, how
+ * big it is, whether it is playable — is known from the document's structure
+ * alone. The bytes are the expensive part, and a document's attachment can be
+ * arbitrarily large: an interview recording or a video runs to hundreds of
+ * megabytes. Most people open a document, see that it has an attachment, and
+ * never play it, so loading those bytes to render a badge is the wrong trade.
+ *
+ * `read` is therefore deferred and called at most once per attachment, by
+ * useAttachmentUrl, when someone actually asks for the file.
+ */
 export interface PdfAttachment {
   filename: string;
-  url: string;
   mimeType: string | null;
+  /** Bytes, as the document declares them. Null when it does not say. */
+  size: number | null;
+  /** Reads the bytes. Nothing is decoded or copied until this is called. */
+  read: () => Promise<Uint8Array>;
 }
 
-/** The shape pdf.js hands back from `getAttachments()`. */
-export interface RawAttachment {
-  filename: string;
-  content: Uint8Array;
-}
+const SIZE_UNITS = ['KB', 'MB', 'GB'];
 
 /**
- * Turns pdf.js's raw attachment map into blob URLs the UI can point at.
- * Callers own the returned URLs and must revoke them.
+ * A short human size for the indicator.
+ *
+ * Shown because it is the one thing that tells someone whether pressing play
+ * is a click or a download — which matters precisely because the bytes are not
+ * loaded yet.
  */
-export function toAttachments(raw: Record<string, RawAttachment> | undefined): PdfAttachment[] {
-  return Object.values(raw ?? {}).map((att) => {
-    const mimeType = guessAudioMimeType(att.filename);
-    const blob = new Blob([new Uint8Array(att.content)], {
-      type: mimeType ?? 'application/octet-stream',
-    });
-    return { filename: att.filename, url: URL.createObjectURL(blob), mimeType };
-  });
+export function formatSize(bytes: number | null): string | null {
+  if (bytes === null || bytes < 0) return null;
+  if (bytes < 1024) return `${bytes} B`;
+
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < SIZE_UNITS.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+
+  // One decimal below 10 (9.4 MB reads better than 9 MB), none above it.
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${SIZE_UNITS[unit]}`;
 }

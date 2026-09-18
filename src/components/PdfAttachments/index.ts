@@ -3,8 +3,10 @@ export { default as ToolbarAttachments } from './ToolbarAttachments';
 export { default as DetailsAttachments } from './DetailsAttachments';
 export { default as PlacementSwitcher } from './PlacementSwitcher';
 
+export { default as AttachmentControl } from './AttachmentControl';
+
 export { useAttachments } from './useAttachments';
-export type { AttachmentSource } from './useAttachments';
+export { useAttachmentUrl } from './useAttachmentUrl';
 export type { PdfAttachment } from './attachments';
 
 export { PLACEMENT_OPTIONS, DEFAULT_PLACEMENT } from './placement';

@@ -47,21 +47,24 @@ export const threeCases: PdfMetadata[] = [
 ];
 
 /**
- * Attachments as the three placement components receive them — already read
- * off the document and turned into blob URLs by useAttachments, which has its
- * own suite. These fixtures let the presentational tests skip all of that.
+ * Attachments as the placement components receive them — listed off the
+ * document by useAttachments, which has its own suite, and crucially *not* yet
+ * read. `read` is a stub here: a test that cares what happens when it resolves
+ * should supply its own, and most do not, since not calling it is the normal
+ * state of an attachment on screen.
  */
 export function makeAttachment(overrides: Partial<PdfAttachment> = {}): PdfAttachment {
   return {
     filename: 'note.mp3',
-    url: 'blob:mock-0',
     mimeType: 'audio/mpeg',
+    size: 2048,
+    read: () => Promise.resolve(new Uint8Array([1, 2, 3])),
     ...overrides,
   };
 }
 
 /** One audio file and one that is not, which is the branch every variant has. */
 export const mixedAttachments: PdfAttachment[] = [
-  makeAttachment({ filename: 'note.mp3', url: 'blob:mock-0', mimeType: 'audio/mpeg' }),
-  makeAttachment({ filename: 'transcript.pdf', url: 'blob:mock-1', mimeType: null }),
+  makeAttachment({ filename: 'note.mp3', mimeType: 'audio/mpeg' }),
+  makeAttachment({ filename: 'transcript.pdf', mimeType: null }),
 ];

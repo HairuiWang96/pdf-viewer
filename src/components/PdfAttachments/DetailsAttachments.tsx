@@ -1,4 +1,5 @@
 import type { PdfAttachment } from './attachments';
+import AttachmentControl from './AttachmentControl';
 import './DetailsAttachments.css';
 
 interface DetailsAttachmentsProps {
@@ -36,17 +37,7 @@ export default function DetailsAttachments({ attachments }: DetailsAttachmentsPr
             <span className="details-attachment-name" title={att.filename}>
               {att.filename}
             </span>
-            {att.mimeType?.startsWith('audio/') ? (
-              <audio controls src={att.url} />
-            ) : (
-              <a
-                className="details-attachment-download"
-                href={att.url}
-                download={att.filename}
-              >
-                Download
-              </a>
-            )}
+            <AttachmentControl attachment={att} className="details-attachment-action" />
           </li>
         ))}
       </ul>

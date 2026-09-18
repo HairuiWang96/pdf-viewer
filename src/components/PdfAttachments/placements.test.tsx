@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BottomBarAttachments from './BottomBarAttachments';
 import ToolbarAttachments from './ToolbarAttachments';
@@ -43,6 +43,20 @@ interface Placement {
 
 const user = userEvent.setup();
 
+// jsdom implements neither, and pressing a control reaches both.
+beforeEach(() => {
+  let counter = 0;
+  vi.stubGlobal('URL', {
+    ...URL,
+    createObjectURL: vi.fn(() => `blob:mock-${counter++}`),
+    revokeObjectURL: vi.fn(),
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 const placements: Placement[] = [
   {
     id: 'bottom',
@@ -77,30 +91,52 @@ describe.each(placements)('$id — the shared contract', ({ Component, reveal })
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
-  it('gives each audio attachment its own player and source', async () => {
+  it('offers each audio attachment its own play control', async () => {
     render(
       <Component
         attachments={[
-          makeAttachment({ filename: 'part1.mp3', url: 'blob:a' }),
-          makeAttachment({ filename: 'part2.mp3', url: 'blob:b' }),
+          makeAttachment({ filename: 'part1.mp3' }),
+          makeAttachment({ filename: 'part2.mp3' }),
         ]}
       />,
     );
     await reveal();
 
-    const players = document.querySelectorAll('audio');
-    expect(players).toHaveLength(2);
-    expect(new Set([...players].map((p) => p.getAttribute('src'))).size).toBe(2);
+    expect(screen.getAllByRole('button', { name: /play/i })).toHaveLength(2);
   });
 
-  it('offers a download link instead of a player for non-audio files', async () => {
+  it('offers a download instead of a player for non-audio files', async () => {
     render(<Component attachments={mixedAttachments} />);
     await reveal();
 
-    const link = screen.getByRole('link', { name: /download/i });
-    expect(link).toHaveAttribute('download', 'transcript.pdf');
     // The mixed fixture has exactly one of each.
-    expect(document.querySelectorAll('audio')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /download/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /play/i })).toBeInTheDocument();
+  });
+
+  /**
+   * The behaviour the whole lazy design exists for. Whichever placement wins,
+   * showing that a document has attachments must not cost the attachments.
+   */
+  it('reads nothing until a control is pressed', async () => {
+    const read = vi.fn(() => Promise.resolve(new Uint8Array([1])));
+    render(<Component attachments={[makeAttachment({ filename: 'huge.mp3', read })]} />);
+    await reveal();
+
+    expect(read).not.toHaveBeenCalled();
+    expect(document.querySelectorAll('audio')).toHaveLength(0);
+
+    await user.click(screen.getByRole('button', { name: /play/i }));
+
+    expect(read).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(document.querySelectorAll('audio')).toHaveLength(1));
+  });
+
+  it('shows the size up front, so the cost of pressing play is visible', async () => {
+    render(<Component attachments={[makeAttachment({ size: 8_257_667 })]} />);
+    await reveal();
+
+    expect(screen.getByText('7.9 MB')).toBeInTheDocument();
   });
 });
 
@@ -228,10 +264,11 @@ describe('Details — the one that reads as metadata', () => {
   it('is open on arrival, with no toggle to find', () => {
     render(<DetailsAttachments attachments={mixedAttachments} />);
 
-    // No disclosure control at all: the panel it lives in was already opened
+    // No *disclosure* control: the panel it lives in was already opened
     // deliberately, so a second thing to open would be a second lock on the
-    // same door.
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    // same door. The only buttons are the per-file ones, which are the
+    // contents rather than a way in.
+    expect(screen.queryByRole('button', { name: /^attachments/i })).not.toBeInTheDocument();
     expect(screen.getByText('note.mp3')).toBeInTheDocument();
   });
 

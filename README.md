@@ -52,6 +52,16 @@ See [TESTING.md](TESTING.md) for what the suite covers, how to decide what is wo
 test, and — importantly — the four classes of bug jsdom cannot see, which need a real
 device instead.
 
+### Documentation
+
+| Document | What it covers |
+|---|---|
+| [TESTING.md](TESTING.md) | What the suite covers, and what jsdom cannot see |
+| [PDF-LIBRARIES.md](PDF-LIBRARIES.md) | pdf.js vs. pdf-lib vs. pyHanko, and how each branch packages its engine |
+| [VIEWER-BENCHMARKS.md](VIEWER-BENCHMARKS.md) | Measured comparison of the viewer branches |
+| [ATTACHMENT-INDICATOR.md](ATTACHMENT-INDICATOR.md) | Where the attachment indicator should live — three placements compared |
+| [ATTACHMENT-EXTRACTION.md](ATTACHMENT-EXTRACTION.md) | Where its data comes from — the two places a PDF hides a file, and why reading them moved from pdf.js to pdf-lib |
+
 ## Project Structure
 
 ```text

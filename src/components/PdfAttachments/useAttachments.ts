@@ -1,59 +1,94 @@
 import { useEffect, useState } from 'react';
-import { toAttachments } from './attachments';
-import type { PdfAttachment, RawAttachment } from './attachments';
+import { PDFDocument, decodePDFRawStream } from 'pdf-lib';
+import { guessAudioMimeType } from './attachments';
+import type { PdfAttachment } from './attachments';
+import { collectAttachmentStreams } from './attachmentStreams';
 
-/**
- * The only thing this component needs from a PDF document: a way to ask for
- * its embedded files. Kendo exposes the pdf.js document it already parsed
- * internally, so the viewer can hand that over rather than loading the file
- * a second time.
- */
-export interface AttachmentSource {
-  getAttachments(): Promise<Record<string, RawAttachment> | undefined>;
+/** Parses a document from its URL. The fetch is the browser's to cache. */
+async function loadDocument(filePath: string): Promise<PDFDocument> {
+  const response = await fetch(filePath);
+  // These files are often old and written by tools that predate a lot of
+  // tightening, so one unparseable object should cost us that object rather
+  // than the whole document.
+  return PDFDocument.load(await response.arrayBuffer(), { throwOnInvalidObject: false });
 }
 
 /**
- * Reads the attachments out of a document and owns the blob URLs it creates.
+ * Reads one file's bytes, re-finding it by name in a freshly parsed document.
  *
- * The URLs are revoked when the source changes or the hook unmounts, so a
- * caller never has to think about them — holding them anywhere outside this
- * hook is what leaks them for the life of the tab.
- *
- * `source` must be referentially stable — state, a ref, or a memo, not an
- * object built inline in the render. A fresh identity each render re-runs the
- * effect, which sets state, which renders again: React stops it with "Maximum
- * update depth exceeded", but only after the loop has already started. The
- * page holds it in useState for exactly this reason.
- *
- * Call it once per document. Each call builds its own blob URLs, so two
- * callers sharing a source get two sets of URLs for the same bytes — which is
- * why the page reads attachments once and passes the list down to whichever
- * placement is mounted, rather than letting each placement call this.
+ * Looking it up again rather than holding the stream from discovery is what
+ * keeps discovery cheap — see the note in the hook below.
  */
-export function useAttachments(source: AttachmentSource | null): PdfAttachment[] {
+async function readAttachment(
+  parse: () => Promise<PDFDocument>,
+  filename: string,
+): Promise<Uint8Array> {
+  const found = collectAttachmentStreams(await parse()).get(filename);
+  if (!found) throw new Error(`${filename} is no longer in the document`);
+  return decodePDFRawStream(found.stream).decode();
+}
+
+/**
+ * Lists the files a document carries, without reading any of them.
+ *
+ * The list is everything an indicator needs — a name, a size, and whether it
+ * is playable — and costs one parse of the document's structure. The bytes
+ * behind each entry are fetched only if somebody asks for them, through the
+ * `read` on each attachment. An attachment can be hundreds of megabytes, and
+ * the overwhelming majority are never opened, so loading them to render a
+ * badge would be the wrong trade.
+ *
+ * ── Why this parses the file rather than reusing the viewer's ──
+ *
+ * The viewer has already parsed the document with pdf.js, and pdf.js will hand
+ * over its attachments — but getAttachments() decodes all of them in the
+ * process, which is the eagerness we are trying to avoid, and it cannot see
+ * RichMedia audio at all. So this reads the file itself. The fetch re-requests
+ * something the viewer has already loaded, so in practice it is served from
+ * the browser's HTTP cache rather than the network.
+ */
+export function useAttachments(filePath: string | undefined): PdfAttachment[] {
   const [attachments, setAttachments] = useState<PdfAttachment[]>([]);
 
   useEffect(() => {
-    if (!source) return;
+    if (!filePath) return;
 
-    // Read at cleanup time, not captured — it is still empty if the cleanup
-    // runs before the promise below resolves, which the `cancelled` branch
-    // then handles instead.
-    let created: PdfAttachment[] = [];
     let cancelled = false;
 
-    source
-      .getAttachments()
-      .then((raw) => {
-        created = toAttachments(raw);
-        if (cancelled) {
-          // The cleanup already ran and saw nothing, so these URLs would
-          // otherwise have no owner left to revoke them.
-          created.forEach((att) => URL.revokeObjectURL(att.url));
-          created = [];
-          return;
-        }
-        setAttachments(created);
+    /**
+     * The parse that `read` works from, created on the first call and shared
+     * by every attachment in this listing.
+     *
+     * Deliberately not the discovery parse below. Holding onto that one would
+     * keep the whole document — source bytes included — alive for as long as
+     * the listing is on screen, which for a large file is precisely the cost
+     * this hook exists to avoid. Nobody plays anything in the common case, so
+     * the discovery parse is left to be collected and paid for again only if
+     * somebody actually asks.
+     */
+    let reparse: Promise<PDFDocument> | undefined;
+    const parse = () => (reparse ??= loadDocument(filePath));
+
+    loadDocument(filePath)
+      .then((document) => {
+        if (cancelled) return;
+
+        // Note what is copied out here: names and sizes, nothing else. An
+        // AttachmentStream holds a live pdf-lib object, and capturing one in
+        // the `read` closure below would pin the discovery parse in memory —
+        // silently undoing the paragraph above, with nothing to show for it.
+        const listed = [...collectAttachmentStreams(document).values()].map(
+          ({ filename, size }) => ({ filename, size }),
+        );
+
+        setAttachments(
+          listed.map(({ filename, size }) => ({
+            filename,
+            size,
+            mimeType: guessAudioMimeType(filename),
+            read: () => readAttachment(parse, filename),
+          })),
+        );
       })
       .catch((error: unknown) => {
         // A malformed or unusual file can reject here. The document itself
@@ -64,12 +99,11 @@ export function useAttachments(source: AttachmentSource | null): PdfAttachment[]
 
     return () => {
       cancelled = true;
-      created.forEach((att) => URL.revokeObjectURL(att.url));
-      // Dropping them here keeps a revoked URL from staying on screen while
-      // the next document is being read.
+      // Dropping the list here keeps the previous file's attachments from
+      // being shown against the next one while it is still being read.
       setAttachments([]);
     };
-  }, [source]);
+  }, [filePath]);
 
   return attachments;
 }

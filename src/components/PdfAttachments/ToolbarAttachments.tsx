@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
 import type { PdfAttachment } from './attachments';
+import AttachmentControl from './AttachmentControl';
 import './ToolbarAttachments.css';
 
 interface ToolbarAttachmentsProps {
@@ -141,17 +142,7 @@ export default function ToolbarAttachments({ attachments }: ToolbarAttachmentsPr
                   <span className="toolbar-attachment-name" title={att.filename}>
                     {att.filename}
                   </span>
-                  {att.mimeType?.startsWith('audio/') ? (
-                    <audio controls src={att.url} />
-                  ) : (
-                    <a
-                      className="toolbar-attachment-download"
-                      href={att.url}
-                      download={att.filename}
-                    >
-                      Download
-                    </a>
-                  )}
+                  <AttachmentControl attachment={att} className="toolbar-attachment-action" />
                 </li>
               ))}
             </ul>

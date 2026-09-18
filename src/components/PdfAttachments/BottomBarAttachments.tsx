@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PdfAttachment } from './attachments';
+import AttachmentControl from './AttachmentControl';
 import './BottomBarAttachments.css';
 
 interface BottomBarAttachmentsProps {
@@ -57,13 +58,7 @@ export default function BottomBarAttachments({ attachments }: BottomBarAttachmen
           {attachments.map((att) => (
             <li key={att.filename} className="pdf-attachment">
               <span className="pdf-attachment-name">{att.filename}</span>
-              {att.mimeType?.startsWith('audio/') ? (
-                <audio controls src={att.url} />
-              ) : (
-                <a className="pdf-attachment-download" href={att.url} download={att.filename}>
-                  Download
-                </a>
-              )}
+              <AttachmentControl attachment={att} className="pdf-attachment-action" />
             </li>
           ))}
         </ul>

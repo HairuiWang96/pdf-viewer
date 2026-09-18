@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Layout from '../../components/Layout';
 import ThumbnailSidebar from '../../components/ThumbnailSidebar';
 import KendoPdfViewer from '../../components/KendoPdfViewer';
 import PdfDetails from '../../components/PdfDetails';
 import { PlacementSwitcher, useAttachments, DEFAULT_PLACEMENT } from '../../components/PdfAttachments';
-import type { AttachmentPlacement, AttachmentSource } from '../../components/PdfAttachments';
+import type { AttachmentPlacement } from '../../components/PdfAttachments';
 import { usePdfViewer, usePdfStamp, useDetailsPanel } from '../../hooks';
 
 export default function PdfViewerPage() {
@@ -40,21 +40,15 @@ export default function PdfViewerPage() {
   } = useDetailsPanel();
 
   // ── Attachments ────────────────────────────────────────────────────────
-  // The parsed document lives here rather than inside the viewer, because all
-  // three indicator placements need the attachments and two of them are not
-  // inside the viewer. useAttachments creates a blob URL per file, so it must
-  // run exactly once — calling it per placement would make a fresh set each
-  // time and leak every set but the last.
-  const [pdfDocument, setPdfDocument] = useState<AttachmentSource | null>(null);
-  const attachments = useAttachments(pdfDocument);
+  // Listed here rather than inside the viewer, because all three indicator
+  // placements need the list and two of them are not inside the viewer. It is
+  // read once and passed down: the hook parses the document to build the list,
+  // so calling it per placement would parse once per placement.
+  //
+  // Only names and sizes — the files themselves are read on demand, by
+  // whichever control the user actually presses.
+  const attachments = useAttachments(activePdfPath);
   const [placement, setPlacement] = useState<AttachmentPlacement>(DEFAULT_PLACEMENT);
-
-  // Drop the previous document the moment the file changes, so the old file's
-  // attachments are not briefly shown against the new one. The viewer reports
-  // the new document once it has parsed it.
-  useEffect(() => {
-    setPdfDocument(null);
-  }, [activePdfPath]);
 
   // On mobile, selecting a case should also close the details panel
   // so the user sees the PDF with the newly selected case.
@@ -87,7 +81,6 @@ export default function PdfViewerPage() {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onLoadSuccess={handleLoadSuccess}
-        onDocumentLoad={setPdfDocument}
         isMobile={isMobile}
         attachments={attachments}
         placement={placement}

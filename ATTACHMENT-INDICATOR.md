@@ -170,9 +170,11 @@ This one is neither loud enough to do the job nor cheap enough to keep around fo
 `PlacementSwitcher` and the `placement` prop exist only for this comparison. Once the
 ticket is settled, delete `PlacementSwitcher.tsx`/`.css` and `placement.ts`, drop the
 `placement` prop from `KendoPdfViewer` and `PdfDetails`, and delete the two rejected
-placement components. The `useAttachments` hook and `attachments.ts` stay — they are the
-data layer all three shared.
+placement components. The data layer stays — `useAttachments`, `attachmentStreams.ts`,
+`attachments.ts`, `useAttachmentUrl` and `AttachmentControl` are shared by all three.
 
-Note that `useAttachments` must be called exactly once, from `PdfViewerPage`: it creates a
-blob URL per file, so calling it per placement would build a fresh set each time and leak
-every set but the last. Its `source` must also be referentially stable.
+Note that `useAttachments` must still be called exactly once, from `PdfViewerPage`, though
+the reason has changed: it parses the document to build the list, so calling it per
+placement would parse once per placement. It no longer creates blob URLs — that moved to
+`useAttachmentUrl`, one instance per attachment, created only when someone presses a
+control. See `ATTACHMENT-EXTRACTION.md`.

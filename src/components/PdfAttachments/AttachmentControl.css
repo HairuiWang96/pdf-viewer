@@ -1,0 +1,39 @@
+/* The trigger every placement shares. Each placement passes its own class
+   alongside this one for colour and alignment; this file owns only the things
+   that are true wherever it is rendered. */
+
+.attachment-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.attachment-control:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.attachment-control:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Secondary to the action word beside it — it informs the click rather than
+   being the thing you read first. */
+.attachment-control-size {
+  color: var(--text-muted, #6b6b6b);
+  font-size: 12px;
+}
+
+.attachment-control:hover:not(:disabled) .attachment-control-size {
+  color: inherit;
+}
