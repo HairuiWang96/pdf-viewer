@@ -373,6 +373,35 @@ The RichMedia MP3 was also extracted and checked against the original: 8,257,669
 (`scripts/generate-mixed-attachments.mjs`) because every existing attachment fixture was
 audio, leaving the download branch of the indicator unexercised in the browser.
 
+### How much this evidence is worth
+
+Less than the list above suggests. **Only two fixtures are real documents:**
+
+| | Version | Structure | Producer |
+| ------------------------------- | ------- | --------------------- | ---------------------- |
+| `case-embedded-audio-media.pdf` | 1.7     | xref stream + objstm  | Adobe PDF Library 15.0 |
+| `case-audio-attachment-large.pdf` | 1.6   | xref stream + objstm  | Adobe PDF Library 26.1 |
+
+Every other fixture is pdf-lib output — one writer, so they are not independent
+evidence. `case-legacy-pdf12.pdf` only *declares* `%PDF-1.2` in its header; underneath
+it is still pdf-lib, so it says nothing about how 1.2-era tools really wrote files.
+The generated set is good for pinning specific structures on demand — a branching name
+tree, a missing `/Params /Size` — and poor at telling us what real documents look like.
+
+**The risk is the producer, not the version.** Version differences are almost entirely
+structural — xref tables versus streams, object streams, encryption — and none of that
+reaches this module, because `@libpdf/core` has already resolved it by the time we walk
+anything. What we depend on is a narrow and old surface: `/Names /EmbeddedFiles` and the
+filespec shape (PDF 1.3, 1999), name trees, and `/RichMediaContent /Assets`, which
+cannot appear in an older file anyway. The one version-sensitive point is `/UF`, added
+in 1.7, and `fileSpecName` already falls back to `/F`.
+
+Acrobat, Word, Ghostscript, scanners and recording systems all emit structurally
+different but perfectly valid PDFs, and that spread is far wider than the version
+number. A few more real files from different producers would be worth more than any
+number of generated ones — the two we have are the only fixtures that have found
+anything.
+
 ---
 
 ## 9. Still open
