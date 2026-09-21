@@ -182,7 +182,7 @@ Warning: Unimplemented annotation type "RichMedia", falling back to base annotat
 There is no combination of pdf.js calls that reaches those bytes. The content dictionary
 is discarded during parsing.
 
-### It is not RichMedia specifically — pdf.js implements no media annotations at all
+### It is not RichMedia specifically — pdf.js implements no media annotations at all‼️
 
 Its annotation factory handles these eighteen subtypes and nothing else:
 
@@ -203,8 +203,8 @@ the worker. So this is a category decision rather than an oversight about one fo
 a defensible one:
 
 1. **pdf.js is a renderer.** Its job is turning a PDF into pixels. Playing media needs a
-   media runtime, which is outside that job.
-2. **RichMedia's player is Flash**, and no browser has had Flash since December 2020.
+   media runtime,‼️ which is outside that job.
+2. **RichMedia's player is Flash**, and no browser has had Flash since December 2020.‼️
    pdf.js cannot run the thing the annotation points at even if it parsed it.
 3. **Adobe deprecated the format themselves.** Implementing a dead Flash-based mechanism
    is a poor use of anyone's time.
@@ -264,8 +264,44 @@ The size shown next to each control comes from `/Params /Size` in the stream dic
 the decoded length, declared by the document, and free to read.
 
 That size is not decoration. It is the one thing that tells someone whether pressing
-**Play** is instant or a 200 MB download, and it is only showable _because_ the file has
-not been read yet.
+**Play** is instant or a slow wait, and it is only showable _because_ the file has not
+been read yet.
+
+### What laziness does not save: the download
+
+Easy to misread, so stated plainly. **The whole PDF is downloaded before any of this
+runs, whether or not anyone ever presses Play.**
+
+```ts
+const response = await fetch(filePath);
+return PDF.load(new Uint8Array(await response.arrayBuffer()));
+```
+
+`arrayBuffer()` waits for the entire file. A document with a 200 MB attachment is a
+200 MB download the moment it is opened, and `PDF.load` does not begin until the last
+byte has arrived. Nothing here streams, and nothing here fetches part of a file.
+
+So the split is:
+
+|                   | Bandwidth                | Memory                       |
+| ----------------- | ------------------------ | ---------------------------- |
+| Opening the file  | **the whole file**       | the file's bytes             |
+| Parsing + listing | none                     | ~0 — dictionary entries only |
+| Pressing Play     | none, if the cache holds | **decode + Blob copy**       |
+
+**Laziness saves memory, not bandwidth.** What it avoids is the further decoding and
+copying — roughly another 2× the attachment's size — for a file nobody asked to hear.
+On the 28 MB fixture that is 59 MB and 203 ms not spent unless someone clicks.
+
+This is also why a large case file feels slow to open on a poor connection even though
+listing is free: the wait is over before our code runs at all. Pressing Play re-fetches
+for the second parse, but that is normally served from the browser's HTTP cache, so it
+costs memory rather than bandwidth — on a cache miss it would be a second real download.
+
+Fetching _less_ than the whole file would need HTTP range requests against the byte
+ranges the xref points at. Possible in principle, and a much larger piece of work — and
+it would not help the common case anyway, since the viewer has to download the entire
+document to render it regardless.
 
 ---
 
