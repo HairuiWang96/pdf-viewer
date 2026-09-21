@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { attachmentLabel } from './attachments';
 import type { PdfAttachment } from './attachments';
 import AttachmentControl from './AttachmentControl';
 import './BottomBarAttachments.css';
@@ -56,8 +57,8 @@ export default function BottomBarAttachments({ attachments }: BottomBarAttachmen
       {isOpen && (
         <ul className="pdf-attachments-list" id="pdf-attachments-list">
           {attachments.map((att) => (
-            <li key={att.filename} className="pdf-attachment">
-              <span className="pdf-attachment-name">{att.filename}</span>
+            <li key={att.id} className="pdf-attachment">
+              <span className="pdf-attachment-name">{attachmentLabel(att)}</span>
               <AttachmentControl attachment={att} className="pdf-attachment-action" />
             </li>
           ))}

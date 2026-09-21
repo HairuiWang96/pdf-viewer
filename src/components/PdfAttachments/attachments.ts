@@ -37,12 +37,34 @@ export function guessAudioMimeType(filename: string): string | null {
  * useAttachmentUrl, when someone actually asks for the file.
  */
 export interface PdfAttachment {
+  /**
+   * Stable identity, from the document's own object numbering — not the
+   * filename, which two different files are allowed to share. Use this as the
+   * React key; a list keyed by filename collapses two entries into one.
+   */
+  id: string;
   filename: string;
   mimeType: string | null;
   /** Bytes, as the document declares them. Null when it does not say. */
   size: number | null;
+  /** 1-based page it sits on, or null when it belongs to the whole document. */
+  page: number | null;
   /** Reads the bytes. Nothing is decoded or copied until this is called. */
   read: () => Promise<Uint8Array>;
+}
+
+/**
+ * What to show as the attachment's name.
+ *
+ * The page is appended only for files that belong to one — a RichMedia asset,
+ * never a document-wide attachment. It is not decoration: two annotations can
+ * carry different recordings under the same filename, and without the page
+ * they are two identical-looking rows with no way to tell which is which.
+ */
+export function attachmentLabel(attachment: PdfAttachment): string {
+  return attachment.page === null
+    ? attachment.filename
+    : `${attachment.filename} (p. ${attachment.page})`;
 }
 
 const SIZE_UNITS = ['KB', 'MB', 'GB'];

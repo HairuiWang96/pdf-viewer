@@ -1,7 +1,7 @@
 # Reading attachments — why this moved off pdf.js
 
-Companion to `ATTACHMENT-INDICATOR.md`. That one is about *where the indicator lives*;
-this one is about *where its data comes from*, which changed twice in one sitting and for
+Companion to `ATTACHMENT-INDICATOR.md`. That one is about _where the indicator lives_;
+this one is about _where its data comes from_, which changed twice in one sitting and for
 two unrelated reasons.
 
 **Summary:** a case PDF turned up whose audio pdf.js cannot see at all. Fixing that meant
@@ -27,7 +27,7 @@ Both behaviours are correct. The file is built the Flash way:
 ```
 /Subtype /RichMedia          annotation on page 1
   /RichMediaContent
-    /Assets                  a private name tree, NOT the document's attachment tree
+    /Assets                  a private name tree, NOT the document's attachment tree‼️
       AudioPlayer.swf        62,857 bytes, "FWS" header, authored 2015
       2017-1506.mp3          8,257,667 bytes, ID3v2.3, MPEG-1 layer III
                              22.05 kHz mono, 32 kbps, ~34 minutes
@@ -48,14 +48,14 @@ fixable — the bytes beside the player are an ordinary MP3 that any browser can
 
 This is the fact the original implementation was missing.
 
-| | `/Names /EmbeddedFiles` | RichMedia `/Assets` |
-|---|---|---|
-| Where it lives | On the catalog, document-wide | Private to one annotation |
-| What it means | "This document has attachments" | "This player needs these files" |
-| Authored by | Attach-a-file, in any tool | Acrobat's multimedia insert, pre-2015 |
-| `getAttachments()` sees it | Yes | **No** |
-| Our cases using it | 5 documents | 1 document |
-| Shown as | Player or download | Player (audio only) |
+|                            | `/Names /EmbeddedFiles`         | RichMedia `/Assets`                   |
+| -------------------------- | ------------------------------- | ------------------------------------- |
+| Where it lives             | On the catalog, document-wide   | Private to one annotation             |
+| What it means              | "This document has attachments" | "This player needs these files"       |
+| Authored by                | Attach-a-file, in any tool      | Acrobat's multimedia insert, pre-2015 |
+| `getAttachments()` sees it | Yes                             | **No**                                |
+| Our cases using it         | 5 documents                     | 1 document                            |
+| Shown as                   | Player or download              | Player (audio only)                   |
 
 We list files from both, but not on the same terms. The attachment tree is taken whole —
 if an author attached a `.csv`, they meant it to be there. RichMedia assets are filtered
@@ -71,7 +71,7 @@ without it, each of these hops returns a `PdfRef` rather than the object itself.
 
 #### Where both entry points come from
 
-Neither the Catalog nor a Page is the top. Reading a PDF starts at the **end** of the
+Neither the Catalog nor a Page is the top. ‼️Reading a PDF starts at the **end** of the
 file and works backwards — the trailer names the Catalog, and everything else hangs off
 it. Traced from `case-embedded-audio-media.pdf`:
 
@@ -90,7 +90,7 @@ it. Traced from `case-embedded-audio-media.pdf`:
                                                 └── /Annots ──→  ENTRY POINT 2
 ```
 
-Two things worth noting. The page tree is a *tree*, not a list — `/Kids` can hold more
+Two things worth noting. The page tree is a _tree_, not a list — `/Kids` can hold more
 `/Pages` nodes, and only the leaves are `/Type /Page` — which is why the code says
 `pdf.getPages()` and lets the library flatten it. And a Page carries `/Parent` back up,
 so the graph has cycles; anything walking it by hand has to not follow them.
@@ -140,14 +140,14 @@ filespec
 ```
 
 **That split is the whole design.** `/Subtype`, `/Params` and `/Filter` live in the
-stream's *dictionary*, which costs nothing to reach — so an indicator can name a file,
+stream's _dictionary_, which costs nothing to reach — so an indicator can name a file,
 size it, and decide whether it is playable **without ever opening it**. Only the body is
 expensive, and only a click asks for it.
 
 Two details that cause most of the code:
 
 - **A name tree is not a list.** It is either flat — `/Names`, a single array
-  alternating key and value, so the file specifications are the *odd* indices — or
+  alternating key and value, so the file specifications are the _odd_ indices — or
   branching, via `/Kids`, recursively. The spec permits both on the same node, so
   `collectFileSpecs` reads each independently rather than as alternatives.
 - **The two entry points converge.** Both end at a file specification with an `/EF`
@@ -158,7 +158,7 @@ Two details that cause most of the code:
 
 ## 3. Why pdf.js could not do this job
 
-Not a criticism of pdf.js — it is a *renderer*, and neither limitation matters for
+Not a criticism of pdf.js — it is a _renderer_, and neither limitation matters for
 rendering.
 
 **It only ever looks at one of the two places.** `getAttachments()` is built purely from
@@ -223,10 +223,10 @@ with real case files.
 
 ---
 
-## 4. Why a PDF *writer*, used as a reader
+## 4. Why a PDF _writer_, used as a reader
 
 The library that replaced pdf.js here was pdf-lib first and `@libpdf/core` now, and the
-argument is the same for both: they are normally described as PDF *writers* (see
+argument is the same for both: they are normally described as PDF _writers_ (see
 `PDF-LIBRARIES.md`), and they are being used as readers on purpose. To write a PDF, a
 library has to model the object graph faithfully — and having modelled it, it exposes
 it. A renderer has no such obligation and discards what it cannot draw.
@@ -234,13 +234,13 @@ it. A renderer has no such obligation and discards what it cannot draw.
 The comparison below is against pdf-lib, the first replacement. §10 carries the same
 table for `@libpdf/core`.
 
-| | pdf.js | pdf-lib |
-|---|---|---|
-| Reaches `/Names /EmbeddedFiles` | Yes | Yes |
-| Reaches RichMedia assets | **No** | Yes |
-| Can list a file without decoding it | **No** | Yes |
-| Reuses the viewer's existing parse | Yes | No — parses again |
-| Already a runtime dependency here | Yes | Yes (`usePdfStamp`) |
+|                                     | pdf.js | pdf-lib             |
+| ----------------------------------- | ------ | ------------------- |
+| Reaches `/Names /EmbeddedFiles`     | Yes    | Yes                 |
+| Reaches RichMedia assets            | **No** | Yes                 |
+| Can list a file without decoding it | **No** | Yes                 |
+| Reuses the viewer's existing parse  | Yes    | No — parses again   |
+| Already a runtime dependency here   | Yes    | Yes (`usePdfStamp`) |
 
 The two rows that decided it are the two pdf.js cannot do at all. The row it loses on —
 parsing the document a second time — is a real cost, accepted knowingly in §6.
@@ -249,7 +249,7 @@ parsing the document a second time — is a real cost, accepted knowingly in §6
 
 ## 5. Listing without reading
 
-Having moved to a library that *can* separate discovery from reading, the design took
+Having moved to a library that _can_ separate discovery from reading, the design took
 that split as its centre. An indicator's job is to say a file is there; whether anyone
 plays it is a separate question, asked later and usually not at all.
 
@@ -264,7 +264,7 @@ The size shown next to each control comes from `/Params /Size` in the stream dic
 the decoded length, declared by the document, and free to read.
 
 That size is not decoration. It is the one thing that tells someone whether pressing
-**Play** is instant or a 200 MB download, and it is only showable *because* the file has
+**Play** is instant or a 200 MB download, and it is only showable _because_ the file has
 not been read yet.
 
 ---
@@ -292,13 +292,13 @@ documents that matter.**
 
 ## 7. What changed in the code
 
-| File | Role |
-|---|---|
-| `attachments.ts` | The lazy `PdfAttachment` shape (`read()`, not `url`), `formatSize` |
-| `attachmentStreams.ts` | Walks both sources, decodes nothing |
-| `useAttachments.ts` | Lists per document; takes a file path, not a pdf.js document |
-| `useAttachmentUrl.ts` | Reads one file on demand, owns its blob URL |
-| `AttachmentControl.tsx` | Shared Play/Download control for all three placements |
+| File                    | Role                                                               |
+| ----------------------- | ------------------------------------------------------------------ |
+| `attachments.ts`        | The lazy `PdfAttachment` shape (`read()`, not `url`), `formatSize` |
+| `attachmentStreams.ts`  | Walks both sources, decodes nothing                                |
+| `useAttachments.ts`     | Lists per document; takes a file path, not a pdf.js document       |
+| `useAttachmentUrl.ts`   | Reads one file on demand, owns its blob URL                        |
+| `AttachmentControl.tsx` | Shared Play/Download control for all three placements              |
 
 Removed along the way: the `onDocumentLoad` prop on `KendoPdfViewer`, the
 `AttachmentSource` type, and the `pdfDocument` state in `PdfViewerPage`. With pdf.js no
@@ -342,7 +342,7 @@ audio, leaving the download branch of the indicator unexercised in the browser.
 ## 9. Still open
 
 - **Does the RichMedia case deserve its own indicator wording?** It is currently listed as
-  an ordinary attachment, which is a small lie: the author embedded a *player*, and we are
+  an ordinary attachment, which is a small lie: the author embedded a _player_, and we are
   quietly serving the file out of it.
 - **Should non-audio RichMedia assets be reachable at all?** Today they are filtered out
   entirely. A RichMedia video would be silently invisible, exactly as the audio used to be.
@@ -357,7 +357,7 @@ audio, leaving the download branch of the indicator unexercised in the browser.
 
 ## 10. This branch: the same job with `@libpdf/core`
 
-`libpdf-attachments` is this branch. Everything above still describes *why* the
+`libpdf-attachments` is this branch. Everything above still describes _why_ the
 reading moved off pdf.js; this section records what changed when the reader itself
 was swapped for [`@libpdf/core`](https://github.com/LibPDF-js/core), the library a
 colleague already uses server-side.
@@ -371,12 +371,12 @@ own writer.
 
 ### What got better
 
-| | pdf-lib branch | this branch |
-|---|---|---|
-| MIME type | guessed from the file extension | **declared by the document** (`/Subtype`) |
-| Dereferencing | manual, easy to forget | every typed getter takes a resolver |
-| Encrypted PDFs | **cannot open them at all** | `PDF.load(bytes, { credentials })` |
-| `/EmbeddedFiles` | hand-walked name tree | hand-walked name tree — see below |
+|                  | pdf-lib branch                  | this branch                               |
+| ---------------- | ------------------------------- | ----------------------------------------- |
+| MIME type        | guessed from the file extension | **declared by the document** (`/Subtype`) |
+| Dereferencing    | manual, easy to forget          | every typed getter takes a resolver       |
+| Encrypted PDFs   | **cannot open them at all**     | `PDF.load(bytes, { credentials })`        |
+| `/EmbeddedFiles` | hand-walked name tree           | hand-walked name tree — see below         |
 
 The MIME row is the visible one: `interview-transcript.txt` now reports `text/plain`
 and `evidence-log.csv` reports `text/csv` because the file says so, where the pdf-lib
@@ -403,7 +403,7 @@ which also removes a latent bug, since that API is keyed by the name-tree key an
 had been passing it a filename.
 
 **A file whose size cannot be known is now reported as unknown.** `/Length` is the
-*encoded* length, so it stands in for the real size only on an uncompressed file. A
+_encoded_ length, so it stands in for the real size only on an uncompressed file. A
 compressed 200 MB attachment has a `/Length` of 2.4 MB, and showing "2.4 MB" against
 a file that takes 200 MB to open is worse than showing nothing — so that case reports
 null and the control omits the size.
@@ -425,10 +425,10 @@ fixture scripts and the unit tests, neither of which is bundled.
 
 That makes the bundle comparison a fair one, and it does not say what was expected:
 
-| Bundle | raw | gzip |
-|---|---|---|
-| pdf-lib only (`pdf-lib-attachments`) | 2,769 kB | 897 kB |
-| both libraries | 3,733 kB | 1,143 kB |
+| Bundle                                | raw          | gzip       |
+| ------------------------------------- | ------------ | ---------- |
+| pdf-lib only (`pdf-lib-attachments`)  | 2,769 kB     | 897 kB     |
+| both libraries                        | 3,733 kB     | 1,143 kB   |
 | **`@libpdf/core` only (this branch)** | **3,311 kB** | **967 kB** |
 
 **`@libpdf/core` is the bigger library here — +541 kB raw, +70 kB gzip over pdf-lib.**
@@ -472,11 +472,11 @@ the shape of the cost is real even where the absolute numbers are not.
 
 Uncompressed attachments, which is what encoded audio and video always are:
 
-| Attachment | fetch | `PDF.load` | list | read | Blob | peak RSS |
-|---|---|---|---|---|---|---|
-| 10 MB | 20 MB | 0 | 0 | 0 | 10 MB | 239 MB |
-| 50 MB | 94 MB | 0 | 0 | 0 | 50 MB | 301 MB |
-| 200 MB | 400 MB | 0 | 0 | 0 | 200 MB | 799 MB |
+| Attachment | fetch  | `PDF.load` | list | read | Blob   | peak RSS |
+| ---------- | ------ | ---------- | ---- | ---- | ------ | -------- |
+| 10 MB      | 20 MB  | 0          | 0    | 0    | 10 MB  | 239 MB   |
+| 50 MB      | 94 MB  | 0          | 0    | 0    | 50 MB  | 301 MB   |
+| 200 MB     | 400 MB | 0          | 0    | 0    | 200 MB | 799 MB   |
 
 Three things worth reading off that table:
 
@@ -491,7 +491,7 @@ Three things worth reading off that table:
 the fetched PDF, the Blob copy, and the garbage in between.
 
 Time is negligible for stored files (load 1–3 ms, read ~0 ms at 200 MB) because
-decoding an unfiltered stream is a slice, not a decompression. A *compressed* 200 MB
+decoding an unfiltered stream is a slice, not a decompression. A _compressed_ 200 MB
 attachment takes ~250 ms to decode, which is real but only paid on play.
 
 ### Not measured — and this is the part that decides real limits
@@ -499,17 +499,17 @@ attachment takes ~250 ms to decode, which is real but only paid on play.
 Every number above is Node. None of it tells you what a phone will do, and the phone
 is the binding constraint. What is **expected** rather than verified:
 
-| Environment | Expected ceiling | Confidence |
-|---|---|---|
-| Desktop Chrome / Edge | ~4 GB per tab; 200 MB comfortable | high |
-| Desktop Firefox / Safari | similar order; untested here | medium |
-| **Mobile Safari** | **tabs killed in the low hundreds of MB total** | high that a limit exists, low on where |
-| Mobile Chrome (Android) | lower than desktop, device-dependent | low |
-| Any engine, hard cap | ~2 GB per ArrayBuffer on 64-bit | high, but unreachable in practice |
+| Environment              | Expected ceiling                                | Confidence                             |
+| ------------------------ | ----------------------------------------------- | -------------------------------------- |
+| Desktop Chrome / Edge    | ~4 GB per tab; 200 MB comfortable               | high                                   |
+| Desktop Firefox / Safari | similar order; untested here                    | medium                                 |
+| **Mobile Safari**        | **tabs killed in the low hundreds of MB total** | high that a limit exists, low on where |
+| Mobile Chrome (Android)  | lower than desktop, device-dependent            | low                                    |
+| Any engine, hard cap     | ~2 GB per ArrayBuffer on 64-bit                 | high, but unreachable in practice      |
 
 The mobile row is the one to take seriously. A 200 MB attachment that is fine on a
 laptop can kill a tab on a phone, and the failure mode is not an exception this code
-can catch — the tab simply dies. `useAttachmentUrl` reports a failed *read*; it cannot
+can catch — the tab simply dies. `useAttachmentUrl` reports a failed _read_; it cannot
 report a process the OS took away.
 
 ### What to actually test on a device
@@ -534,7 +534,7 @@ See `TESTING.md` for why none of this can live in the suite.
 
 **Nothing here is implemented. This section exists to be taken to a product owner.**
 
-The RichMedia document in §1 was not an exotic one-off — it was the second of *six*
+The RichMedia document in §1 was not an exotic one-off — it was the second of _six_
 mechanisms the PDF specification provides for embedding sound, and we support two. The
 other four were probed by building a minimal fixture for each and running the shipped
 reader against it. Those fixtures were throwaway and are not in `public/`; building them
@@ -549,16 +549,16 @@ again is an afternoon, not a project.
 6. /RichMedia (Flash)         -> 2017-1506.mp3
 ```
 
-| # | Mechanism | Era | Where the audio lives | Supported |
-|---|---|---|---|---|
-| 1 | `/Names /EmbeddedFiles` | 1.3+ | Catalog name tree → filespec → stream | **Yes** |
-| 2 | `/FileAttachment` annotation | 1.3+ | Annotation `/FS` → filespec | No |
-| 3 | `/Sound` annotation | 1.2 | Raw samples in a stream — no container | No |
-| 4 | `/Movie` annotation | 1.2 | `/Movie /F` → filespec | No |
-| 5 | `/Screen` + Rendition | 1.5 | `/Rendition` → `/MediaClip` → `/D` → filespec | No |
-| 6 | `/RichMedia` annotation | 1.7 Ext3 | Annotation `/Assets` name tree | **Yes** |
+| #   | Mechanism                    | Era      | Where the audio lives                         | Supported |
+| --- | ---------------------------- | -------- | --------------------------------------------- | --------- |
+| 1   | `/Names /EmbeddedFiles`      | 1.3+     | Catalog name tree → filespec → stream         | **Yes**   |
+| 2   | `/FileAttachment` annotation | 1.3+     | Annotation `/FS` → filespec                   | No        |
+| 3   | `/Sound` annotation          | 1.2      | Raw samples in a stream — no container        | No        |
+| 4   | `/Movie` annotation          | 1.2      | `/Movie /F` → filespec                        | No        |
+| 5   | `/Screen` + Rendition        | 1.5      | `/Rendition` → `/MediaClip` → `/D` → filespec | No        |
+| 6   | `/RichMedia` annotation      | 1.7 Ext3 | Annotation `/Assets` name tree                | **Yes**   |
 
-Two further cases were not probed: **Sound and Rendition *actions***, hung off a link or
+Two further cases were not probed: **Sound and Rendition _actions_**, hung off a link or
 button rather than an annotation, and **`/AF` associated files** (PDF 2.0), which in
 practice also appear in the `/EmbeddedFiles` tree and so are already caught by #1.
 
@@ -572,7 +572,7 @@ pointing at a filespec with an `/EF` stream, so the existing walk extends to it 
 than needing new machinery.
 
 **#2 `/FileAttachment` is less alarming than the table suggests.** Acrobat writes the
-annotation *and* an `/EmbeddedFiles` entry for the same file, so real documents are
+annotation _and_ an `/EmbeddedFiles` entry for the same file, so real documents are
 normally caught by #1. Only a tool that writes the annotation alone slips through. The
 fixture that failed above was built deliberately pathological to prove the gap exists.
 Cheap to close alongside #5, since the shape is nearly identical.
@@ -582,7 +582,7 @@ samples with sample rate, channel count and bit depth in the dictionary — **no
 playable file, and carrying no filename.** Supporting it means synthesising a WAV
 container from those fields and inventing a name to show. That is real work rather than
 an extension of the walk, and it is 1.2-era, so it should probably be an explicit
-*won't* rather than a backlog item.
+_won't_ rather than a backlog item.
 
 **#4 `/Movie`** is the same era and effectively extinct.
 

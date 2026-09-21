@@ -35,12 +35,29 @@ export type AttachmentSource = 'embedded' | 'richmedia';
 
 /** A file found in the document, located but not read. */
 export interface AttachmentEntry {
+  /**
+   * Stable identity: the object number of the stream holding the bytes.
+   *
+   * Not the filename. A RichMedia annotation owns a *private* asset tree, so
+   * two annotations can legitimately carry different files under the same
+   * name — a recording called `part-a.mp3` on page 1 and a different one, also
+   * called `part-a.mp3`, on page 3. Deduplicating by name silently threw the
+   * second away. The object number is what the document itself uses to tell
+   * two streams apart, so it is what we use.
+   */
+  id: string;
   filename: string;
   /** Bytes as the document declares them, or null when it does not say. */
   size: number | null;
   /** MIME type the document declares, or null — not guessed from the name. */
   mimeType: string | null;
   source: AttachmentSource;
+  /**
+   * 1-based page the annotation sits on, or null for a document-wide
+   * attachment, which belongs to the file rather than to any one page.
+   * Two files sharing a name are told apart by this in the UI.
+   */
+  page: number | null;
 }
 
 /** A name tree deep enough to hit this is malformed or hostile. */
@@ -141,10 +158,33 @@ function streamFacts(stream: PdfStream, resolve: Resolve) {
 
 /** What a walk hands back for one file, before anything decides to keep it. */
 interface FoundFile {
+  id: string;
   filename: string;
   stream: PdfStream;
   source: AttachmentSource;
+  page: number | null;
   resolve: Resolve;
+}
+
+/**
+ * The identity of the stream a file specification points at.
+ *
+ * The object number is the document's own answer to "are these the same
+ * file", which is exactly the question `collectAttachments` has to settle. A
+ * direct (non-indirect) stream has no object number; that is vanishingly rare
+ * for an embedded file, but falling back to a composite key keeps such a file
+ * listed rather than dropping it.
+ */
+function fileSpecId(
+  spec: PdfDict,
+  resolve: Resolve,
+  source: AttachmentSource,
+  page: number | null,
+): string {
+  const ref = spec.getDict('EF', resolve)?.getRef('F');
+  return ref
+    ? `obj:${ref.objectNumber}:${ref.generation}`
+    : `${source}:${page}:${fileSpecName(spec)}`;
 }
 
 /**
@@ -171,14 +211,17 @@ interface FoundFile {
 function eachFile(pdf: PDF, visit: (file: FoundFile) => boolean): void {
   const resolve = resolverFor(pdf);
 
-  const offer = (spec: PdfDict, source: AttachmentSource): boolean => {
+  const offer = (spec: PdfDict, source: AttachmentSource, page: number | null): boolean => {
     const filename = fileSpecName(spec);
     const stream = filename ? fileSpecStream(spec, resolve) : undefined;
     if (!filename || !stream) return true;
-    return visit({ filename, stream, source, resolve });
+
+    const id = fileSpecId(spec, resolve, source, page);
+    return visit({ id, filename, stream, source, page, resolve });
   };
 
-  // Case 1 — the catalog's attachment tree.
+  // Case 1 — the catalog's attachment tree. These belong to the document
+  // rather than to any one page, hence the null.
   const embedded: PdfDict[] = [];
   collectFileSpecs(
     pdf.getCatalog().getDict('Names', resolve)?.getDict('EmbeddedFiles', resolve),
@@ -186,12 +229,16 @@ function eachFile(pdf: PDF, visit: (file: FoundFile) => boolean): void {
     embedded,
   );
   for (const spec of embedded) {
-    if (!offer(spec, 'embedded')) return;
+    if (!offer(spec, 'embedded', null)) return;
   }
 
-  // Case 2 — RichMedia annotation assets.
-  for (const page of pdf.getPages()) {
-    const annotations = page.dict.getArray('Annots', resolve);
+  // Case 2 — RichMedia annotation assets. Every page, every annotation on it,
+  // every asset in that annotation's tree: a document can carry audio on many
+  // pages, several annotations on one page, and several files in one
+  // annotation, and all three nest rather than compete.
+  const pages = pdf.getPages();
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+    const annotations = pages[pageIndex].dict.getArray('Annots', resolve);
     if (!annotations) continue;
 
     for (let index = 0; index < annotations.length; index += 1) {
@@ -205,25 +252,27 @@ function eachFile(pdf: PDF, visit: (file: FoundFile) => boolean): void {
       collectFileSpecs(assets, resolve, specs);
 
       for (const spec of specs) {
-        if (!offer(spec, 'richmedia')) return;
+        if (!offer(spec, 'richmedia', pageIndex + 1)) return;
       }
     }
   }
 }
 
 /**
- * Every embedded file in the document, keyed by filename.
+ * Every embedded file in the document, in the order it was found.
  *
- * Attachments are walked before RichMedia assets, so that if an asset happens
- * to share a name with a real attachment, the attachment is what people get.
+ * Attachments come before RichMedia assets, so that when a page's asset and a
+ * real attachment point at the same stream, it is listed as the attachment.
  */
-export function collectAttachments(pdf: PDF): Map<string, AttachmentEntry> {
-  const found = new Map<string, AttachmentEntry>();
+export function collectAttachments(pdf: PDF): AttachmentEntry[] {
+  const found: AttachmentEntry[] = [];
+  const seen = new Set<string>();
 
-  eachFile(pdf, ({ filename, stream, source, resolve }) => {
-    // One asset can be referenced from several annotations, and the first
-    // claim on a name wins.
-    if (found.has(filename)) return true;
+  eachFile(pdf, ({ id, filename, stream, source, page, resolve }) => {
+    // Deduplicated by stream object, not by name. One asset genuinely can be
+    // referenced from several annotations — the same file, listed once — while
+    // two annotations holding different files under one name are two files.
+    if (seen.has(id)) return true;
 
     const facts = streamFacts(stream, resolve);
 
@@ -241,7 +290,8 @@ export function collectAttachments(pdf: PDF): Map<string, AttachmentEntry> {
       if (!effective?.startsWith('audio/')) return true;
     }
 
-    found.set(filename, { filename, source, ...facts });
+    seen.add(id);
+    found.push({ id, filename, source, page, ...facts });
     return true;
   });
 
@@ -249,7 +299,11 @@ export function collectAttachments(pdf: PDF): Map<string, AttachmentEntry> {
 }
 
 /**
- * Reads one file's bytes, finding it again by name.
+ * Reads one file's bytes, finding it again by its stream object.
+ *
+ * Matching on `id` rather than on the filename is what makes this correct for
+ * a document carrying two different files under one name: the name would find
+ * whichever came first and play the wrong recording.
  *
  * Looking it up a second time rather than holding the stream from discovery is
  * what keeps discovery cheap — see the note in useAttachments. This is the one
@@ -259,7 +313,7 @@ export function readAttachment(pdf: PDF, entry: AttachmentEntry): Uint8Array {
   let bytes: Uint8Array | undefined;
 
   eachFile(pdf, (file) => {
-    if (file.filename !== entry.filename || file.source !== entry.source) return true;
+    if (file.id !== entry.id) return true;
     bytes = file.stream.getDecodedData();
     return false;
   });

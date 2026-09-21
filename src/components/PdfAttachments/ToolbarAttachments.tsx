@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
+import { attachmentLabel } from './attachments';
 import type { PdfAttachment } from './attachments';
 import AttachmentControl from './AttachmentControl';
 import './ToolbarAttachments.css';
@@ -138,9 +139,9 @@ export default function ToolbarAttachments({ attachments }: ToolbarAttachmentsPr
           >
             <ul className="toolbar-attachments-list">
               {attachments.map((att) => (
-                <li key={att.filename} className="toolbar-attachment">
-                  <span className="toolbar-attachment-name" title={att.filename}>
-                    {att.filename}
+                <li key={att.id} className="toolbar-attachment">
+                  <span className="toolbar-attachment-name" title={attachmentLabel(att)}>
+                    {attachmentLabel(att)}
                   </span>
                   <AttachmentControl attachment={att} className="toolbar-attachment-action" />
                 </li>

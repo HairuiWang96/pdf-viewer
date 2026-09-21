@@ -1,3 +1,4 @@
+import { attachmentLabel } from './attachments';
 import type { PdfAttachment } from './attachments';
 import AttachmentControl from './AttachmentControl';
 import './DetailsAttachments.css';
@@ -33,9 +34,9 @@ export default function DetailsAttachments({ attachments }: DetailsAttachmentsPr
 
       <ul className="details-attachments-list">
         {attachments.map((att) => (
-          <li key={att.filename} className="details-attachment">
-            <span className="details-attachment-name" title={att.filename}>
-              {att.filename}
+          <li key={att.id} className="details-attachment">
+            <span className="details-attachment-name" title={attachmentLabel(att)}>
+              {attachmentLabel(att)}
             </span>
             <AttachmentControl attachment={att} className="details-attachment-action" />
           </li>

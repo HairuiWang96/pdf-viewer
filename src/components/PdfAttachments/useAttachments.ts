@@ -73,12 +73,14 @@ export function useAttachments(filePath: string | undefined): PdfAttachment[] {
         // holds nothing reachable from the parsed document. That is what lets
         // the `read` closure below capture one without pinning the discovery
         // parse in memory, which would silently undo the paragraph above.
-        const listed = [...collectAttachments(document).values()];
+        const listed = collectAttachments(document);
 
         setAttachments(
           listed.map((entry) => ({
+            id: entry.id,
             filename: entry.filename,
             size: entry.size,
+            page: entry.page,
             mimeType: playableType(entry),
             read: async () => readAttachment(await parse(), entry),
           })),

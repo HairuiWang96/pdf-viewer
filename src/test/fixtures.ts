@@ -53,11 +53,18 @@ export const threeCases: PdfMetadata[] = [
  * should supply its own, and most do not, since not calling it is the normal
  * state of an attachment on screen.
  */
+let nextId = 0;
+
 export function makeAttachment(overrides: Partial<PdfAttachment> = {}): PdfAttachment {
   return {
+    // Unique per fixture unless a test pins it. Identity is deliberately not
+    // the filename — two attachments are allowed to share one — so a default
+    // of `filename` would quietly recreate the collision the id exists to fix.
+    id: `fixture-${(nextId += 1)}`,
     filename: 'note.mp3',
     mimeType: 'audio/mpeg',
     size: 2048,
+    page: null,
     read: () => Promise.resolve(new Uint8Array([1, 2, 3])),
     ...overrides,
   };
