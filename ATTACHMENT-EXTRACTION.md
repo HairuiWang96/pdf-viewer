@@ -524,6 +524,34 @@ its present shape. It is a pre-1.0 library, that API is lower-level than most co
 touch, and there is no RichMedia feature upstream whose tests would protect us. Our own
 fixtures are the only thing that catches a break.
 
+### Libraries that _do_ support RichMedia explicitly
+
+They exist. The split is not technical — it is commercial.
+
+| Library | RichMedia | Browser | Licence |
+| ------- | --------- | ------- | ------- |
+| [Apryse / PDFTron](https://apryse.com/blog/annotation/working-with-pdf-richmedia-annotations) | explicit — `getRichMediaFile()` extracts the media | yes, WebViewer | commercial |
+| [Nutrient / PSPDFKit](https://www.nutrient.io/guides/web/annotations/introduction-to-annotations/media-annotations/) | explicit — hands audio/video to the system player | yes | commercial |
+| [MESCIUS DsPdf](https://developer.mescius.com/document-solutions/javascript-pdf-api/docs/features/annotations/richmedia-annotation) | explicit — `RichMediaAnnotation` class | yes | commercial |
+| [Aspose.PDF](https://reference.aspose.com/pdf/net/aspose.pdf.annotations/richmediaannotation/) | explicit | .NET | commercial |
+| [iText 5](https://api.itextpdf.com/iText5/java/5.5.12/com/itextpdf/text/pdf/richmedia/RichMediaAnnotation.html) | explicit, built to Adobe's ISO 32000 supplement §9.6 | Java | AGPL / commercial |
+| pdf.js, pdf-lib, `@libpdf/core`, PDFBox | none | — | open source |
+
+**Every library with explicit support is a paid product, and no open-source library has
+any.** That is the whole reason this module exists, and it is worth knowing before
+anyone concludes the walk was avoidable.
+
+Two details worth carrying into a build-or-buy conversation:
+
+- **Apryse does exactly what we do.** Its documented approach is to iterate a page's
+  annotations, find the RichMedia one, and extract the media to a file. The algorithm is
+  the same; what you are buying is that someone else maintains it.
+- **Most of these are stronger at _creating_ RichMedia than reading it.** Extraction is
+  the rarer feature, and Apryse is the clearest that it supports it.
+
+The PDF Association keeps a [RichMedia working repository](https://github.com/pdf-association/PDF-RichMedia-Annotations),
+which suggests the specification side is still being tidied up in the post-Flash era.
+
 ### What it costs
 
 `usePdfStamp` was ported too, so pdf-lib is gone from the bundle — verified, not
