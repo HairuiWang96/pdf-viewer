@@ -182,6 +182,39 @@ Warning: Unimplemented annotation type "RichMedia", falling back to base annotat
 There is no combination of pdf.js calls that reaches those bytes. The content dictionary
 is discarded during parsing.
 
+### It is not RichMedia specifically — pdf.js implements no media annotations at all
+
+Its annotation factory handles these eighteen subtypes and nothing else:
+
+```text
+Link, Text, Widget (Tx/Btn/Ch/Sig), Popup, FreeText, Line, Square, Circle,
+PolyLine, Polygon, Caret, Ink, Highlight, Underline, Squiggly, StrikeOut,
+Stamp, FileAttachment
+```
+
+Everything else reaches the default branch, verbatim from the source:
+
+```js
+warn(`Unimplemented annotation type "${subtype}", falling back to base annotation.`);
+```
+
+`RichMedia`, `Screen`, `Movie` and `Sound` are all absent — zero occurrences anywhere in
+the worker. So this is a category decision rather than an oversight about one format, and
+a defensible one:
+
+1. **pdf.js is a renderer.** Its job is turning a PDF into pixels. Playing media needs a
+   media runtime, which is outside that job.
+2. **RichMedia's player is Flash**, and no browser has had Flash since December 2020.
+   pdf.js cannot run the thing the annotation points at even if it parsed it.
+3. **Adobe deprecated the format themselves.** Implementing a dead Flash-based mechanism
+   is a poor use of anyone's time.
+
+It also means the other three mechanisms in §12 are unreachable through pdf.js for the
+same reason, not for four separate ones.
+
+The part worth holding onto: **Flash is only the player.** The audio beside it is an
+ordinary MP3, which is why Acrobat plays this file and why we can too.
+
 **And, separately: it decodes everything.** `getAttachments()` returns each attachment's
 bytes, fully decoded, as the only way to learn that the attachment exists. For a document
 carrying a 200 MB video that is 200 MB of memory spent to render a badge reading "1".
