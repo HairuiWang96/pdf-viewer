@@ -449,8 +449,51 @@ null and the control omits the size.
 RichMedia still needs the low-level walk. `getAnnotations()` models a fixed set of
 subtypes and RichMedia is not among them, so the page comes back empty — the same
 blind spot pdf.js has, reached the same way, through `PdfDict`/`PdfArray`. Listing
-without decoding also survives: `getAttachments()` is metadata-only and `PdfStream.data`
-hands back raw bytes.
+without decoding also survives: `PdfStream.data` hands back raw bytes.
+
+### Where the RichMedia knowledge actually comes from
+
+Worth stating because it is the opposite of the natural assumption, and because the
+question has already been asked once: **`@libpdf/core` has no RichMedia support.
+Nothing audio-related at all.** Searching its API documentation for any of this finds
+nothing, because there is nothing to find.
+
+No PDF library models RichMedia. That is the whole reason this module exists, and it
+means no upstream release will ever improve the situation.
+
+The work splits in two, and only one half is the library's:
+
+| | Source |
+| ------------------------------------------------- | ------------------------------------------------ |
+| Parsing — xref, objects, object streams, decryption | **`@libpdf/core`** |
+| Object access — `PdfDict`, `PdfArray`, `PdfStream`, reference resolution | **`@libpdf/core`**, and entirely generic |
+| Which key to follow next — `/RichMediaContent`, `/Assets`, `/EF`, `/UF`, `/Params /Size` | **the PDF specification**, plus reading a real file |
+
+The library hands over dictionaries and arrays and has no idea what any particular key
+means. The route through them is ours.
+
+Those key names come from ISO 32000 for the most part, and from Adobe's PDF 1.7
+ExtensionLevel 3 for RichMedia itself. In practice the route was confirmed the empirical
+way: dumping the objects of `case-embedded-audio-media.pdf` with `zlib` and a regex, and
+reading the structure off the output —
+
+```text
+/Subtype/RichMedia ... /RichMediaContent 41 0 R
+/Assets ... /Names[(2017-1506.mp3) 50 0 R (AudioPlayer.swf) 45 0 R]
+/FlashVars(source=2017-1506.mp3&autoPlay=true&volume=1.00)
+```
+
+— before any library was involved at all.
+
+One practical note for anyone extending this: the published README is not the API
+surface. `node_modules/@libpdf/core/dist/index.d.mts` is, and it is considerably more
+complete — every signature used here was read from it, including the exact
+`RefResolver = (ref: PdfRef) => PdfObject | null` that a first attempt got wrong.
+
+**The maintenance consequence.** This walk depends on the low-level object API keeping
+its present shape. It is a pre-1.0 library, that API is lower-level than most consumers
+touch, and there is no RichMedia feature upstream whose tests would protect us. Our own
+fixtures are the only thing that catches a break.
 
 ### What it costs
 
