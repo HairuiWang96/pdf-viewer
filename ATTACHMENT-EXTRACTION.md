@@ -1,13 +1,18 @@
-# Reading attachments — why this moved from pdf.js to pdf-lib
+# Reading attachments — why this moved off pdf.js
 
 Companion to `ATTACHMENT-INDICATOR.md`. That one is about *where the indicator lives*;
 this one is about *where its data comes from*, which changed twice in one sitting and for
 two unrelated reasons.
 
 **Summary:** a case PDF turned up whose audio pdf.js cannot see at all. Fixing that meant
-reading attachments with pdf-lib instead. Having moved, the same change also let listing
-stop decoding files it was never asked for — which matters more in production than the
-bug that prompted it.
+reading attachments with a library that exposes the PDF object graph instead. Having
+moved, the same change also let listing stop decoding files it was never asked for —
+which matters more in production than the bug that prompted it.
+
+**On this branch that library is `@libpdf/core`, and pdf-lib is not used at runtime.**
+Sections 1–9 were written when it was pdf-lib, and the reasoning is unchanged by the
+swap — both are writers being used as readers, for the reason in §4. Where a section
+names pdf-lib it is describing that first move; §10 records the second.
 
 ---
 
@@ -58,6 +63,97 @@ to audio, because they are a player's internals rather than files anyone chose t
 and shipping a `.swf` to a browser as a "download" would be offering someone a file
 nothing can open.
 
+### The graph the code navigates
+
+Two entry points, one destination. Every `─→` below is an **indirect reference**, which
+is why a `resolve` function is threaded through every lookup in `attachmentStreams.ts`:
+without it, each of these hops returns a `PdfRef` rather than the object itself.
+
+#### Where both entry points come from
+
+Neither the Catalog nor a Page is the top. Reading a PDF starts at the **end** of the
+file and works backwards — the trailer names the Catalog, and everything else hangs off
+it. Traced from `case-embedded-audio-media.pdf`:
+
+```text
+%PDF-1.7                                    ← header, first 8 bytes of the file
+    …objects…
+    xref stream                             ← where every object lives (PDF 1.5+)
+    trailer
+    └── /Root  ─→  Catalog                  ← the document, and the only way in
+                   ├── /Lang /Metadata /StructTreeRoot /MarkInfo /PageLayout
+                   │
+                   ├── /Names ─────────────→  ENTRY POINT 1  (attachments)
+                   │
+                   └── /Pages  ─→  page tree      /Type /Pages · /Count 1
+                                   └── /Kids  [ Page ]
+                                                └── /Annots ──→  ENTRY POINT 2
+```
+
+Two things worth noting. The page tree is a *tree*, not a list — `/Kids` can hold more
+`/Pages` nodes, and only the leaves are `/Type /Page` — which is why the code says
+`pdf.getPages()` and lets the library flatten it. And a Page carries `/Parent` back up,
+so the graph has cycles; anything walking it by hand has to not follow them.
+
+`pdf.getCatalog()` and `pdf.getPages()` are the two calls in `attachmentStreams.ts` that
+start from here. Everything below is reached from one of them.
+
+#### Entry point 1 — the catalog's attachment tree
+
+```text
+Catalog
+└── /Names
+    └── /EmbeddedFiles
+        └── /Names  [ key, <filespec>, key, <filespec>, … ]
+                             │
+                             └──→ filespec
+```
+
+#### Entry point 2 — a RichMedia annotation's private assets
+
+```text
+Page
+└── /Annots  ─→  [ annotation, … ]
+                  └── /Subtype /RichMedia              ← the marker we filter on
+                      └── /RichMediaContent  ─→  dict
+                          └── /Assets  ─→  name tree
+                              └── /Names  [ key, <filespec>, … ]
+                                                 │
+                                                 └──→ filespec
+```
+
+#### Both arrive at the same place
+
+```text
+filespec
+├── /UF   "2017-1506.mp3"        ← the name    (/F is the legacy fallback)
+└── /EF
+    └── /F  ─→  stream
+                │
+                ├── DICTIONARY — free to read, and all listing needs
+                │   ├── /Subtype       /audio#2Fmpeg     → MIME type
+                │   ├── /Params /Size  8257667           → real, decoded size
+                │   └── /Filter        …                 → present if encoded
+                │
+                └── BODY — 8 MB of MP3
+                    └── read ONLY when someone presses Play
+```
+
+**That split is the whole design.** `/Subtype`, `/Params` and `/Filter` live in the
+stream's *dictionary*, which costs nothing to reach — so an indicator can name a file,
+size it, and decide whether it is playable **without ever opening it**. Only the body is
+expensive, and only a click asks for it.
+
+Two details that cause most of the code:
+
+- **A name tree is not a list.** It is either flat — `/Names`, a single array
+  alternating key and value, so the file specifications are the *odd* indices — or
+  branching, via `/Kids`, recursively. The spec permits both on the same node, so
+  `collectFileSpecs` reads each independently rather than as alternatives.
+- **The two entry points converge.** Both end at a file specification with an `/EF`
+  stream, so `eachFile` walks them into one sequence and everything downstream —
+  naming, sizing, filtering, decoding — is shared.
+
 ---
 
 ## 3. Why pdf.js could not do this job
@@ -94,11 +190,16 @@ with real case files.
 
 ---
 
-## 4. Why pdf-lib
+## 4. Why a PDF *writer*, used as a reader
 
-pdf-lib is normally described as a PDF *writer* (see `PDF-LIBRARIES.md`), and it is being
-used here as a reader. That is deliberate: to write a PDF it has to model the object graph
-faithfully, and it exposes that model.
+The library that replaced pdf.js here was pdf-lib first and `@libpdf/core` now, and the
+argument is the same for both: they are normally described as PDF *writers* (see
+`PDF-LIBRARIES.md`), and they are being used as readers on purpose. To write a PDF, a
+library has to model the object graph faithfully — and having modelled it, it exposes
+it. A renderer has no such obligation and discards what it cannot draw.
+
+The comparison below is against pdf-lib, the first replacement. §10 carries the same
+table for `@libpdf/core`.
 
 | | pdf.js | pdf-lib |
 |---|---|---|
@@ -119,10 +220,10 @@ Having moved to a library that *can* separate discovery from reading, the design
 that split as its centre. An indicator's job is to say a file is there; whether anyone
 plays it is a separate question, asked later and usually not at all.
 
-```
-collectAttachmentStreams(document)   walks the object graph, stops at the stream object
-                                     → filename, declared size, MIME guess
-attachment.read()                    decodes exactly one file, on demand
+```text
+collectAttachments(pdf)     walks the object graph, stops at the stream dictionary
+                            → filename, declared size, declared MIME type
+attachment.read()           decodes exactly one file, on demand
 ```
 
 Nothing between opening a document and pressing a button touches an attachment's bytes.
@@ -141,7 +242,7 @@ Stated plainly, because both costs are real and neither is hypothetical.
 
 **One parse per document, always.** Previously, listing attachments rode on the parse the
 viewer had already done; a document with no attachments cost nothing. Now every document
-is fetched and parsed once by pdf-lib. The fetch is served from the browser's HTTP cache
+is fetched and parsed once by our own reader. The fetch is served from the browser's cache
 (the viewer has already requested the same URL), but the parse is genuine extra work.
 
 **A second parse on first play.** `read()` re-fetches and re-parses rather than holding
@@ -228,10 +329,12 @@ reading moved off pdf.js; this section records what changed when the reader itse
 was swapped for [`@libpdf/core`](https://github.com/LibPDF-js/core), the library a
 colleague already uses server-side.
 
-`usePdfStamp` deliberately stays on pdf-lib. That means both libraries ship here,
-which would be the wrong call in production and is the right one for a comparison
-branch — the point is to see the attachment layer side by side, not to finish a
-migration.
+**pdf-lib is not used at runtime on this branch at all.** `usePdfStamp` was ported
+too, so nothing in `src/` imports it and nothing of it reaches the bundle. It remains
+a devDependency, used by the fixture scripts and the unit tests — neither of which is
+bundled — and that is deliberate rather than leftover: the tests write documents with
+one library and read them with the other, so the reader is never checked against its
+own writer.
 
 ### What got better
 
