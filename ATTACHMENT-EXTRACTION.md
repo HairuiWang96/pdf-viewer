@@ -586,6 +586,47 @@ Two other costs:
   ago. "Stable versus beta" is the wrong frame for that pair; it is closer to
   "unmaintained versus young".
 
+### A third option: the maintained pdf-lib fork
+
+Found while surveying the JavaScript field, and it weakens the argument above.
+[`@cantoo/pdf-lib`](https://github.com/cantoo-scribe/pdf-lib) is a fork of pdf-lib under
+the same MIT licence, at 122 releases with the latest on 2026-09-15 — actively
+maintained where the original is not. Every one of the nine exports the
+`pdf-lib-attachments` branch uses is present: `PDFDocument`, `PDFDict`, `PDFName`,
+`PDFArray`, `PDFRawStream`, `PDFHexString`, `PDFString`, `PDFNumber`,
+`decodePDFRawStream`. Changing that branch over looks like an import change, not a port.
+
+So the real choice is three-way, not two:
+
+| | Bundle | Maintained | Encryption | Risk |
+| --------------------- | -------- | ---------- | ---------- | ------------------- |
+| pdf-lib               | 2,769 kB | **no**     | no         | frozen since 2021   |
+| `@cantoo/pdf-lib`     | ~2,769 kB, untested | yes | no | small fork, one team |
+| `@libpdf/core`        | 3,311 kB | yes        | **yes**    | pre-1.0 API churn   |
+
+The fork removes the strongest argument for `@libpdf/core` — that pdf-lib is abandoned.
+What survives for `@libpdf/core` is encryption, which pdf-lib and its forks cannot do at
+all, and declared MIME types. What survives against it is 541 kB and a pre-1.0 API.
+
+Not tested here beyond the export check; the bundle figure is assumed from pdf-lib, not
+measured. Worth doing before any decision rests on it.
+
+### The rest of the JavaScript field
+
+For completeness, since the question "what else could do this" has a short answer:
+
+| Library | Browser | Object graph | Licence |
+| ------------- | ---------- | --------------- | ------- |
+| `mupdf` (WASM) | yes | yes | **AGPL** — likely a blocker for commercial use |
+| pdf.js | yes | **no** — discards what it cannot render | Apache |
+| jsPDF, PDFKit | — | write-only, cannot read an existing file | MIT |
+| muhammara | **no**, Node only | yes | Apache |
+
+That is essentially the whole field. The requirement is only "exposes the raw object
+graph", which any library that can _write_ PDFs must do — a writer has to model the
+structure, while a renderer is free to throw away what it cannot draw. pdf.js is the
+only one here that fails on capability rather than on licence or platform.
+
 ### Verified
 
 Identical results to the pdf-lib branch on every fixture, byte for byte — including
