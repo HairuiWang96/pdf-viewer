@@ -358,5 +358,28 @@
     "language": "English",
     "status": "Published",
     "stampText": "TEST CASE | Non-Audio Attachments"
+  },
+  {
+    "id": "t14",
+    "caseNumber": "CASE-TEST-AUDIO-LARGE",
+    "fileName": "case-audio-attachment-large.pdf",
+    "filePath": "/case-audio-attachment-large.pdf",
+    "title": "Test: Large Audio Attachment",
+    "author": "QA",
+    "description": "A real court recording embedded the ordinary way, in the catalog's /Names /EmbeddedFiles tree. At 28 MB it is by far the largest attachment here, and the only fixture that exercises what size costs: listing it is free, playing it is not.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "audio",
+      "attachment",
+      "large"
+    ],
+    "totalPages": 1,
+    "fileSize": "28 MB",
+    "createdDate": "2026-09-21",
+    "lastModified": "2026-09-21",
+    "language": "English",
+    "status": "Published",
+    "stampText": "TEST CASE | Large Audio Attachment"
   }
 ]
