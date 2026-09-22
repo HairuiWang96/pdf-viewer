@@ -792,7 +792,7 @@ case at a time, and it converts a silent gap into a visible one.
 The measurement that makes the case, from the deployed build on a good connection:
 
 ```text
-case-audio-attachment-large.pdf   29,771,173 bytes   5.54 s to open
+case-audio-attachment-large.pdf   29,771,173 bytes   4.49 s on a cold load
                                   29,728,354  = the embedded audio   (99.9%)
                                       42,819  = the page we render   (42 KB)
 ```
@@ -800,6 +800,42 @@ case-audio-attachment-large.pdf   29,771,173 bytes   5.54 s to open
 **700× more is downloaded than the page needs.** Nothing in the code is slow — the wait
 is the transfer, and it finishes before `PDF.load` runs. The file is not linearised
 either, so there is no partial-render path for a browser to take.
+
+### What was already fixed in the browser, and what was not
+
+The first measurement of this was worse, and for a different reason. Three things on
+the page load the same PDF — the Kendo viewer, the thumbnail sidebar, and
+`useAttachments` — and on a cold cache all three raced: none could be served from an
+entry that did not exist yet, so each downloaded in full.
+
+```text
+                      before          after
+big file, cold load   3 × 200         1 × 200 + 2 × 304
+                      ~89 MB          29.7 MB, 4.49 s
+```
+
+The fix was to stop being one of the three: `useAttachments` now reads the bytes pdf.js
+already downloaded, through `getData()`, instead of requesting the file again. Removing
+one concurrent request was enough to break the race, and the remaining two now
+revalidate against a cached copy rather than re-downloading.
+
+Measured cold, after clearing the cache, with `Disable cache` off:
+
+| File | Requests | Time |
+| ------- | ----------------- | ------ |
+| 29.7 MB | 1 × 200, 2 × 304 | 4.49 s |
+| 8.2 MB  | 1 × 200, 2 × 304 | 2.43 s |
+
+Note `Disable cache` makes this measurement meaningless — it forces every request to
+bypass the cache, so three downloads are guaranteed by the setting rather than by any
+behaviour worth fixing. An empty cache is the thing to test, not a disabled one.
+
+**Sharing one parsed document between the viewer and the thumbnails was considered and
+dropped.** The thumbnail request is now a 304, so it costs a round-trip rather than a
+transfer, and reshaping `usePdfThumbnails` around Kendo's internal document is not worth
+that. Nothing further is available browser-side.
+
+What remains is the single transfer below, and only the backend can remove it.
 
 ### The shape of the fix
 
