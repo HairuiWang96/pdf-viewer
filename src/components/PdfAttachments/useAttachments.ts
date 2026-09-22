@@ -21,19 +21,29 @@ export interface AttachmentBytes {
  *
  * ── Why this is not simply a fetch ──
  *
- * Three separate things on this page load the same PDF: the viewer, the
- * thumbnail sidebar, and this hook. The browser's HTTP cache normally collapses
- * that to one transfer and two revalidations — which is what it does for an
- * 8 MB file, and why the duplication went unnoticed.
+ * Several things on this page load the same PDF: the Kendo viewer, the
+ * thumbnail sidebar, and — until this argument existed — this hook. On a small
+ * file the browser's cache collapsed that to one transfer and some
+ * revalidations, which is why the duplication went unnoticed for so long.
  *
- * It stops doing so once the file is large enough. Chromium refuses to store a
- * cache entry past a size threshold, so nothing is cached, nothing can be
- * revalidated, and all three become full downloads. Measured on the deployed
- * build: a 29.7 MB case file transferred three times, ~89 MB, against a page
- * that needs 42 KB to render.
+ * On a large one it did not. Measured on the deployed build, cold:
  *
- * So the fetch below is the fallback, not the path. Given a `source`, this
- * borrows the viewer's bytes and the listing costs nothing.
+ *     before   3 × 200   ~89 MB     for a page that needs 42 KB to render
+ *     after    1 × 200   29.7 MB    plus 2 × 304
+ *
+ * **Why removing one request fixed the other two is not established.** The
+ * measurement is repeatable; the mechanism is a guess. The likeliest is
+ * timing — this hook's fetch started earliest, on mount, before the viewer and
+ * the sidebar had initialised — but that was not verified, and an earlier
+ * theory about Chromium refusing to cache large entries turned out to be wrong
+ * when the file cached perfectly well on a later run. Note also that three
+ * requests still appear, so one of the remaining consumers issues two; which
+ * one has not been checked.
+ *
+ * What is certain is that borrowing already-downloaded bytes cannot cost a
+ * transfer, whatever the cache does. That is the reason for this argument, and
+ * it holds regardless of the explanation. The fetch below is the fallback for
+ * a caller with no viewer to borrow from.
  */
 async function loadDocument(filePath: string, source: AttachmentBytes | null): Promise<PDF> {
   if (source) return PDF.load(await source.getData());

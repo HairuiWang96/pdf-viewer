@@ -49,10 +49,9 @@ export default function PdfViewerPage() {
   // whichever control the user actually presses.
   //
   // The viewer's pdf.js document goes in alongside the path so the listing can
-  // reuse bytes already downloaded. Three things on this page load the same
-  // PDF; the browser's cache normally hides that, but stops once the file is
-  // too large to cache, at which point each one is a full transfer. This
-  // removes ours.
+  // reuse bytes already downloaded rather than requesting the file again. On a
+  // large document that request was measurably expensive — see the note on
+  // `loadDocument` for the numbers, and for what about them is still unexplained.
   const [pdfDocument, setPdfDocument] = useState<AttachmentBytes | null>(null);
   const attachments = useAttachments(activePdfPath, pdfDocument);
 

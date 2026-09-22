@@ -803,10 +803,9 @@ either, so there is no partial-render path for a browser to take.
 
 ### What was already fixed in the browser, and what was not
 
-The first measurement of this was worse, and for a different reason. Three things on
-the page load the same PDF — the Kendo viewer, the thumbnail sidebar, and
-`useAttachments` — and on a cold cache all three raced: none could be served from an
-entry that did not exist yet, so each downloaded in full.
+The first measurement of this was worse, and for a different reason. Several things on
+the page load the same PDF — the Kendo viewer, the thumbnail sidebar, and, until it was
+changed, `useAttachments`. On a cold cache all of them downloaded in full.
 
 ```text
                       before          after
@@ -814,10 +813,20 @@ big file, cold load   3 × 200         1 × 200 + 2 × 304
                       ~89 MB          29.7 MB, 4.49 s
 ```
 
-The fix was to stop being one of the three: `useAttachments` now reads the bytes pdf.js
-already downloaded, through `getData()`, instead of requesting the file again. Removing
-one concurrent request was enough to break the race, and the remaining two now
-revalidate against a cached copy rather than re-downloading.
+The fix was to stop being one of them: `useAttachments` now reads the bytes pdf.js
+already downloaded, through `getData()`, instead of requesting the file again.
+
+**Why removing one request fixed the others is not established.** The measurement is
+repeatable, the mechanism is a guess. The likeliest explanation is timing — the hook's
+fetch ran on mount, before the viewer and sidebar had initialised — but that was not
+verified. An earlier theory, that Chromium refuses to cache entries past a size
+threshold, was disproved by a later run in which the same file cached perfectly well.
+Note also that three requests still appear afterwards, so one of the remaining consumers
+issues two; which one has not been checked.
+
+What is certain is that reading bytes somebody already has cannot cost a transfer,
+whatever the cache happens to do. That is why the change is worth keeping independently
+of the explanation.
 
 Measured cold, after clearing the cache, with `Disable cache` off:
 
