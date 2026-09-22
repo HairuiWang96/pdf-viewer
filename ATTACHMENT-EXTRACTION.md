@@ -784,3 +784,69 @@ So the decision is not really "which of these should we build". It is:
 
 Point 2 is worth raising first. It is small, it closes the whole class rather than one
 case at a time, and it converts a silent gap into a visible one.
+
+---
+
+## 13. Where this should go next: split the file server-side
+
+The measurement that makes the case, from the deployed build on a good connection:
+
+```text
+case-audio-attachment-large.pdf   29,771,173 bytes   5.54 s to open
+                                  29,728,354  = the embedded audio   (99.9%)
+                                      42,819  = the page we render   (42 KB)
+```
+
+**700× more is downloaded than the page needs.** Nothing in the code is slow — the wait
+is the transfer, and it finishes before `PDF.load` runs. The file is not linearised
+either, so there is no partial-render path for a browser to take.
+
+### The shape of the fix
+
+Have the backend parse the document once and serve two things instead of one:
+
+```text
+GET /case/123/view.pdf     42 KB   attachment stripped   → renders immediately
+GET /case/123/audio.mp3    28 MB   served as its own URL → only if someone plays it
+GET /case/123/attachments  ~200 B  JSON: name, size, type, page
+```
+
+### Why the audio URL is the important half
+
+Today `read()` pulls the whole attachment into memory, wraps it in a Blob, and hands the
+player a `blob:` URL. **Playback cannot start until the last byte has arrived**, because
+a Blob has no concept of partial content.
+
+A plain URL is a different thing entirely. `<audio src="/case/123/audio.mp3">` makes the
+browser issue range requests on its own: it buffers a few hundred kilobytes, starts
+playing, and fetches the rest while the audio runs. Seeking works the same way — dragging
+to twenty minutes in fetches that byte range rather than everything before it.
+
+So a 28 MB recording starts playing in about a second instead of after a full download,
+and a listener who plays ten seconds and stops has transferred ten seconds of audio. The
+only requirement is `Accept-Ranges: bytes`, which every static host and framework already
+sends.
+
+### What else it settles
+
+- **No PDF parsing in the browser.** The listing arrives as JSON, so `@libpdf/core`
+  leaves the bundle — 1 MB or more, and with it the pre-1.0 API risk in §10.
+- **All six mechanisms become reachable.** §12's four gaps are a server-side library
+  choice rather than a rewrite, and the server can use the mature ones — PDFBox, iText,
+  PyMuPDF — instead of the two JavaScript libraries that expose an object graph.
+- **Parse once per document, not once per viewer.** Results cache; today every viewer
+  parses again.
+- **Memory stops being the constraint.** §11's ceiling was the browser holding a decoded
+  copy. Streaming never holds the whole file at all, which is what makes the mobile
+  question go away rather than being managed.
+
+### What it does not settle
+
+A page-heavy document still transfers in full, because the viewer needs it to render.
+Stripping attachments does nothing for a 200-page scan — that one needs linearisation and
+range requests, or server-side rendering. The two problems are unrelated and this fixes
+only the first.
+
+It also adds a backend where there is currently none: a parsing service, storage for
+extracted media, and cache invalidation when a document changes. That is the real cost,
+and it is a product decision rather than a technical one.
