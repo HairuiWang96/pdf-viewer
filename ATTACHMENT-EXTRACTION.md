@@ -872,6 +872,27 @@ and a listener who plays ten seconds and stops has transferred ten seconds of au
 only requirement is `Accept-Ranges: bytes`, which every static host and framework already
 sends.
 
+### The stamp belongs there too
+
+Not obvious until measured. `usePdfStamp` re-saves the document to draw one line of
+text, and that rewrite has two effects:
+
+```text
+attachments   survive      — part of the object graph, written back untouched
+linearisation does not     — original /Linearized: true, stamped: false
+size          +310 bytes   — constant, independent of file size
+```
+
+Attachments surviving is what makes the current design safe: with the stamp on, both
+the viewer and the attachment listing read the stamped copy rather than the original.
+
+Losing linearisation is the one that constrains the future. A linearised file can be
+rendered from its opening bytes, which is the prerequisite for the progressive loading
+in §13's alternative — and stamping silently removes it. Neither `@libpdf/core` nor
+pdf-lib can write a linearised file to put it back; `qpdf --linearize` can. So **stamp
+and progressive-load are in tension in the browser and not on a server**, where the
+order is simply: stamp, strip the attachment, re-linearise, serve.
+
 ### What else it settles
 
 - **No PDF parsing in the browser.** The listing arrives as JSON, so `@libpdf/core`

@@ -63,6 +63,33 @@ export default function usePdfStamp(
         });
       }
 
+      /**
+       * Rewrites the whole file, which has two consequences worth knowing.
+       *
+       * **Attachments survive.** Embedded files and RichMedia assets are part
+       * of the object graph, so they are written back out untouched —
+       * verified against all three audio fixtures. That matters because with
+       * the stamp on, the viewer and the attachment listing both read this
+       * copy rather than the original.
+       *
+       * **Linearisation does not.** A linearised PDF puts page 1's objects at
+       * the front with hint tables, so a reader can render the first page from
+       * the opening bytes. Saving here produces the ordinary layout instead —
+       * xref at the end, objects wherever the writer put them:
+       *
+       *     original  /Linearized: true
+       *     stamped   /Linearized: false     (the file also shrank by 158 KB)
+       *
+       * Harmless today, because nothing requests byte ranges and this copy is
+       * a Blob already held in memory. It matters the moment progressive
+       * loading is attempted: stamping would silently undo it, and neither
+       * @libpdf/core nor pdf-lib can write a linearised file to put it back.
+       * `qpdf --linearize` can, which is one more reason the stamp belongs on
+       * a server — stamp, strip the attachment, re-linearise, serve.
+       *
+       * Size growth is not a concern: about 310 bytes per stamp, constant, and
+       * independent of file size. The audio is not recompressed.
+       */
       const stampedBytes = await doc.save();
       const blob = new Blob([stampedBytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
