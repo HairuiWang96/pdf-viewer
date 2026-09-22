@@ -87,6 +87,20 @@ function playableType(entry: AttachmentEntry): string | null {
  * `source` should be referentially stable, and is null until the viewer has
  * parsed the document. Until then the hook reports nothing, which is the same
  * as it reported while a fetch was in flight.
+ *
+ * ── Why both arguments, when the only caller passes both ──
+ *
+ * `filePath` no longer earns much. `PdfViewerPage` always supplies a `source`
+ * too, so the fetch inside `loadDocument` is a path the application never
+ * takes — only the tests do. A `source`-only hook would work: the page already
+ * nulls the document when the file changes, so `source` alone would signal a
+ * new document just as well, and the effect below could guard on it instead.
+ *
+ * It is kept for one reason. This is a comparison repo, and the other viewer
+ * branches do not all expose the pdf.js document the way KendoReact does —
+ * `react-pdf` and the iframe viewer have nothing to hand over. A hook that
+ * cannot work without a viewer would not port to them. Cheap insurance;
+ * delete it the day this becomes one viewer rather than five.
  */
 export function useAttachments(
   filePath: string | undefined,
