@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import ThumbnailSidebar from '../../components/ThumbnailSidebar';
 import KendoPdfViewer from '../../components/KendoPdfViewer';
 import PdfDetails from '../../components/PdfDetails';
 import { PlacementSwitcher, useAttachments, DEFAULT_PLACEMENT } from '../../components/PdfAttachments';
-import type { AttachmentPlacement } from '../../components/PdfAttachments';
+import type { AttachmentBytes, AttachmentPlacement } from '../../components/PdfAttachments';
 import { usePdfViewer, usePdfStamp, useDetailsPanel } from '../../hooks';
 
 export default function PdfViewerPage() {
@@ -47,7 +47,21 @@ export default function PdfViewerPage() {
   //
   // Only names and sizes — the files themselves are read on demand, by
   // whichever control the user actually presses.
-  const attachments = useAttachments(activePdfPath);
+  //
+  // The viewer's pdf.js document goes in alongside the path so the listing can
+  // reuse bytes already downloaded. Three things on this page load the same
+  // PDF; the browser's cache normally hides that, but stops once the file is
+  // too large to cache, at which point each one is a full transfer. This
+  // removes ours.
+  const [pdfDocument, setPdfDocument] = useState<AttachmentBytes | null>(null);
+  const attachments = useAttachments(activePdfPath, pdfDocument);
+
+  // Drop the previous document the moment the file changes, so the old file's
+  // attachments are not briefly listed against the new one. The viewer reports
+  // the new document once it has parsed it.
+  useEffect(() => {
+    setPdfDocument(null);
+  }, [activePdfPath]);
   const [placement, setPlacement] = useState<AttachmentPlacement>(DEFAULT_PLACEMENT);
 
   // On mobile, selecting a case should also close the details panel
@@ -81,6 +95,7 @@ export default function PdfViewerPage() {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onLoadSuccess={handleLoadSuccess}
+        onDocumentLoad={setPdfDocument}
         isMobile={isMobile}
         attachments={attachments}
         placement={placement}

@@ -17,6 +17,9 @@ import KendoPdfViewer from './KendoPdfViewer';
 const { mockState } = vi.hoisted(() => ({
   mockState: {
     pages: [{}, {}] as unknown[],
+    // Stands in for the pdf.js document Kendo parsed internally. Only
+    // getData() matters: it is how the page borrows the downloaded bytes.
+    document: { getData: () => Promise.resolve(new Uint8Array([1, 2, 3])) },
   },
 }));
 
@@ -29,6 +32,7 @@ vi.mock('@progress/kendo-react-all', async () => {
           element: null,
           props,
           pages: mockState.pages,
+          document: mockState.document,
         }));
         // Kendo fires onLoad once the document is parsed; that is when the
         // component reaches for the page count.
@@ -55,6 +59,7 @@ const defaultProps = {
   currentPage: 1,
   onPageChange: vi.fn(),
   onLoadSuccess: vi.fn(),
+  onDocumentLoad: vi.fn(),
   isMobile: false,
   attachments: [],
   placement: 'bottom' as const,

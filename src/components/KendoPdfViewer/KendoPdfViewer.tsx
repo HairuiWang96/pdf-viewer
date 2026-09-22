@@ -9,7 +9,7 @@ import type {
 } from '@progress/kendo-react-all';
 import '@progress/kendo-theme-default/dist/all.css';
 import { BottomBarAttachments, ToolbarAttachments } from '../PdfAttachments';
-import type { AttachmentPlacement, PdfAttachment } from '../PdfAttachments';
+import type { AttachmentBytes, AttachmentPlacement, PdfAttachment } from '../PdfAttachments';
 import './KendoPdfViewer.css';
 
 interface KendoPdfViewerProps {
@@ -18,6 +18,13 @@ interface KendoPdfViewerProps {
   currentPage: number;
   onPageChange: (page: number) => void;
   onLoadSuccess: (totalPages: number) => void;
+  /**
+   * Hands up the pdf.js document Kendo parsed internally, so the page can read
+   * attachments out of bytes already downloaded instead of requesting the file
+   * a second time. Null on a failed load. See `useAttachments` for why the
+   * duplicate request was worth removing.
+   */
+  onDocumentLoad: (document: AttachmentBytes | null) => void;
   isMobile: boolean;
   attachments: PdfAttachment[];
   placement: AttachmentPlacement;
@@ -62,6 +69,7 @@ export default function KendoPdfViewer({
   currentPage,
   onPageChange,
   onLoadSuccess,
+  onDocumentLoad,
   isMobile,
   attachments,
   placement,
@@ -136,7 +144,12 @@ export default function KendoPdfViewer({
     // like a real answer rather than an absent one.
     const totalPages = viewerRef.current?.pages?.length ?? 0;
     if (totalPages > 0) onLoadSuccess(totalPages);
-  }, [onLoadSuccess]);
+
+    // The pdf.js document Kendo just parsed. Its getData() returns the bytes
+    // already downloaded, which is what saves the page a second request for a
+    // file it is looking at.
+    onDocumentLoad((viewerRef.current?.document as AttachmentBytes | undefined) ?? null);
+  }, [onLoadSuccess, onDocumentLoad]);
 
   const handleError = useCallback((event: ErrorEvent) => {
     console.error('KendoReact PDF Viewer failed to load the document:', event.error);

@@ -6,6 +6,7 @@ export { default as PlacementSwitcher } from './PlacementSwitcher';
 export { default as AttachmentControl } from './AttachmentControl';
 
 export { useAttachments } from './useAttachments';
+export type { AttachmentBytes } from './useAttachments';
 export { useAttachmentUrl } from './useAttachmentUrl';
 export type { PdfAttachment } from './attachments';
 

@@ -114,6 +114,51 @@ describe('useAttachments', () => {
     expect(result.current).toEqual([]);
   });
 
+  /**
+   * Three things on the page load the same PDF, and the browser stops
+   * collapsing that to one transfer once the file is too large to cache — on
+   * the deployed build a 29.7 MB case file was fetched three times. Borrowing
+   * the bytes the viewer already downloaded is how this hook stops being one
+   * of the three.
+   */
+  describe('reusing the viewer’s bytes', () => {
+    it('does not fetch when the viewer can supply the document', async () => {
+      const fetched = stubFetch({});
+      const bytes = await pdfWithAttachments([{ name: 'note.mp3', bytes: AUDIO }]);
+      const source = { getData: vi.fn(() => Promise.resolve(bytes)) };
+
+      const { result } = renderHook(() => useAttachments('/case.pdf', source));
+
+      await waitFor(() => expect(result.current).toHaveLength(1));
+      expect(source.getData).toHaveBeenCalled();
+      // The stub would reject '/case.pdf' anyway; the point is nothing asked.
+      expect(fetched).toEqual([]);
+    });
+
+    it('reads an attachment without fetching either', async () => {
+      const fetched = stubFetch({});
+      const bytes = await pdfWithAttachments([{ name: 'note.mp3', bytes: AUDIO }]);
+      const source = { getData: () => Promise.resolve(bytes) };
+
+      const { result } = renderHook(() => useAttachments('/case.pdf', source));
+      await waitFor(() => expect(result.current).toHaveLength(1));
+
+      expect(await result.current[0].read()).toEqual(AUDIO);
+      expect(fetched).toEqual([]);
+    });
+
+    it('falls back to fetching when there is no viewer to borrow from', async () => {
+      const fetched = stubFetch({
+        '/case.pdf': await pdfWithAttachments([{ name: 'note.mp3', bytes: AUDIO }]),
+      });
+
+      const { result } = renderHook(() => useAttachments('/case.pdf'));
+
+      await waitFor(() => expect(result.current).toHaveLength(1));
+      expect(fetched).toEqual(['/case.pdf']);
+    });
+  });
+
   it('lists the files a document carries', async () => {
     stubFetch({ '/case.pdf': await pdfWithAttachments([{ name: 'note.mp3', bytes: AUDIO }]) });
     const { result } = renderHook(() => useAttachments('/case.pdf'));
