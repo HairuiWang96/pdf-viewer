@@ -9,7 +9,8 @@ import type {
 } from '@progress/kendo-react-all';
 import '@progress/kendo-theme-default/dist/all.css';
 import { BottomBarAttachments, ToolbarAttachments } from '../PdfAttachments';
-import type { AttachmentBytes, AttachmentPlacement, PdfAttachment } from '../PdfAttachments';
+import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import type { AttachmentPlacement, PdfAttachment } from '../PdfAttachments';
 import './KendoPdfViewer.css';
 
 interface KendoPdfViewerProps {
@@ -24,7 +25,7 @@ interface KendoPdfViewerProps {
    * a second time. Null on a failed load. See `useAttachments` for why the
    * duplicate request was worth removing.
    */
-  onDocumentLoad: (document: AttachmentBytes | null) => void;
+  onDocumentLoad: (document: PDFDocumentProxy | null) => void;
   isMobile: boolean;
   attachments: PdfAttachment[];
   placement: AttachmentPlacement;
@@ -145,10 +146,11 @@ export default function KendoPdfViewer({
     const totalPages = viewerRef.current?.pages?.length ?? 0;
     if (totalPages > 0) onLoadSuccess(totalPages);
 
-    // The pdf.js document Kendo just parsed. Its getData() returns the bytes
-    // already downloaded, which is what saves the page a second request for a
-    // file it is looking at.
-    onDocumentLoad((viewerRef.current?.document as AttachmentBytes | undefined) ?? null);
+    // The pdf.js document Kendo just parsed. The thumbnail rail draws its
+    // pages from it and the attachment listing reads its bytes, so neither has
+    // to download the file again. Kendo types it `any`; it is PDF.js's
+    // PDFDocumentProxy ("The PDF.js document loaded in the PDF Viewer").
+    onDocumentLoad((viewerRef.current?.document as PDFDocumentProxy | undefined) ?? null);
   }, [onLoadSuccess, onDocumentLoad]);
 
   const handleError = useCallback((event: ErrorEvent) => {

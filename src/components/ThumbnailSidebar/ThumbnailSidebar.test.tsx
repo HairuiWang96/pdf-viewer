@@ -21,7 +21,8 @@ vi.mock('../../hooks', () => ({
 }));
 
 const defaultProps = {
-  filePath: '/case.pdf',
+  // The hook is mocked, so the document itself is never read here.
+  pdfDocument: null,
   currentPage: 1,
   onPageChange: vi.fn(),
   isMobile: false,

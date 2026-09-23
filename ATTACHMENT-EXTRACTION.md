@@ -676,10 +676,36 @@ before   useAttachments + thumbnails + Kendo × 2   4 downloads, ~119 MB   (dev)
 after                     thumbnails + Kendo × 2   3 downloads,  ~89 MB   (dev)
 ```
 
-In a production build Strict Mode's double mount goes too, which should leave two: the
-viewer and the thumbnail sidebar. That was not measured on a production build. The
-remaining duplicate is the one §13 considered and set aside: sharing Kendo's parsed
-document with the thumbnails.
+In a production build Strict Mode's double mount goes too, leaving two: the viewer and
+the thumbnail sidebar. Measured on the Netlify deploy of this branch, confirmed to be
+serving this commit's bundle. Cold profile, cache on, two runs:
+
+```text
+run 1   2 full requests   29.7 MB + a second still downloading after 20 s
+run 2   2 full requests   29.7 MB + 29.7 MB
+```
+
+No request came from `useAttachments`, and there were no `206`s, since Netlify
+compresses the response. So a cold open of the 28 MB case costs two full downloads in
+production, down from three.
+
+**The thumbnail download is gone too.** The sidebar no longer opens the file itself.
+`usePdfThumbnails` now renders from Kendo's own pdf.js document, which the viewer
+already passes up through `onDocumentLoad`. Kendo's handle documents it as "The PDF.js
+document loaded in the PDF Viewer component". That means no download and no second
+parse. Two rules come with it, both covered by tests: the hook never calls
+`page.cleanup()` or `destroy()` on the document, since Kendo is drawing the same pages;
+and a render that fails because Kendo destroyed the old document on a case switch is
+expected, so it stays quiet. Re-measured on the 28 MB file in dev:
+
+```text
+before   thumbnails + Kendo × 2   3 downloads, ~89 MB
+after                 Kendo × 2   2 downloads, ~60 MB   (Strict Mode double mount)
+```
+
+That should be one download in production. Thumbnails still render correctly, including
+after rapid case switching. They now start once Kendo has loaded rather than in
+parallel, but both were waiting on the same full download anyway.
 
 **So:**
 
@@ -1247,6 +1273,10 @@ behaviour worth fixing. An empty cache is the thing to test, not a disabled one.
 dropped.** The thumbnail request is now a 304, so it costs a round-trip rather than a
 transfer, and reshaping `usePdfThumbnails` around Kendo's internal document is not worth
 that. Nothing further is available browser-side.
+
+_Later revisited and done._ The 304 did not hold. Measured cold with concurrent
+requests, the thumbnail sidebar downloaded the full 29.7 MB alongside Kendo. So the
+thumbnails now render from Kendo's document; see §5, "Four full requests".
 
 What remains is the single transfer below, and only the backend can remove it.
 

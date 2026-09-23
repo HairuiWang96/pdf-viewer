@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react';
 // polyfills — including Map.prototype.getOrInsertComputed, which PDF.js 5.5
 // calls and Safari 18 does not ship. Loading it patches the global prototype
 // for the whole realm. See the note below.
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+//
+// Only a type is imported here now, which loads nothing: the hook draws from
+// the viewer's document rather than calling getDocument itself. Kendo's own
+// import of this build is what installs the polyfill.
+import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 // Registers the PDF.js worker on `globalThis`. This is the same worker bundle
 // the KendoReact PDF Viewer imports, so both share one PDF.js instance —
 // mismatched API/worker versions make PDF.js refuse to load a document.
@@ -37,20 +41,44 @@ const NO_THUMBNAILS: string[] = [];
  *
  * The KendoReact PDF Viewer has no thumbnail component, so we drive PDF.js
  * directly here rather than pulling in a second rendering library.
+ *
+ * ── Why it draws from the viewer's document ──
+ *
+ * It used to open the file itself with `getDocument(filePath)`. That was a
+ * second full download of every document: Chrome's cache shared it on a
+ * small file but not on the 28 MB fixture, where production downloaded the
+ * file twice — once for Kendo, once for this (ATTACHMENT-EXTRACTION.md §5).
+ *
+ * Kendo already holds the parsed PDF.js document and hands it up through
+ * `onDocumentLoad`, so the rail renders from that: no download, no second
+ * parse. The cost is ordering — thumbnails start once Kendo has loaded,
+ * rather than in parallel — which matters little, since both were waiting on
+ * the same full download anyway.
+ *
+ * The document is Kendo's, not ours, so this hook must never destroy it or
+ * call `page.cleanup()` on its pages: Kendo is drawing the same pages and
+ * would have to rebuild what cleanup frees. When the case changes Kendo
+ * destroys the old document itself, and any render still running here then
+ * fails; `cancelled` is set by then, so that failure is expected and quiet.
+ *
+ * `pdfDocument` is null until the viewer has loaded, and the rail shows
+ * nothing until then.
  */
-export default function usePdfThumbnails(filePath: string, width: number) {
-  // The rendered pages are stored alongside the file they came from, so a
+export default function usePdfThumbnails(pdfDocument: PDFDocumentProxy | null, width: number) {
+  // The rendered pages are stored alongside the document they came from, so a
   // document that is still rendering shows nothing rather than the previous
   // document's thumbnails.
-  const [rendered, setRendered] = useState({ filePath: '', pages: NO_THUMBNAILS });
+  const [rendered, setRendered] = useState<{
+    pdfDocument: PDFDocumentProxy | null;
+    pages: string[];
+  }>({ pdfDocument: null, pages: NO_THUMBNAILS });
 
   useEffect(() => {
+    if (!pdfDocument) return;
+    const doc = pdfDocument;
     let cancelled = false;
 
-    const loadingTask = getDocument(filePath);
-
     async function renderPages() {
-      const doc = await loadingTask.promise;
       const pages: string[] = [];
 
       for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
@@ -67,10 +95,9 @@ export default function usePdfThumbnails(filePath: string, width: number) {
 
         await page.render({ canvas, viewport }).promise;
         pages.push(canvas.toDataURL());
-        page.cleanup();
       }
 
-      if (!cancelled) setRendered({ filePath, pages });
+      if (!cancelled) setRendered({ pdfDocument: doc, pages });
     }
 
     renderPages().catch((error) => {
@@ -79,9 +106,8 @@ export default function usePdfThumbnails(filePath: string, width: number) {
 
     return () => {
       cancelled = true;
-      loadingTask.destroy();
     };
-  }, [filePath, width]);
+  }, [pdfDocument, width]);
 
-  return rendered.filePath === filePath ? rendered.pages : NO_THUMBNAILS;
+  return pdfDocument && rendered.pdfDocument === pdfDocument ? rendered.pages : NO_THUMBNAILS;
 }

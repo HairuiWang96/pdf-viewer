@@ -1,9 +1,11 @@
+import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { THUMBNAIL_WIDTH } from '../../constants';
 import { usePdfThumbnails } from '../../hooks';
 import './ThumbnailSidebar.css';
 
 interface ThumbnailSidebarProps {
-  filePath: string;
+  /** The viewer's loaded document, or null until it has one. */
+  pdfDocument: PDFDocumentProxy | null;
   currentPage: number;
   onPageChange: (page: number) => void;
   isMobile: boolean;
@@ -12,16 +14,16 @@ interface ThumbnailSidebarProps {
 }
 
 export default function ThumbnailSidebar({
-  filePath,
+  pdfDocument,
   currentPage,
   onPageChange,
   isMobile,
   isOpen,
   onClose,
 }: ThumbnailSidebarProps) {
-  // Page count comes from the thumbnails themselves — one per page — so the
-  // rail no longer waits on the main viewer to report a total.
-  const thumbnails = usePdfThumbnails(filePath, THUMBNAIL_WIDTH);
+  // Page count comes from the thumbnails themselves — one per page. They are
+  // drawn from the viewer's own document, so the file is not downloaded twice.
+  const thumbnails = usePdfThumbnails(pdfDocument, THUMBNAIL_WIDTH);
 
   if (thumbnails.length === 0) return null;
 

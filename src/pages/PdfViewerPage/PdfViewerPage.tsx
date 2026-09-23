@@ -4,7 +4,8 @@ import ThumbnailSidebar from '../../components/ThumbnailSidebar';
 import KendoPdfViewer from '../../components/KendoPdfViewer';
 import PdfDetails from '../../components/PdfDetails';
 import { PlacementSwitcher, useAttachments, DEFAULT_PLACEMENT } from '../../components/PdfAttachments';
-import type { AttachmentBytes, AttachmentPlacement } from '../../components/PdfAttachments';
+import type { AttachmentPlacement } from '../../components/PdfAttachments';
+import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { usePdfViewer, usePdfStamp, useDetailsPanel } from '../../hooks';
 
 export default function PdfViewerPage() {
@@ -53,12 +54,15 @@ export default function PdfViewerPage() {
   // reuse bytes already downloaded rather than requesting the file again. On a
   // large document that request was measurably expensive — see the note on
   // `loadDocument` for the numbers, and for what about them is still unexplained.
-  const [pdfDocument, setPdfDocument] = useState<AttachmentBytes | null>(null);
+  //
+  // The thumbnail rail draws from the same document, for the same reason. So
+  // Kendo's download is the only one: no other part of the page fetches the file.
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const attachments = useAttachments(activePdfPath, pdfDocument);
 
   // Drop the previous document the moment the file changes, so the old file's
-  // attachments are not briefly listed against the new one. The viewer reports
-  // the new document once it has parsed it.
+  // attachments and thumbnails are not briefly shown against the new one. The
+  // viewer reports the new document once it has parsed it.
   useEffect(() => {
     setPdfDocument(null);
   }, [activePdfPath]);
@@ -82,7 +86,7 @@ export default function PdfViewerPage() {
       headerControl={<PlacementSwitcher placement={placement} onChange={setPlacement} />}
     >
       <ThumbnailSidebar
-        filePath={activePdfPath}
+        pdfDocument={pdfDocument}
         currentPage={currentPage}
         onPageChange={handlePageChange}
         isMobile={isMobile}
