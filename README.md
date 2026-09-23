@@ -61,6 +61,7 @@ device instead.
 | [VIEWER-BENCHMARKS.md](VIEWER-BENCHMARKS.md) | Measured comparison of the viewer branches |
 | [ATTACHMENT-INDICATOR.md](ATTACHMENT-INDICATOR.md) | Where the attachment indicator should live — three placements compared |
 | [ATTACHMENT-EXTRACTION.md](ATTACHMENT-EXTRACTION.md) | Where its data comes from — the two places a PDF hides a file, and why reading them moved from pdf.js to pdf-lib |
+| [CASE-STAMP.md](CASE-STAMP.md) | The header bar stamped on every page — what it prints, how it is drawn into the PDF, and what it costs in memory |
 
 ## Project Structure
 
@@ -83,7 +84,7 @@ src/
 │   └── pdf-metadata.json
 ├── hooks/                      # Custom React hooks (business logic)
 │   ├── useDetailsPanel.ts      # Mobile detection + which side panel is open
-│   ├── usePdfStamp.ts          # Draws the stamp with pdf-lib, returns a blob URL
+│   ├── usePdfStamp.ts          # Draws the case stamp with @libpdf/core, returns a blob URL
 │   ├── usePdfThumbnails.ts     # Renders each page to a PNG via PDF.js
 │   └── usePdfViewer.ts         # Selected case, current page, metadata
 ├── types/                      # Shared TypeScript interfaces

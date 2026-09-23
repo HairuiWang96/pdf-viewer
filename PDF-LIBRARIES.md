@@ -5,7 +5,7 @@
 | **What it's for** | *Reading* / rendering existing PDFs | *Creating* / editing PDFs | *Cryptographically signing* PDFs |
 | **Direction** | PDF → pixels on screen | Bytes in → modified bytes out | Existing PDF → signed PDF |
 | **Language** | JavaScript (browser) | JavaScript (browser or Node) | Python |
-| **Used where in this project** | Powers both `react-pdf` and KendoReact's viewer — every page rendered on screen goes through it | `usePdfStamp.ts` — draws the "Internal Use Only" stamp text onto a copy of the PDF before download; `PdfAttachments/` — reads the document's embedded files; also used to generate most of the QA test PDFs | Not in the app at all — used standalone to build the one signed test PDF (`case-digital-signature.pdf`) |
+| **Used where in this project** | Powers both `react-pdf` and KendoReact's viewer — every page rendered on screen goes through it | `usePdfStamp.ts` — draws the case header bar onto a copy of the PDF before download (on this branch via `@libpdf/core`, a maintained pdf-lib fork; see `CASE-STAMP.md`); `PdfAttachments/` — reads the document's embedded files; also used to generate most of the QA test PDFs | Not in the app at all — used standalone to build the one signed test PDF (`case-digital-signature.pdf`) |
 | **Analogy** | A PDF *reader* | A PDF *editor/generator* | A notary stamp |
 
 **One-line version:** pdf.js opens and displays PDFs (the engine behind both viewers being compared); pdf-lib builds and modifies PDFs (used both by the app itself for stamping, and to generate the QA test files); pyHanko was a one-off outside tool because neither of the above can do real cryptographic signing.
