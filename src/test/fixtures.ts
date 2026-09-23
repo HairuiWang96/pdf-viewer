@@ -25,7 +25,6 @@ export function makeCase(overrides: Partial<PdfMetadata> = {}): PdfMetadata {
     lastModified: '2026-04-08',
     language: 'English',
     status: 'Published',
-    stampText: 'INTERNAL USE ONLY',
     ...overrides,
   };
 }

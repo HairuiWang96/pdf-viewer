@@ -72,14 +72,6 @@ describe('usePdfViewer', () => {
       expect(result.current.fileName).toBe('q1-market-report.pdf');
     });
 
-    it('has no stamp text before a case is chosen', () => {
-      const { result } = renderHook(() => usePdfViewer());
-
-      // Empty rather than the first case's text — nothing is selected, so
-      // stamping the fallback document would be misleading.
-      expect(result.current.stampText).toBe('');
-    });
-
     it('fills in metadata and the file once a case is chosen', () => {
       const { result } = renderHook(() => usePdfViewer());
 
@@ -167,7 +159,6 @@ describe('usePdfViewer', () => {
       const { result } = renderHook(() => usePdfViewer());
 
       expect(result.current.metadata?.caseNumber).toBe('CASE-SOLO');
-      expect(result.current.stampText).toBe('INTERNAL USE ONLY');
     });
   });
 });

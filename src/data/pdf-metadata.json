@@ -20,8 +20,7 @@
     "createdDate": "2026-04-05",
     "lastModified": "2026-04-08",
     "language": "English",
-    "status": "Published",
-    "stampText": "DOC-2026-Q1-00089 | Internal Use Only"
+    "status": "Published"
   },
   {
     "id": "2",
@@ -44,8 +43,7 @@
     "createdDate": "2026-07-02",
     "lastModified": "2026-07-05",
     "language": "English",
-    "status": "Published",
-    "stampText": "DOC-2026-Q2-00147 | Internal Use Only"
+    "status": "Published"
   },
   {
     "id": "3",
@@ -68,8 +66,7 @@
     "createdDate": "2026-07-15",
     "lastModified": "2026-07-18",
     "language": "English",
-    "status": "Under Review",
-    "stampText": "DOC-2026-H1-00201 | Restricted Distribution"
+    "status": "Under Review"
   },
   {
     "id": "t1",
@@ -90,8 +87,7 @@
     "createdDate": "2026-09-03",
     "lastModified": "2026-09-03",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Audio Attachment"
+    "status": "Published"
   },
   {
     "id": "t2",
@@ -111,8 +107,7 @@
     "createdDate": "2026-09-03",
     "lastModified": "2026-09-03",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Hyperlinks"
+    "status": "Published"
   },
   {
     "id": "t3",
@@ -133,8 +128,7 @@
     "createdDate": "2026-09-03",
     "lastModified": "2026-09-03",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Fillable Form"
+    "status": "Published"
   },
   {
     "id": "t4",
@@ -155,8 +149,7 @@
     "createdDate": "2026-09-03",
     "lastModified": "2026-09-03",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Bookmarks"
+    "status": "Published"
   },
   {
     "id": "t5",
@@ -177,8 +170,7 @@
     "createdDate": "2026-09-03",
     "lastModified": "2026-09-03",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Scanned Document"
+    "status": "Published"
   },
   {
     "id": "t6",
@@ -198,8 +190,7 @@
     "createdDate": "2026-09-03",
     "lastModified": "2026-09-03",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Various Fonts"
+    "status": "Published"
   },
   {
     "id": "t7",
@@ -220,8 +211,7 @@
     "createdDate": "2026-09-03",
     "lastModified": "2026-09-03",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Legacy PDF 1.2"
+    "status": "Published"
   },
   {
     "id": "t8",
@@ -241,8 +231,7 @@
     "createdDate": "2026-09-03",
     "lastModified": "2026-09-03",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Digital Signature"
+    "status": "Published"
   },
   {
     "id": "t9",
@@ -264,8 +253,7 @@
     "createdDate": "2026-09-10",
     "lastModified": "2026-09-10",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Audio Attachment (MP3)"
+    "status": "Published"
   },
   {
     "id": "t10",
@@ -286,8 +274,7 @@
     "createdDate": "2026-09-10",
     "lastModified": "2026-09-10",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Redaction Integrity"
+    "status": "Published"
   },
   {
     "id": "t11",
@@ -309,8 +296,7 @@
     "createdDate": "2026-09-10",
     "lastModified": "2026-09-10",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Multiple Audio Attachments"
+    "status": "Published"
   },
   {
     "id": "t12",
@@ -333,8 +319,7 @@
     "createdDate": "2026-09-18",
     "lastModified": "2026-09-18",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | RichMedia Flash Audio"
+    "status": "Published"
   },
   {
     "id": "t13",
@@ -356,8 +341,7 @@
     "createdDate": "2026-09-18",
     "lastModified": "2026-09-18",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Non-Audio Attachments"
+    "status": "Published"
   },
   {
     "id": "t14",
@@ -379,7 +363,6 @@
     "createdDate": "2026-09-21",
     "lastModified": "2026-09-21",
     "language": "English",
-    "status": "Published",
-    "stampText": "TEST CASE | Large Audio Attachment"
+    "status": "Published"
   }
 ]

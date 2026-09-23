@@ -14,7 +14,6 @@ export default function PdfViewerPage() {
     metadata,
     filePath,
     fileName,
-    stampText,
     selectedCaseId,
     selectCase,
     selectionCount,
@@ -24,7 +23,9 @@ export default function PdfViewerPage() {
   } = usePdfViewer();
 
   // Single case → stamp on by default; multiple cases → off until chosen.
-  const { showStamp, toggleStamp, activePdfPath } = usePdfStamp(filePath, stampText, {
+  // `metadata` is the JSON entry itself, so it is the stable object the hook
+  // needs — null until a case is picked, which leaves the file unstamped.
+  const { showStamp, toggleStamp, activePdfPath } = usePdfStamp(filePath, metadata, {
     defaultOn: !hasMultipleCases,
     resetKey: selectionCount,
   });

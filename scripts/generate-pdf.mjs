@@ -10,7 +10,6 @@ import { writeFileSync } from "fs";
 const cases = [
   {
     fileName: "q1-market-report",
-    stampText: "DOC-2026-Q1-00089 | Internal Use Only",
     pages: [
       {
         title: "Q1 2026 Market Report",
@@ -126,7 +125,6 @@ const cases = [
   },
   {
     fileName: "q2-market-report",
-    stampText: "DOC-2026-Q2-00147 | Internal Use Only",
     pages: [
       {
         title: "Q2 2026 Market Report",
@@ -243,7 +241,6 @@ const cases = [
   },
   {
     fileName: "h1-midyear-review",
-    stampText: "DOC-2026-H1-00201 | Restricted Distribution",
     pages: [
       {
         title: "H1 2026 Mid-Year Review",

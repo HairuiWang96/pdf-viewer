@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "compare-pdfs": "node scripts/compare-pdfs.mjs"
   },
   "dependencies": {
     "@libpdf/core": "^0.4.2",

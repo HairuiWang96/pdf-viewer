@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import usePdfStamp from './usePdfStamp';
+import usePdfStamp, { stampFields } from './usePdfStamp';
+import { makeCase } from '../test/fixtures';
 
 /**
  * Tests for the hook that stamps the PDF client-side.
@@ -20,20 +21,50 @@ const { pdfMock } = vi.hoisted(() => ({
   pdfMock: {
     save: vi.fn(async () => new Uint8Array([1, 2, 3])),
     drawText: vi.fn(),
+    drawRectangle: vi.fn(),
   },
 }));
 
-vi.mock('@libpdf/core', () => ({
-  PDF: {
-    load: vi.fn(async () => ({
-      getPages: () => [{ width: 595, height: 842, drawText: pdfMock.drawText }],
-      save: pdfMock.save,
-    })),
-  },
-  StandardFonts: { HelveticaBold: 'Helvetica-Bold' },
-  measureText: () => 40,
-  rgb: (r: number, g: number, b: number) => ({ r, g, b }),
-}));
+vi.mock('@libpdf/core', () => {
+  const page = () => ({
+    width: 595,
+    height: 842,
+    drawText: pdfMock.drawText,
+    drawRectangle: pdfMock.drawRectangle,
+  });
+  return {
+    PDF: {
+      load: vi.fn(async () => ({
+        getPages: () => [page(), page()],
+        save: pdfMock.save,
+      })),
+    },
+    StandardFonts: { Helvetica: 'Helvetica' },
+    measureText: () => 40,
+    rgb: (r: number, g: number, b: number) => ({ r, g, b }),
+  };
+});
+
+// One object for the whole file: the hook restamps whenever `stamp` changes
+// identity, so a fresh makeCase() inside renderHook would never settle.
+const CASE = makeCase({
+  id: '20',
+  caseNumber: '1:25-cv-1234',
+  title: 'Complaint',
+  createdDate: '2025-11-14',
+});
+
+describe('stampFields', () => {
+  it('lays out the header left to right, as the filing header does', () => {
+    expect(stampFields(CASE, 1, 3)).toEqual([
+      'Case 1:25-cv-1234',
+      'Complaint',
+      'Filed: 11/14/2025',
+      'Page ID: 20',
+      'Page 1 of 3',
+    ]);
+  });
+});
 
 describe('usePdfStamp', () => {
   beforeEach(() => {
@@ -57,7 +88,7 @@ describe('usePdfStamp', () => {
   });
 
   it('defaults to off, so a freshly picked case is unstamped', () => {
-    const { result } = renderHook(() => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: false }));
+    const { result } = renderHook(() => usePdfStamp('/case.pdf', CASE, { defaultOn: false }));
 
     expect(result.current.showStamp).toBe(false);
     // Nothing to stamp yet, so callers get the original file.
@@ -65,22 +96,33 @@ describe('usePdfStamp', () => {
   });
 
   it('defaults to on when there is only one case to look at', () => {
-    const { result } = renderHook(() => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }));
+    const { result } = renderHook(() => usePdfStamp('/case.pdf', CASE, { defaultOn: true }));
 
     expect(result.current.showStamp).toBe(true);
   });
 
   it('serves the stamped file once stamping finishes', async () => {
-    const { result } = renderHook(() => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }));
+    const { result } = renderHook(() => usePdfStamp('/case.pdf', CASE, { defaultOn: true }));
 
     await waitFor(() => {
       expect(result.current.activePdfPath).toBe('blob:stamped-0');
     });
-    expect(pdfMock.drawText).toHaveBeenCalledWith('INTERNAL', expect.any(Object));
+    // A bar and five fields on every page, each page numbered for itself.
+    expect(pdfMock.drawRectangle).toHaveBeenCalledTimes(2);
+    expect(pdfMock.drawText).toHaveBeenCalledTimes(10);
+    expect(pdfMock.drawText).toHaveBeenCalledWith('Page 1 of 2', expect.any(Object));
+    expect(pdfMock.drawText).toHaveBeenCalledWith('Page 2 of 2', expect.any(Object));
+  });
+
+  it('leaves the file alone when there is no case to print', () => {
+    const { result } = renderHook(() => usePdfStamp('/case.pdf', null, { defaultOn: true }));
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.current.activePdfPath).toBe('/case.pdf');
   });
 
   it('goes back to the original file when the stamp is switched off', async () => {
-    const { result } = renderHook(() => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }));
+    const { result } = renderHook(() => usePdfStamp('/case.pdf', CASE, { defaultOn: true }));
     await waitFor(() => expect(result.current.activePdfPath).toBe('blob:stamped-0'));
 
     act(() => result.current.toggleStamp(false));
@@ -91,7 +133,7 @@ describe('usePdfStamp', () => {
 
   it('remembers the choice while the same case stays selected', () => {
     const { result, rerender } = renderHook(
-      ({ key }) => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: false, resetKey: key }),
+      ({ key }) => usePdfStamp('/case.pdf', CASE, { defaultOn: false, resetKey: key }),
       { initialProps: { key: 1 } },
     );
 
@@ -105,7 +147,7 @@ describe('usePdfStamp', () => {
 
   it('resets to the default when a different case is picked', () => {
     const { result, rerender } = renderHook(
-      ({ key }) => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: false, resetKey: key }),
+      ({ key }) => usePdfStamp('/case.pdf', CASE, { defaultOn: false, resetKey: key }),
       { initialProps: { key: 1 } },
     );
 
@@ -119,7 +161,7 @@ describe('usePdfStamp', () => {
   });
 
   it('does not stamp at all while the toggle is off', () => {
-    renderHook(() => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: false }));
+    renderHook(() => usePdfStamp('/case.pdf', CASE, { defaultOn: false }));
 
     // No fetch, no pdf-lib work — stamping is not free, so it should only
     // happen when someone actually asked for it.
@@ -134,7 +176,7 @@ describe('usePdfStamp', () => {
   describe('blob URL lifecycle', () => {
     it('releases the stamped file when the document changes', async () => {
       const { result, rerender } = renderHook(
-        ({ path }) => usePdfStamp(path, 'INTERNAL', { defaultOn: true }),
+        ({ path }) => usePdfStamp(path, CASE, { defaultOn: true }),
         { initialProps: { path: '/first.pdf' } },
       );
       await waitFor(() => expect(result.current.activePdfPath).toBe('blob:stamped-0'));
@@ -150,7 +192,7 @@ describe('usePdfStamp', () => {
 
     it('releases the stamped file when the stamp is switched off', async () => {
       const { result } = renderHook(() =>
-        usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }),
+        usePdfStamp('/case.pdf', CASE, { defaultOn: true }),
       );
       await waitFor(() => expect(result.current.activePdfPath).toBe('blob:stamped-0'));
 
@@ -163,7 +205,7 @@ describe('usePdfStamp', () => {
 
     it('releases the stamped file on unmount', async () => {
       const { result, unmount } = renderHook(() =>
-        usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }),
+        usePdfStamp('/case.pdf', CASE, { defaultOn: true }),
       );
       await waitFor(() => expect(result.current.activePdfPath).toBe('blob:stamped-0'));
 
@@ -186,7 +228,7 @@ describe('usePdfStamp', () => {
       }),
     );
 
-    const { result } = renderHook(() => usePdfStamp('/case.pdf', 'INTERNAL', { defaultOn: true }));
+    const { result } = renderHook(() => usePdfStamp('/case.pdf', CASE, { defaultOn: true }));
 
     await waitFor(() => expect(consoleError).toHaveBeenCalled());
     expect(result.current.activePdfPath).toBe('/case.pdf');

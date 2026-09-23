@@ -14,5 +14,7 @@ export interface PdfMetadata {
   lastModified: string;
   language: string;
   status: string;
-  stampText: string;
 }
+
+/** The existing fields the case stamp across the top of every page is built from. */
+export type CaseStamp = Pick<PdfMetadata, 'id' | 'caseNumber' | 'title' | 'createdDate'>;

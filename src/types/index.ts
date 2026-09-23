@@ -1,1 +1,1 @@
-export type { PdfMetadata } from './pdf';
+export type { PdfMetadata, CaseStamp } from './pdf';

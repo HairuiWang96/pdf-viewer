@@ -49,7 +49,6 @@ export default function usePdfViewer() {
   // falls back to the first case's file.
   const filePath = metadata?.filePath ?? allCases[0].filePath;
   const fileName = metadata?.fileName ?? allCases[0].fileName;
-  const stampText = metadata?.stampText ?? '';
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -74,7 +73,6 @@ export default function usePdfViewer() {
     metadata,
     filePath,
     fileName,
-    stampText,
     selectedCaseId,
     selectCase,
     selectionCount,
