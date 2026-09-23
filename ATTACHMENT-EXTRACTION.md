@@ -303,6 +303,399 @@ ranges the xref points at. Possible in principle, and a much larger piece of wor
 it would not help the common case anyway, since the viewer has to download the entire
 document to render it regardless.
 
+It would not help playback either, and the reason is in how the audio is stored. Every
+embedded audio file in the fixtures is Flate-compressed:
+
+```text
+case-audio-attachment-large   /FlateDecode   29,728,354 → 29,674,041 bytes   (0.2% saved)
+case-audio-attachment-mp3     /FlateDecode
+case-multi-audio  (all 3)     /FlateDecode
+case-embedded-audio-media     no filter      the RichMedia MP3, stored raw
+```
+
+A Flate stream can only be decompressed from its first byte, so reaching minute twenty
+means fetching and inflating everything before it — a byte range from the middle is
+useless. The compression buys nothing in exchange: MP3 is already compressed, so the
+28 MB file shrinks by 0.2%.
+
+The raw RichMedia stream is the exception: a range of the PDF there really is a range of
+the MP3. Even then an `<audio>` element cannot be pointed at "bytes X to Y of case.pdf",
+so something still has to serve the audio at its own URL — which is §13's proposal.
+
+**In short, what range requests could and could not do for a PDF with audio in it:**
+
+- **The pages: yes, in principle.** A reader could fetch just the page objects and skip
+  the audio entirely. The viewer does not do this today (above), and even if it did,
+  it only works well on a _linearised_ file, where page 1's objects come first (defined
+  below, in "What linearisation is"). Without
+  linearisation the reader has to fetch the xref at the end of the file first, then jump
+  to each object it needs — more round trips before anything renders. The 28 MB fixture
+  is not linearised, and stamping removes linearisation from any file that has it
+  (§13).
+- **The audio as a whole: yes.** It is one stream at one known offset, so it can be
+  fetched on its own, all of it, without the pages.
+- **Part of the audio: no.** Not playing from the middle, not seeking, not starting
+  before the end has arrived — because the stream is compressed.
+- **This is a limit of audio _inside a PDF_, not of range requests.** The same MP3 served
+  at its own URL streams and seeks by range with no code at all (§13).
+
+### Why a PDF is read from the end, and what linearisation changes
+
+**Think of a PDF as a book whose table of contents is on the last page.** Every PDF
+reader starts at the end: the last few bytes say where the index (the _xref_) is, and
+the index says where every object is. Pages, fonts, images and attachments are all
+objects. Only then can the reader jump to page 1.
+
+```text
+An ordinary PDF — the index is at the back
+
+  [ header ][ page 3 ][ audio 28 MB ][ page 1 ][ font ][ page 2 ] … [ index ][ "index is here" ]
+                                                                        ▲              ▲
+                                                           2. read the index   1. start here
+```
+
+Objects can be stored in any order, because the index says where each one is. Page 1 can
+sit anywhere, even behind 28 MB of audio.
+
+**Whether starting from the end costs anything depends on whether the bytes are already
+there.**
+
+- **Already in memory: free.** `@libpdf/core` works this way. `PDF.load(bytes)` only
+  accepts the complete file, so going to the end and jumping around is just looking up
+  positions in an array it already holds. It is like flipping to the back of a book in
+  your hand.
+- **Still on the server: one round trip per jump.** A reader that downloads by range has
+  to ask for the end, wait, read the index, ask for page 1, wait, then ask for the font
+  page 1 uses, and wait again. It is like getting a book one photocopied page at a time,
+  starting with the last one. Each request is a full wait on the network.
+
+**Reading and downloading are separate things.** Reading means parsing bytes you already
+have, in any order you like. Downloading means getting them from the server, and the
+order there depends on the request:
+
+- **A normal download goes front to back.** A plain `GET /case.pdf` returns the whole
+  file from its first byte to its last. The end arrives last, and there is no skipping
+  ahead.
+- **A range request can ask for any part, including the end.** The client names the
+  bytes it wants in a header, and the server replies `206 Partial Content` with just
+  those. The server has to support it, which it signals with `Accept-Ranges: bytes`;
+  most static hosts do.
+
+  ```text
+  Range: bytes=0-1023          the first 1 KB
+  Range: bytes=5000-9999       a slice from the middle
+  Range: bytes=-1024           the LAST 1 KB, without knowing the file size
+  ```
+
+So a reader that downloads by range can start from the end, but every jump is another
+round trip:
+
+```text
+1. Range: bytes=-1024       → the end: "the index is at byte 29,760,000"
+2. Range: bytes=29760000-   → the index: "page 1 is at byte 1,200, its font at 4,800"
+3. Range: bytes=1200-4799   → page 1
+4. Range: bytes=4800-…      → the font
+```
+
+That is four waits before page 1 can be drawn, which is the cost of an ordinary PDF. (The
+byte positions are illustrative.)
+
+#### What linearisation is
+
+**Linearisation is a way of laying out a PDF so that page 1 can be shown before the rest
+of the file has downloaded.** It is optional, defined in the PDF specification (ISO
+32000, Annex F), and often labelled "Fast Web View" in Acrobat. It changes where things
+sit in the file, not what the document contains.
+
+A linearised file does two things:
+
+1. **Its first object is a small dictionary** that announces "this file is linearised"
+   and says where page 1's data ends.
+2. **Everything page 1 needs comes straight after it**: the page, its fonts, its images
+   and an index for just those objects. The rest of the document follows.
+
+```text
+A linearised PDF — everything page 1 needs comes first
+
+  [ header ][ "linearised, page 1 ends at byte E" ][ page 1 ][ its font ][ index for page 1 ] … the rest …
+     └──────────────────── the first request gets all of this ────────────────────┘
+```
+
+One request from the start of the file (`Range: bytes=0-65535`, say) is enough to
+render page 1, and the rest can arrive afterwards. In the book analogy, a table of
+contents for chapter one has been moved to the front, along with chapter one itself.
+
+**A real example.** `case-embedded-audio-media.pdf` opens like this:
+
+```text
+%PDF-1.7
+16 0 obj <</Linearized 1 /L 8342103 /O 18 /E 48012 /N 1 /T 8341789 /H [480 198]>>
+```
+
+| Key | Value | Meaning |
+|---|---|---|
+| `/Linearized` | `1` | This file is linearised |
+| `/L` | `8342103` | The file's length in bytes when it was linearised |
+| `/O` | `18` | Page 1 is object 18 |
+| `/E` | `48012` | Page 1's data ends at byte 48,012 |
+| `/N` | `1` | The document has 1 page |
+| `/T` | `8341789` | Where the full index for everything else starts |
+| `/H` | `[480 198]` | A 198-byte "hint table" at byte 480, which helps a reader find later pages |
+
+So the first 48 KB of an 8.3 MB file (0.6%) are enough to draw page 1. The 8.2 MB MP3
+sits after that, and a reader would never have to wait for it.
+
+**A linearised file only stays linearised if nothing is appended to it.** A reader
+checks `/L` against the real file length and ignores the linearisation if they differ.
+pdf.js does exactly this (`class Linearization` in its worker): on a mismatch it logs
+`The "L" parameter … does not equal the stream length` and treats the file as ordinary.
+
+That is what happened to this fixture. It was linearised, then two revisions were
+appended to it, which is why it has 3 `%%EOF` markers:
+
+```text
+/L says     8,342,103 bytes
+file is     8,346,945 bytes   → pdf.js treats it as not linearised
+```
+
+So this fixture still illustrates the layout, but a reader will not treat it as
+linearised.
+
+**A valid one: `case-linearized.pdf`.** It is `case-multi-audio.pdf` with one more
+attachment added, `court-recording-excerpt.mp3` (the first 1 MB of the recording in
+`case-audio-attachment-large`), then written out linearised by qpdf through pikepdf.
+qpdf's own validator passes it:
+
+```text
+<< /Linearized 1 /L 1020403 /H [ 980 120 ] /O 14 /E 2928 /N 1 /T 1020064 >>
+                    ▲                                ▲
+     matches the file: 1,020,403 bytes     page 1 is done by byte 2,928
+```
+
+Page 1 is complete in the first 2.9 KB of a 1 MB file (0.3%). The four audio
+attachments come after it.
+
+**Why 1 MB.** pdf.js only uses range requests on a file larger than twice its 64 KB
+chunk size, so anything up to 128 KB is fetched in a single request whatever its
+layout (`validateRangeRequestCapabilities` in pdf.js). A first version of this fixture
+was 46.8 KB and was downloaded with one `200`, which showed nothing. At 1 MB the file is
+about 16 chunks, and page 1 fits inside the first.
+
+**Neither of our servers lets pdf.js use ranges today, for opposite reasons.** pdf.js
+decides from the headers of its first, ordinary request. It needs `Accept-Ranges: bytes`
+and no `Content-Encoding`:
+
+| Server | `Accept-Ranges` | `Content-Encoding` | Serves a `Range` request? | pdf.js uses ranges? |
+|---|---|---|---|---|
+| Vite dev server | **missing** (now added, see below) | none | Yes, `206` | No (now yes) |
+| Netlify | `bytes` | **`br`** (Brotli) | Yes, `206`, uncompressed | No |
+
+- **Vite** honours a range request when asked, but never advertises that it can, so
+  pdf.js never asks.
+- **Netlify** advertises ranges, but compresses the full response whenever the browser
+  accepts compression, and browsers always do. pdf.js refuses ranges on a compressed
+  response.
+
+Measured with `curl` against `vite` and against the `libpdf-attachments` branch deploy.
+So a single `200` in DevTools is expected on both, even for this 1 MB file. It tells us
+about the servers, not about Kendo.
+
+**The dev server now allows ranges.** `advertisePdfRanges` in `vite.config.ts` adds
+`Accept-Ranges: bytes` to PDF responses, so the Vite dev and preview servers meet every
+pdf.js condition. Netlify is unchanged: stopping it from compressing PDFs has not been
+looked into.
+
+Confirmed in Chrome with "Test: Linearised PDF", stamp off and no throttling. The
+Network tab showed three `200`s and three `206`s, the page rendered, and all 4
+attachments were listed. Headless Chrome (Playwright) saw the same thing with one more
+`200`.
+
+**A first try looked broken, but throttling was the likely cause.** In that window
+loading never seemed to finish and the attachments never appeared, so the plugin was
+reverted and later restored. DevTools was set to Slow 4G at the time, and under
+throttling the attachments only appear once the whole file has arrived, because the
+listing reads it through `getData()`. The Adobe Acrobat extension was also throwing
+errors in that window.
+
+#### Does Kendo gain anything from ranges? No
+
+Measured in headless Chrome (Playwright), "Test: Linearised PDF", stamp off, throttled
+to roughly Slow 4G (200 KB/s, 150 ms latency). Two dev servers ran the same code, one
+with the range plugin and one without, and each was checked with `curl` on the exact
+address the browser used. The initiator of every request was read from Chrome's async
+call stacks, to separate Kendo's requests from the thumbnail sidebar's. Two runs each,
+with identical results:
+
+| | Kendo draws page 1 | Thumbnail shown | Attachments listed |
+|---|---|---|---|
+| Ranges off | 5.8 s | 5.8 s | 5.8 s |
+| Ranges on | 5.8 s | 5.8 s | 5.8 s |
+
+The request log with ranges on shows why:
+
+```text
+who         status  range                  start   end     over the network
+?           200     full                   0.5 s   5.8 s   1021 KB
+thumbnails  200     full                   0.5 s   5.8 s      0 KB
+kendo       200     full                   0.5 s   5.8 s      0 KB
+kendo       200     full                   0.5 s   5.8 s      0 KB
+thumbnails  206     bytes=0-65535          0.8 s   5.8 s      0 KB
+kendo       206     bytes=0-65535          0.9 s   5.9 s      0 KB   ← page 1's chunk
+thumbnails  206     bytes=983040-1020402   1.0 s   6.1 s      0 KB
+kendo       206     bytes=983040-1020402   1.0 s   6.2 s      0 KB   ← the xref at the end
+kendo       206     bytes=0-65535          1.1 s   6.4 s      0 KB
+kendo       206     bytes=983040-1020402   1.1 s   6.5 s      0 KB
+```
+
+- **Kendo does make range requests.** Its pdf.js asked for the first 64 KB, which holds
+  all of page 1, at 0.9 s.
+- **That request did not finish until 5.9 s**, just after the full download, and
+  transferred nothing itself. It was answered from Chrome's cache once the full
+  download had landed. Every range request behaves the same way.
+- **So the ranges bring nothing.** pdf.js starts a full download before it knows ranges
+  are possible, and Kendo gives no way to stop it (`disableStream`, `disableAutoFetch`).
+  Chrome appears to hold range requests for a file until that in-flight download has
+  written it to the cache. That is inferred from the timings, not confirmed in Chrome's
+  source.
+
+**Kendo does not block range requests, but it cannot benefit from them.** Page 1 shows
+when the whole file has arrived, with or without ranges. A viewer that could show it
+early would need pdf.js configured directly with streaming or auto-fetch off, and a
+server that allows ranges without compressing: a backend concern, as §13 argues.
+
+#### Kendo waits for every page before drawing any
+
+Separately from ranges, Kendo would not show page 1 early even if the bytes arrived
+early. Its load function (`loadPDF` in `@progress/kendo-pdfviewer-common` 1.0.2,
+`dist/es/utils.js`) works like this:
+
+```js
+getDocument(params).promise.then((pdfDoc) => {
+  const pages = [];
+  for (let i = 1; i <= pdfDoc.numPages; i++) pages.push(pdfDoc.getPage(i));  // ask for every page
+  ...
+  Promise.all(pages)                                   // wait for ALL of them
+    .then((all) => all.map((page, i) => {
+      appendPage(dom, createEmptyPage(page, ...), i);  // only now does page 1 go on screen
+      if (options.loadOnDemand) { if (i < loadOnDemandPageSize) renderPage(...) }
+      else renderPage(...);                            // and every page is drawn
+    }))
+```
+
+In plain terms:
+
+1. **It asks pdf.js for every page at once.** On a 100-page document that is 100 page
+   lookups. Their data is spread through the whole file, so when loading by range,
+   each can need its own fetch.
+2. **Nothing appears until all of them have answered.** `Promise.all` waits for the
+   slowest page, so page 1 waits for page 100.
+3. **Then every page is drawn.** The shared code has a `loadOnDemand` option that would
+   draw only the first two, but the React viewer never passes it. `PDFViewer.mjs` in
+   `@progress/kendo-react-pdf-viewer` 16.1.0 calls `loadPDF` with only `url`, `data`,
+   `arrayBuffer`, `dom`, `zoom`, `done` and `error`.
+
+This was checked against Kendo's published API too:
+
+- **The React viewer has no option for any of it.** Its [API reference][kendo-react-api]
+  lists 22 props: the file source, zoom, toolbar, events and rendering callbacks.
+  None controls on-demand loading or passes options to pdf.js (`disableRange`,
+  `disableStream`, `disableAutoFetch`).
+- **The Angular viewer does have one.** Kendo documents a [`loadOnDemand`
+  option][kendo-angular-lod] for Kendo UI for Angular, where "one page is loaded
+  initially, and the following pages are requested as the user scrolls". It is not
+  exposed in React. In the shared code installed here, it limits which pages are
+  _drawn_, but the `Promise.all` over every page still runs first. Whether Angular
+  uses different code was not checked.
+
+**Newer versions do not change this** (checked 2026-09-23). 16.1.0 and 1.0.2 are the
+latest stable releases on npm. The development builds `16.2.0-develop.11` and
+`1.0.3-develop.3` were downloaded and diffed against them:
+
+- The React viewer's props are identical, and it still never passes `loadOnDemand`.
+- `loadPDF` still asks for every page, waits on `Promise.all`, then draws every page.
+- The only change to the pdf.js call is WebAssembly decoding support (`wasmUrl`,
+  `useWasm`), not loading options. Still no `disableRange`, `disableStream` or
+  `disableAutoFetch`.
+
+**So page count makes this worse, not better.** A 1-page test file hides it. On a long
+document, page 1 waits for every other page's data, and for every page to be drawn. A
+viewer that shows page 1 first would have to call pdf.js directly and ask for page 1
+alone. This is reasoned from the code, not measured on a long document.
+
+[kendo-react-api]: https://www.telerik.com/kendo-react-ui/components/pdfviewer/api/pdfviewerprops
+[kendo-angular-lod]: https://www.telerik.com/kendo-angular-ui/components/pdfviewer/load-on-demand
+
+#### Four full requests: shared on a small file, four real downloads on a large one
+
+Every case switch makes four full requests for the PDF. Their initiators, from Chrome's
+async call stacks:
+
+| Requested by | Why |
+|---|---|
+| `KendoPdfViewer.tsx` | The viewer |
+| `KendoPdfViewer.tsx` again | React Strict Mode (`main.tsx`) mounts twice in development. Dev only. |
+| `usePdfThumbnails.ts` | The thumbnail sidebar opens the file with its own pdf.js call |
+| `useAttachments.ts`, `loadDocument` | **The fallback `fetch`**, see below |
+
+How much actually crossed the network (Chrome's `encodedDataLength`, cache on, cold
+profile, no throttling):
+
+| File | Request 1 | 2 | 3 | 4 | Total |
+|---|---|---|---|---|---|
+| Linearised PDF (1 MB) | 1021 KB | 0 | 0 | 0 | **1 MB**, shared |
+| Large Audio Attachment (28 MB) | 29.8 MB | 29.8 MB | 29.8 MB | 29.8 MB | **~119 MB**, four downloads |
+
+On the small file, Chrome let one request download and served the other three from its
+cache. On the large file it did not: all four downloaded in full, at the same moment.
+Why size changes this was not investigated. DevTools shows the same thing in a normal
+Chrome window: with **Disable cache** off, the viewer and the thumbnails each show
+29.7 MB for the large file.
+
+An earlier version of this section said the file is always downloaded once. That was
+measured on the 1 MB file only, and is wrong for large ones. With **Disable cache** on,
+every request downloads in full, whatever the size.
+
+**The `useAttachments` request contradicts its own documentation.** `loadDocument`
+reads the viewer's bytes when it has them and otherwise falls back to `fetch`. Its
+comment says the application never takes the fallback, but it does, on every case
+switch. `source` (the viewer's pdf.js document) is `null` until Kendo has parsed the
+file, and the hook's effect runs before that, so it downloads the whole file itself.
+When the viewer's document then arrives, the effect runs again and reads it from
+there. So commit `6628ea9` added the borrowing path, but the fallback still runs first.
+Why §13 nonetheless measured an improvement on the deployed build was not
+re-investigated. The likely fix is to wait for `source` rather than fetch. Not yet
+changed.
+
+In a production build, Strict Mode's double mount is gone, which leaves three
+downloads of a large file. That matches §13's "three requests still appear", and this
+is where they come from.
+
+**So:**
+
+| | Ordinary PDF | Linearised PDF |
+|---|---|---|
+| Bytes already in memory (`@libpdf/core`) | No difference | No difference |
+| Downloaded by range (pdf.js) | End first, then a request per jump | Page 1 from the first request |
+
+Linearisation only matters in the bottom row, and in this app nothing is in the bottom
+row yet. Every path uses a plain full download, so the whole file arrives front to back,
+and only then does reading start from the end, in memory:
+
+- **The stamp** fetches the whole file itself, then gives the viewer a `blob:` URL that is
+  already in memory (`usePdfStamp`).
+- **Kendo doesn't let us configure pdf.js.** It calls pdf.js with only
+  `{ url, verbosity, isEvalSupported }` (`kendo-pdfviewer-common/dist/es/utils.js`), so
+  the range options (`disableRange`, `disableStream`, `disableAutoFetch`) cannot be set.
+  With pdf.js's defaults, auto-fetch keeps downloading until it has the whole file. Kendo
+  also requests every page up front, not just the visible ones.
+- **Our own code needs the whole file.** The attachment listing reads it through
+  `getData()`, which only resolves once every byte has arrived. The download button does
+  the same.
+
+Two test files carry a linearisation dictionary. `case-linearized` is valid, and
+`case-embedded-audio-media`'s is stale, as shown above. Stamping removes it from both
+(§13).
+
 ---
 
 ## 6. What it costs
@@ -867,6 +1260,10 @@ browser issue range requests on its own: it buffers a few hundred kilobytes, sta
 playing, and fetches the rest while the audio runs. Seeking works the same way — dragging
 to twenty minutes in fetches that byte range rather than everything before it.
 
+This is also why the audio has to leave the PDF rather than be range-read inside it: the
+embedded copies are Flate-compressed, so no range of them is playable on its own (§5).
+Extracted and served decompressed, the MP3 is seekable by byte again.
+
 So a 28 MB recording starts playing in about a second instead of after a full download,
 and a listener who plays ten seconds and stops has transferred ten seconds of audio. The
 only requirement is `Accept-Ranges: bytes`, which every static host and framework already
@@ -874,17 +1271,20 @@ sends.
 
 ### The stamp belongs there too
 
-Not obvious until measured. `usePdfStamp` re-saves the document to draw one line of
-text, and that rewrite has two effects:
+Not obvious until measured. `usePdfStamp` re-saves the document to draw a header bar
+across the top of every page (see `CASE-STAMP.md`), and that rewrite has three effects:
 
 ```text
-attachments   survive      — part of the object graph, written back untouched
+attachments   survive      — part of the object graph, written back byte-identical
 linearisation does not     — original /Linearized: true, stamped: false
-size          +310 bytes   — constant, independent of file size
+signatures    do not       — revisions are flattened, so the signed byte range no longer matches
+size          +1–3 KB      — per file, for the bar and its five fields
 ```
 
 Attachments surviving is what makes the current design safe: with the stamp on, both
 the viewer and the attachment listing read the stamped copy rather than the original.
+That was checked across all 17 test files, reading every attachment back with
+`readAttachment` and hashing it; `CASE-STAMP.md` has the per-file results.
 
 Losing linearisation is the one that constrains the future. A linearised file can be
 rendered from its opening bytes, which is the prerequisite for the progressive loading
@@ -892,6 +1292,24 @@ in §13's alternative — and stamping silently removes it. Neither `@libpdf/cor
 pdf-lib can write a linearised file to put it back; `qpdf --linearize` can. So **stamp
 and progressive-load are in tension in the browser and not on a server**, where the
 order is simply: stamp, strip the attachment, re-linearise, serve.
+
+One correction to the measurement above: the fixture's linearisation was already dead
+before stamping. Two revisions had been appended after it was linearised, so its `/L` no
+longer matches the file length, and pdf.js ignores it (see "What linearisation is" in
+§5). So that measurement proved less than it seemed.
+
+It has since been confirmed on a valid one. `case-linearized.pdf` passes qpdf's
+linearisation check. Stamped with the hook's drawing code, it fails:
+
+```text
+                     before                  after stamping
+qpdf is_linearized   True                    False
+Linearised           yes (/L = file length)  no dictionary at all
+```
+
+Everything else came through, including all four audio attachments, byte-identical. So
+stamping in the browser does remove linearisation, and only a server-side step like
+`qpdf --linearize` can put it back.
 
 ### What else it settles
 

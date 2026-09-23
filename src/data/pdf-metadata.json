@@ -364,5 +364,27 @@
     "lastModified": "2026-09-21",
     "language": "English",
     "status": "Published"
+  },
+  {
+    "id": "t15",
+    "caseNumber": "CASE-TEST-LINEARIZED",
+    "fileName": "case-linearized.pdf",
+    "filePath": "/case-linearized.pdf",
+    "title": "Test: Linearised PDF",
+    "author": "QA",
+    "description": "case-multi-audio.pdf plus a 1 MB excerpt of the court recording, written by qpdf as a valid linearised file: the page comes first, the four audio attachments after it. Large enough (over 128 KB) for pdf.js to consider range requests. Stamping it removes the linearisation.",
+    "category": "Test Case",
+    "tags": [
+      "test",
+      "linearized",
+      "audio",
+      "attachment"
+    ],
+    "totalPages": 1,
+    "fileSize": "1.0 MB",
+    "createdDate": "2026-09-23",
+    "lastModified": "2026-09-23",
+    "language": "English",
+    "status": "Published"
   }
 ]
