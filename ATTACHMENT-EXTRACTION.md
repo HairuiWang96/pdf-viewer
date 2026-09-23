@@ -703,8 +703,11 @@ before   thumbnails + Kendo × 2   3 downloads, ~89 MB
 after                 Kendo × 2   2 downloads, ~60 MB   (Strict Mode double mount)
 ```
 
-That should be one download in production. Thumbnails still render correctly, including
-after rapid case switching. They now start once Kendo has loaded rather than in
+In production it is one. Measured on the Netlify deploy of this commit, confirmed by
+bundle hash, cold profile, two runs: a single full request each time, 29.7 MB. Across
+all the fixes, a cold open of the 28 MB case went from three downloads in production
+(~89 MB) to one. Thumbnails still render correctly there and locally, including after
+rapid case switching. They now start once Kendo has loaded rather than in
 parallel, but both were waiting on the same full download anyway.
 
 **So:**
