@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFContext } from 'pdf-lib';
-import { useAttachments } from './useAttachments';
+import { useAttachments, type AttachmentBytes } from './useAttachments';
 import { guessAudioMimeType, formatSize } from './attachments';
 
 /**
@@ -144,6 +144,28 @@ describe('useAttachments', () => {
       await waitFor(() => expect(result.current).toHaveLength(1));
 
       expect(await result.current[0].read()).toEqual(AUDIO);
+      expect(fetched).toEqual([]);
+    });
+
+    it('waits for a viewer that is not ready yet, instead of fetching', async () => {
+      // The page passes null until Kendo has parsed the file. Treating that as
+      // "no viewer" sent it down the fetch path on every case switch — a whole
+      // second download of the file, alongside the viewer's own.
+      const fetched = stubFetch({});
+      const bytes = await pdfWithAttachments([{ name: 'note.mp3', bytes: AUDIO }]);
+
+      const { result, rerender } = renderHook(
+        ({ source }: { source: AttachmentBytes | null }) => useAttachments('/case.pdf', source),
+        { initialProps: { source: null as AttachmentBytes | null } },
+      );
+      // Give a fetch every chance to start, if one were going to.
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(fetched).toEqual([]);
+      expect(result.current).toEqual([]);
+
+      rerender({ source: { getData: () => Promise.resolve(bytes) } });
+
+      await waitFor(() => expect(result.current).toHaveLength(1));
       expect(fetched).toEqual([]);
     });
 

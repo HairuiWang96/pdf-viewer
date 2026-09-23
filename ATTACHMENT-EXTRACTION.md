@@ -663,12 +663,23 @@ file, and the hook's effect runs before that, so it downloads the whole file its
 When the viewer's document then arrives, the effect runs again and reads it from
 there. So commit `6628ea9` added the borrowing path, but the fallback still runs first.
 Why §13 nonetheless measured an improvement on the deployed build was not
-re-investigated. The likely fix is to wait for `source` rather than fetch. Not yet
-changed.
+re-investigated.
 
-In a production build, Strict Mode's double mount is gone, which leaves three
-downloads of a large file. That matches §13's "three requests still appear", and this
-is where they come from.
+**Fixed.** `useAttachments` now tells the two empty values of `source` apart. `null`
+means the viewer exists but has not parsed the file yet, so the hook waits. `undefined`
+means there is no viewer to borrow from, so it fetches. The page passes `null` until
+Kendo reports its document, so the fetch no longer runs. A test covers it and fails
+with the old code. Re-measured on the 28 MB file:
+
+```text
+before   useAttachments + thumbnails + Kendo × 2   4 downloads, ~119 MB   (dev)
+after                     thumbnails + Kendo × 2   3 downloads,  ~89 MB   (dev)
+```
+
+In a production build Strict Mode's double mount goes too, which should leave two: the
+viewer and the thumbnail sidebar. That was not measured on a production build. The
+remaining duplicate is the one §13 considered and set aside: sharing Kendo's parsed
+document with the thumbnails.
 
 **So:**
 

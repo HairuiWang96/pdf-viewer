@@ -43,9 +43,10 @@ export interface AttachmentBytes {
  * What is certain is that borrowing already-downloaded bytes cannot cost a
  * transfer, whatever the cache does. That is the reason for this argument, and
  * it holds regardless of the explanation. The fetch below is the fallback for
- * a caller with no viewer to borrow from.
+ * a caller with no viewer to borrow from — only, since a later fix; see
+ * `useAttachments` for how "no viewer" is told apart from "not ready yet".
  */
-async function loadDocument(filePath: string, source: AttachmentBytes | null): Promise<PDF> {
+async function loadDocument(filePath: string, source: AttachmentBytes | undefined): Promise<PDF> {
   if (source) return PDF.load(await source.getData());
 
   const response = await fetch(filePath);
@@ -84,32 +85,39 @@ function playableType(entry: AttachmentEntry): string | null {
  * bytes pdf.js already downloaded, not from a second request. See
  * `loadDocument` for why that distinction turned out to matter.
  *
- * `source` should be referentially stable, and is null until the viewer has
- * parsed the document. Until then the hook reports nothing, which is the same
- * as it reported while a fetch was in flight.
+ * `source` should be referentially stable. Its two empty values mean
+ * different things, and the difference is what keeps this hook off the
+ * network:
  *
- * ── Why both arguments, when the only caller passes both ──
+ *   null        there is a viewer, but it has not parsed the document yet —
+ *               wait for it, and report nothing meanwhile
+ *   undefined   there is no viewer to borrow from — fetch the file
  *
- * `filePath` no longer earns much. `PdfViewerPage` always supplies a `source`
- * too, so the fetch inside `loadDocument` is a path the application never
- * takes — only the tests do. A `source`-only hook would work: the page already
- * nulls the document when the file changes, so `source` alone would signal a
- * new document just as well, and the effect below could guard on it instead.
+ * These used to be one value, null, which fell through to the fetch. The
+ * hook's effect runs before Kendo has parsed anything, so on every case switch
+ * it downloaded the whole file itself while the viewer was downloading it too:
+ * on the 28 MB fixture, one of four full downloads (ATTACHMENT-EXTRACTION.md
+ * §5). The comment here said the application never took that path. It took it
+ * every time.
  *
- * It is kept for one reason. This is a comparison repo, and the other viewer
- * branches do not all expose the pdf.js document the way KendoReact does —
- * `react-pdf` and the iframe viewer have nothing to hand over. A hook that
- * cannot work without a viewer would not port to them. Cheap insurance;
- * delete it the day this becomes one viewer rather than five.
+ * ── Why a fetch fallback at all, when the only caller has a viewer ──
+ *
+ * This is a comparison repo, and the other viewer branches do not all expose
+ * the pdf.js document the way KendoReact does — `react-pdf` and the iframe
+ * viewer have nothing to hand over. A hook that cannot work without a viewer
+ * would not port to them. Cheap insurance; delete it the day this becomes one
+ * viewer rather than five.
  */
 export function useAttachments(
   filePath: string | undefined,
-  source: AttachmentBytes | null = null,
+  source?: AttachmentBytes | null,
 ): PdfAttachment[] {
   const [attachments, setAttachments] = useState<PdfAttachment[]>([]);
 
   useEffect(() => {
-    if (!filePath) return;
+    // null: the viewer exists but has nothing yet. Its document arrives as a
+    // new `source`, which runs this effect again.
+    if (!filePath || source === null) return;
 
     let cancelled = false;
 
