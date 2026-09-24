@@ -110,25 +110,34 @@ describe('KendoPdfViewer', () => {
   describe('zoom', () => {
     const lastProps = () => mockState.received.mock.lastCall![0];
 
-    it('leaves the zoom to Kendo on desktop', async () => {
+    it('opens a desktop document at 100%', async () => {
       render(<KendoPdfViewer {...defaultProps} isMobile={false} />);
       await screen.findByTestId('kendo-pdfviewer');
 
-      expect(lastProps().zoom).toBeUndefined();
-      expect(lastProps().defaultZoom).toBe(1);
+      // Controlled on desktop too, so a page too wide for the viewer — the
+      // desktop layout on a tablet — can be shrunk to fit.
+      expect(lastProps().zoom).toBe(1);
     });
 
-    it('controls the zoom on mobile, with a floor below the fitted value', async () => {
+    it('opens a mobile document at 75% until it has been measured', async () => {
       render(<KendoPdfViewer {...defaultProps} isMobile />);
       await screen.findByTestId('kendo-pdfviewer');
 
       expect(lastProps().zoom).toBe(0.75);
-      // Under Kendo's default 0.5, so a page fitted at ~0.47 is not below the
-      // minimum — where zoom-out would jump in instead.
-      expect(lastProps().minZoom).toBe(0.25);
     });
 
-    it('keeps the zoom buttons working on mobile by feeding their change back in', async () => {
+    it('sets the floor below any fitted value, on both layouts', async () => {
+      // Under Kendo's default 0.5, so a page fitted at ~0.47 is not below the
+      // minimum — where zoom-out would jump in instead.
+      for (const isMobile of [true, false]) {
+        const { unmount } = render(<KendoPdfViewer {...defaultProps} isMobile={isMobile} />);
+        await screen.findByTestId('kendo-pdfviewer');
+        expect(lastProps().minZoom).toBe(0.25);
+        unmount();
+      }
+    });
+
+    it('keeps the zoom controls working by feeding their change back in', async () => {
       render(<KendoPdfViewer {...defaultProps} isMobile />);
       await screen.findByTestId('kendo-pdfviewer');
 
