@@ -1,4 +1,4 @@
-import { Children, cloneElement, useCallback, useEffect, useRef } from 'react';
+import { Children, cloneElement, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { PDFViewer, scrollToPage } from '@progress/kendo-react-all';
 import type {
@@ -11,6 +11,7 @@ import '@progress/kendo-theme-default/dist/all.css';
 import { BottomBarAttachments, ToolbarAttachments } from '../PdfAttachments';
 import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { AttachmentPlacement, PdfAttachment } from '../PdfAttachments';
+import { fitWidthZoom, MOBILE_DEFAULT_ZOOM, MOBILE_MIN_ZOOM } from './fitWidthZoom';
 import './KendoPdfViewer.css';
 
 interface KendoPdfViewerProps {
@@ -76,6 +77,47 @@ export default function KendoPdfViewer({
   placement,
 }: KendoPdfViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
+
+  // Mobile only: the zoom is ours rather than Kendo's, so it can be set to fit
+  // after load. Kept here, outside the per-file remount, so the next document
+  // opens at the last fitted zoom and the jump when it refits is small.
+  const [mobileZoom, setMobileZoom] = useState(MOBILE_DEFAULT_ZOOM);
+
+  /** Measures the viewer and the first page, and zooms so the page fits. */
+  const fitToWidth = useCallback(async () => {
+    const handle = viewerRef.current;
+    const pdfDocument = handle?.document as PDFDocumentProxy | undefined;
+    const scroller = handle?.element?.querySelector<HTMLElement>('.k-pdf-viewer-canvas');
+    if (!pdfDocument || !scroller) return;
+
+    // Page 1 stands for the document, as it does in Kendo's own fit. The
+    // viewport accounts for the page's /Rotate, so a landscape page measures
+    // as landscape.
+    const page = await pdfDocument.getPage(1);
+    const zoom = fitWidthZoom(scroller.clientWidth, page.getViewport({ scale: 1 }).width);
+    if (zoom !== null) setMobileZoom(zoom);
+  }, []);
+
+  /**
+   * Refit when the viewer changes width — turning the phone, mostly. Width
+   * only: mobile browsers resize the viewport *height* whenever the address
+   * bar slides in or out, and refitting on that would fight the user's
+   * scrolling. Re-armed per file, since the remount replaces the element.
+   */
+  useEffect(() => {
+    if (!isMobile || typeof ResizeObserver === 'undefined') return;
+    const scroller = viewerRef.current?.element?.querySelector<HTMLElement>('.k-pdf-viewer-canvas');
+    if (!scroller) return;
+
+    let lastWidth = scroller.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (scroller.clientWidth === lastWidth) return;
+      lastWidth = scroller.clientWidth;
+      void fitToWidth();
+    });
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [isMobile, filePath, fitToWidth]);
 
   /**
    * ── Two-way page sync ──────────────────────────────────────────────────
@@ -151,7 +193,11 @@ export default function KendoPdfViewer({
     // to download the file again. Kendo types it `any`; it is PDF.js's
     // PDFDocumentProxy ("The PDF.js document loaded in the PDF Viewer").
     onDocumentLoad((viewerRef.current?.document as PDFDocumentProxy | undefined) ?? null);
-  }, [onLoadSuccess, onDocumentLoad]);
+
+    // Only now are both sizes known: the page from the parsed document, the
+    // viewer from the laid-out element.
+    if (isMobile) void fitToWidth();
+  }, [onLoadSuccess, onDocumentLoad, isMobile, fitToWidth]);
 
   const handleError = useCallback((event: ErrorEvent) => {
     console.error('KendoReact PDF Viewer failed to load the document:', event.error);
@@ -190,7 +236,13 @@ export default function KendoPdfViewer({
         url={filePath}
         saveFileName={fileName}
         tools={isMobile ? MOBILE_TOOLS : DESKTOP_TOOLS}
-        defaultZoom={isMobile ? 0.75 : 1}
+        // Desktop leaves the zoom to Kendo. Mobile controls it, so it can fit
+        // the page to the screen; the +/- buttons still work, because Kendo
+        // reports each change through onZoom and it is fed straight back in.
+        defaultZoom={1}
+        zoom={isMobile ? mobileZoom : undefined}
+        minZoom={isMobile ? MOBILE_MIN_ZOOM : undefined}
+        onZoom={isMobile ? (event: { zoom: number }) => setMobileZoom(event.zoom) : undefined}
         onLoad={handleLoad}
         onPageChange={handlePageChange}
         onError={handleError}

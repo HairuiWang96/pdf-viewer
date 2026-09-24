@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import KendoPdfViewer from './KendoPdfViewer';
 
 /**
@@ -20,6 +20,8 @@ const { mockState } = vi.hoisted(() => ({
     // Stands in for the pdf.js document Kendo parsed internally. Only
     // getData() matters: it is how the page borrows the downloaded bytes.
     document: { getData: () => Promise.resolve(new Uint8Array([1, 2, 3])) },
+    // Called with the props Kendo receives on every render, for the zoom checks.
+    received: vi.fn<(props: Record<string, unknown>) => void>(),
   },
 }));
 
@@ -28,6 +30,7 @@ vi.mock('@progress/kendo-react-all', async () => {
   return {
     PDFViewer: React.forwardRef(
       (props: { onLoad?: () => void; url?: string }, ref: React.Ref<unknown>) => {
+        mockState.received(props);
         React.useImperativeHandle(ref, () => ({
           element: null,
           props,
@@ -97,5 +100,42 @@ describe('KendoPdfViewer', () => {
     rerender(<KendoPdfViewer {...defaultProps} placement="details" />);
     expect(screen.queryByTestId('bottom-bar')).not.toBeInTheDocument();
     expect(screen.queryByTestId('toolbar-attachments')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The fit itself needs a laid-out page, which jsdom does not have — that is
+   * checked in a real browser and by fitWidthZoom's own suite. What can be
+   * checked here is the wiring: who owns the zoom on each layout.
+   */
+  describe('zoom', () => {
+    const lastProps = () => mockState.received.mock.lastCall![0];
+
+    it('leaves the zoom to Kendo on desktop', async () => {
+      render(<KendoPdfViewer {...defaultProps} isMobile={false} />);
+      await screen.findByTestId('kendo-pdfviewer');
+
+      expect(lastProps().zoom).toBeUndefined();
+      expect(lastProps().defaultZoom).toBe(1);
+    });
+
+    it('controls the zoom on mobile, with a floor below the fitted value', async () => {
+      render(<KendoPdfViewer {...defaultProps} isMobile />);
+      await screen.findByTestId('kendo-pdfviewer');
+
+      expect(lastProps().zoom).toBe(0.75);
+      // Under Kendo's default 0.5, so a page fitted at ~0.47 is not below the
+      // minimum — where zoom-out would jump in instead.
+      expect(lastProps().minZoom).toBe(0.25);
+    });
+
+    it('keeps the zoom buttons working on mobile by feeding their change back in', async () => {
+      render(<KendoPdfViewer {...defaultProps} isMobile />);
+      await screen.findByTestId('kendo-pdfviewer');
+
+      const onZoom = lastProps().onZoom as (event: { zoom: number }) => void;
+      act(() => onZoom({ zoom: 1.25 }));
+
+      expect(lastProps().zoom).toBe(1.25);
+    });
   });
 });
