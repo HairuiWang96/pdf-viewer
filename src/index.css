@@ -19,6 +19,15 @@
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Stops iOS enlarging text when the phone is turned sideways. Every iOS
+     browser, Chrome included, runs on WebKit, which "autosizes" some blocks
+     of text in landscape and not others, so the case drop-down came out far
+     larger than the text around it. 100% means "use the sizes in the CSS";
+     pinch-zoom still works. Desktop Chrome's device emulation does not
+     reproduce this; it needs a real iPhone to see. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 @media (prefers-color-scheme: dark) {
