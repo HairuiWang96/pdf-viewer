@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import useDetailsPanel from './useDetailsPanel';
+import useDetailsPanel, { MOBILE_LAYOUT_QUERY } from './useDetailsPanel';
 
 /**
  * Tests for the hook that tracks the mobile breakpoint and the details panel.
@@ -49,25 +49,15 @@ function crossBreakpoint(matches: boolean) {
   });
 }
 
-/** The hook reads window.innerWidth once, for its initial value. */
-function setViewportWidth(width: number) {
-  Object.defineProperty(window, 'innerWidth', {
-    writable: true,
-    configurable: true,
-    value: width,
-  });
-}
-
-const originalWidth = window.innerWidth;
+const originalMatchMedia = window.matchMedia;
 
 describe('useDetailsPanel', () => {
   beforeEach(() => {
-    installMatchMedia(false);
-    setViewportWidth(1024); // desktop by default
+    installMatchMedia(false); // desktop by default
   });
 
   afterEach(() => {
-    setViewportWidth(originalWidth);
+    window.matchMedia = originalMatchMedia;
   });
 
   it('starts with the panel closed', () => {
@@ -76,21 +66,31 @@ describe('useDetailsPanel', () => {
     expect(result.current.isDetailsOpen).toBe(false);
   });
 
-  it('reports desktop when the window is at or above the breakpoint', () => {
-    setViewportWidth(1024);
-
+  it('reports desktop when the layout query does not match', () => {
     const { result } = renderHook(() => useDetailsPanel());
 
     expect(result.current.isMobile).toBe(false);
   });
 
-  it('reports mobile when the window is below the breakpoint', () => {
-    // 768 is the breakpoint, so 767 is the widest mobile viewport.
-    setViewportWidth(767);
+  it('reports mobile when the layout query matches', () => {
+    installMatchMedia(true);
 
     const { result } = renderHook(() => useDetailsPanel());
 
     expect(result.current.isMobile).toBe(true);
+  });
+
+  it('asks about short touch screens as well as narrow ones', () => {
+    renderHook(() => useDetailsPanel());
+
+    // Width alone gave a phone on its side (844 × 390) the desktop layout.
+    // The initial value and the listener must both use the full query, so
+    // they cannot disagree about which layout this is.
+    expect(MOBILE_LAYOUT_QUERY).toContain('(max-width: 767px)');
+    expect(MOBILE_LAYOUT_QUERY).toContain('(max-height: 500px) and (pointer: coarse)');
+    const asked = vi.mocked(window.matchMedia).mock.calls.map(([query]) => query);
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((query) => query === MOBILE_LAYOUT_QUERY)).toBe(true);
   });
 
   it('opens and closes the panel with toggleDetails', () => {
@@ -124,7 +124,7 @@ describe('useDetailsPanel', () => {
   });
 
   it('auto-closes the open panel when returning to desktop', () => {
-    setViewportWidth(767);
+    installMatchMedia(true);
     const { result } = renderHook(() => useDetailsPanel());
 
     act(() => result.current.toggleDetails());

@@ -75,8 +75,9 @@
   white-space: nowrap;
 }
 
-/* On mobile, pin the navigation to the bottom of the screen */
-@media (max-width: 767px) {
+/* On mobile, pin the navigation to the bottom of the screen.
+   Mobile layout: must match MOBILE_LAYOUT_QUERY in src/hooks/useDetailsPanel.ts */
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   .page-navigation {
     position: fixed;
     bottom: 0;

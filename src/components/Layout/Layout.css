@@ -78,7 +78,8 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 767px) {
+/* Mobile layout: must match MOBILE_LAYOUT_QUERY in src/hooks/useDetailsPanel.ts */
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   .layout-header {
     padding: 0 16px;
   }

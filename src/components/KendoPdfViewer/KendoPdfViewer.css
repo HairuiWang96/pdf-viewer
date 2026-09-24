@@ -22,7 +22,8 @@
   background: var(--code-bg);
 }
 
-@media (max-width: 767px) {
+/* Mobile layout: must match MOBILE_LAYOUT_QUERY in src/hooks/useDetailsPanel.ts */
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   .kendo-pdf-viewer .k-pdf-viewer .k-canvas {
     background: var(--bg);
   }

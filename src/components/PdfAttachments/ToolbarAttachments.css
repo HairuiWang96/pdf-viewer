@@ -113,7 +113,8 @@
   color: var(--accent);
 }
 
-@media (max-width: 767px) {
+/* Mobile layout: must match MOBILE_LAYOUT_QUERY in src/hooks/useDetailsPanel.ts */
+@media (max-width: 767px), (max-height: 500px) and (pointer: coarse) {
   /* The label would push the wrapping mobile toolbar onto another row, which
      is the exact problem the toolbar placement is supposed to avoid. The
      accessible name still carries it — see the markup. */
