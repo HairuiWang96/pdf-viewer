@@ -83,9 +83,11 @@ export default function KendoPdfViewer({
   // last zoom and the jump when it refits is small.
   const [zoom, setZoom] = useState(isMobile ? MOBILE_DEFAULT_ZOOM : DESKTOP_MAX_FIT_ZOOM);
 
-  // Set once the reader zooms by hand, cleared whenever we fit. A width change
-  // only refits while it is clear: otherwise someone reading at 150% on a
-  // desktop would be snapped back every time they resized the window.
+  // Set once the reader zooms by hand, cleared whenever we fit. On desktop a
+  // width change only refits while it is clear: otherwise someone reading at
+  // 150% would be snapped back every time they resized the window. Phones
+  // ignore it — turning a phone is a deliberate "show me this the other way",
+  // and a page left at the upright zoom would sit in a third of the screen.
   const zoomedByHand = useRef(false);
 
   const handleZoom = useCallback((event: { zoom: number }) => {
@@ -124,9 +126,9 @@ export default function KendoPdfViewer({
    * Refit when the viewer changes width — turning a phone or tablet, resizing
    * a window, crossing into the other layout. Width only: mobile browsers
    * resize the viewport *height* whenever the address bar slides in or out,
-   * and refitting on that would fight the user's scrolling. Skipped once the
-   * reader has zoomed by hand. Re-armed per file, since the remount replaces
-   * the element.
+   * and refitting on that would fight the user's scrolling. On desktop it is
+   * skipped once the reader has zoomed by hand; a phone always refits. Re-armed
+   * per file, since the remount replaces the element.
    */
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') return;
@@ -137,11 +139,11 @@ export default function KendoPdfViewer({
     const observer = new ResizeObserver(() => {
       if (scroller.clientWidth === lastWidth) return;
       lastWidth = scroller.clientWidth;
-      if (!zoomedByHand.current) void fitToWidth();
+      if (isMobile || !zoomedByHand.current) void fitToWidth();
     });
     observer.observe(scroller);
     return () => observer.disconnect();
-  }, [filePath, fitToWidth]);
+  }, [filePath, isMobile, fitToWidth]);
 
   /**
    * ── Two-way page sync ──────────────────────────────────────────────────
