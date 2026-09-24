@@ -59,6 +59,7 @@ device instead.
 | [TESTING.md](TESTING.md) | What the suite covers, and what jsdom cannot see |
 | [PDF-LIBRARIES.md](PDF-LIBRARIES.md) | pdf.js vs. pdf-lib vs. pyHanko, and how each branch packages its engine |
 | [VIEWER-BENCHMARKS.md](VIEWER-BENCHMARKS.md) | Measured comparison of the viewer branches |
+| [KENDO-LIMITATIONS.md](KENDO-LIMITATIONS.md) | KendoReact PDF Viewer's open issues and missing features, from its issue tracker |
 | [ATTACHMENT-INDICATOR.md](ATTACHMENT-INDICATOR.md) | Where the attachment indicator should live — three placements compared |
 | [ATTACHMENT-EXTRACTION.md](ATTACHMENT-EXTRACTION.md) | Where its data comes from — the two places a PDF hides a file, and why reading them moved from pdf.js to pdf-lib |
 | [CASE-STAMP.md](CASE-STAMP.md) | The header bar stamped on every page — what it prints, how it is drawn into the PDF, and what it costs in memory |

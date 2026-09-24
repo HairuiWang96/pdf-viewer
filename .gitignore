@@ -24,5 +24,9 @@ coverage
 *.sln
 *.sw?
 
+# Kendo issue checks: generated test PDFs and results (scripts/kendo-issues/generate.mjs)
+scripts/kendo-issues/harness/public
+scripts/kendo-issues/out
+
 # KendoReact license key
 kendo-ui-license.txt
