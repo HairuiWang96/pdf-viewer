@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 
 /**
- * When the app uses its mobile layout. **The same query is written into six
- * CSS files** — Layout, KendoPdfViewer, PageNavigation, ToolbarAttachments,
- * BottomBarAttachments and PlacementSwitcher — and must stay identical to
- * this one, or the code will think "mobile" while the stylesheet still lays
- * out desktop, or the reverse. CSS cannot import a JS constant, so a change
- * here means changing all six.
+ * When the app uses its mobile layout. **The same query is written into five
+ * CSS files** — Layout, KendoPdfViewer, PageNavigation, ToolbarAttachments
+ * and BottomBarAttachments — and must stay identical to this one, or the code
+ * will think "mobile" while the stylesheet still lays out desktop, or the
+ * reverse. CSS cannot import a JS constant, so a change here means changing
+ * all five.
  *
  * Two conditions, either of which is enough:
  *

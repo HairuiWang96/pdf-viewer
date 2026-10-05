@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import BottomBarAttachments from './BottomBarAttachments';
 import ToolbarAttachments from './ToolbarAttachments';
 import DetailsAttachments from './DetailsAttachments';
-import { PLACEMENT_OPTIONS } from './placement';
 import { makeAttachment, mixedAttachments } from '../../test/fixtures';
 
 /**
@@ -279,21 +278,5 @@ describe('Details — the one that reads as metadata', () => {
     // Tags and File Info, not like a control bolted into the panel.
     expect(container.querySelector('.details-section')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /attachments/i })).toBeInTheDocument();
-  });
-});
-
-describe('PLACEMENT_OPTIONS', () => {
-  it('describes every placement the switcher can select', () => {
-    // The switcher renders from this list, so a placement missing from it is
-    // a placement nobody can reach.
-    expect(PLACEMENT_OPTIONS.map((option) => option.id)).toEqual([
-      'bottom',
-      'toolbar',
-      'details',
-    ]);
-    for (const option of PLACEMENT_OPTIONS) {
-      expect(option.label).toBeTruthy();
-      expect(option.summary).toBeTruthy();
-    }
   });
 });

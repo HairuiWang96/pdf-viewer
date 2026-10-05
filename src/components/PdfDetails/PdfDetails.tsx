@@ -1,7 +1,7 @@
 import type { PdfMetadata } from '../../types';
 import CaseSelector from '../CaseSelector';
 import { DetailsAttachments } from '../PdfAttachments';
-import type { AttachmentPlacement, PdfAttachment } from '../PdfAttachments';
+import type { PdfAttachment } from '../PdfAttachments';
 import './PdfDetails.css';
 
 interface PdfDetailsProps {
@@ -18,9 +18,8 @@ interface PdfDetailsProps {
   hasMultipleCases: boolean;
   selectedCaseId: string | null;
   onSelectCase: (caseId: string) => void;
-  /* Attachments — rendered here only while the details placement is active */
+  /* Attachments — also shown in the viewer toolbar */
   attachments: PdfAttachment[];
-  placement: AttachmentPlacement;
 }
 
 export default function PdfDetails({
@@ -37,7 +36,6 @@ export default function PdfDetails({
   selectedCaseId,
   onSelectCase,
   attachments,
-  placement,
 }: PdfDetailsProps) {
   return (
       <aside
@@ -118,7 +116,7 @@ export default function PdfDetails({
             document. Note it inherits this panel's gating: nothing renders
             before a case is selected, even though the viewer is already
             showing a document by then. */}
-        {placement === 'details' && <DetailsAttachments attachments={attachments} />}
+        <DetailsAttachments attachments={attachments} />
 
         <div className="details-section">
           <h3>Dates</h3>

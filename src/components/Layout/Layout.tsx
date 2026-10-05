@@ -9,9 +9,6 @@ interface LayoutProps {
     onToggleDetails: () => void;
     isThumbnailsOpen: boolean;
     onToggleThumbnails: () => void;
-    /** Slot beside the title. Kept generic so Layout stays unaware of what
-        it is hosting — currently the attachment-placement switcher. */
-    headerControl?: ReactNode;
 }
 
 export default function Layout({
@@ -22,14 +19,12 @@ export default function Layout({
     onToggleDetails,
     isThumbnailsOpen,
     onToggleThumbnails,
-    headerControl,
 }: LayoutProps) {
     return (
         <div className='layout'>
             <a href='#main-content' className='skip-to-main'>Skip to main content</a>
             <header className='layout-header'>
                 <h1 className='layout-logo'>{title}</h1>
-                {headerControl}
                 {isMobile && (
                     <div className='layout-header-actions'>
                         {/* \u25A3 = ▣ thumbnail grid icon */}

@@ -3,8 +3,7 @@ import Layout from '../../components/Layout';
 import ThumbnailSidebar from '../../components/ThumbnailSidebar';
 import KendoPdfViewer from '../../components/KendoPdfViewer';
 import PdfDetails from '../../components/PdfDetails';
-import { PlacementSwitcher, useAttachments, DEFAULT_PLACEMENT } from '../../components/PdfAttachments';
-import type { AttachmentPlacement } from '../../components/PdfAttachments';
+import { useAttachments } from '../../components/PdfAttachments';
 import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { usePdfViewer, usePdfStamp, useDetailsPanel } from '../../hooks';
 
@@ -42,10 +41,10 @@ export default function PdfViewerPage() {
   } = useDetailsPanel();
 
   // ── Attachments ────────────────────────────────────────────────────────
-  // Listed here rather than inside the viewer, because all three indicator
-  // placements need the list and two of them are not inside the viewer. It is
-  // read once and passed down: the hook parses the document to build the list,
-  // so calling it per placement would parse once per placement.
+  // Listed here rather than inside the viewer, because the indicator shows in
+  // both the viewer toolbar and the details panel. It is read once and passed
+  // down: the hook parses the document to build the list, so calling it in
+  // each would parse twice.
   //
   // Only names and sizes — the files themselves are read on demand, by
   // whichever control the user actually presses.
@@ -66,7 +65,6 @@ export default function PdfViewerPage() {
   useEffect(() => {
     setPdfDocument(null);
   }, [activePdfPath]);
-  const [placement, setPlacement] = useState<AttachmentPlacement>(DEFAULT_PLACEMENT);
 
   // On mobile, selecting a case should also close the details panel
   // so the user sees the PDF with the newly selected case.
@@ -83,7 +81,6 @@ export default function PdfViewerPage() {
       onToggleDetails={toggleDetails}
       isThumbnailsOpen={isThumbnailsOpen}
       onToggleThumbnails={toggleThumbnails}
-      headerControl={<PlacementSwitcher placement={placement} onChange={setPlacement} />}
     >
       <ThumbnailSidebar
         pdfDocument={pdfDocument}
@@ -102,7 +99,6 @@ export default function PdfViewerPage() {
         onDocumentLoad={setPdfDocument}
         isMobile={isMobile}
         attachments={attachments}
-        placement={placement}
       />
       <PdfDetails
         metadata={metadata}
@@ -118,7 +114,6 @@ export default function PdfViewerPage() {
         selectedCaseId={selectedCaseId}
         onSelectCase={handleSelectCase}
         attachments={attachments}
-        placement={placement}
       />
     </Layout>
   );

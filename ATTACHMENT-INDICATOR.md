@@ -7,6 +7,10 @@ documents rather than mockups. Test fixtures: `CASE-TEST-AUDIO`, `CASE-TEST-AUDI
 
 **Recommendation: bottom bar as primary, details panel as secondary. Drop the toolbar.**
 
+> **Decision (2026-10-05):** shipped as **toolbar + details panel**, both always on. The
+> bottom bar is commented out in `KendoPdfViewer.tsx` (component and tests kept), and the
+> header switcher has been removed. The comparison below is kept as the record of the trade.
+
 | Dimension | Bottom bar | Toolbar | Details panel |
 |---|---|---|---|
 | Discoverability (first-time user) | **High** — unavoidable | Low — must scan the bar | Lowest — nothing points to it |

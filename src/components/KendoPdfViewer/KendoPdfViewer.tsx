@@ -8,9 +8,10 @@ import type {
   ErrorEvent,
 } from '@progress/kendo-react-all';
 import '@progress/kendo-theme-default/dist/all.css';
-import { BottomBarAttachments, ToolbarAttachments } from '../PdfAttachments';
+// import { BottomBarAttachments } from '../PdfAttachments';
+import { ToolbarAttachments } from '../PdfAttachments';
 import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import type { AttachmentPlacement, PdfAttachment } from '../PdfAttachments';
+import type { PdfAttachment } from '../PdfAttachments';
 import { fitWidthZoom, DESKTOP_MAX_FIT_ZOOM, MIN_ZOOM, MOBILE_DEFAULT_ZOOM } from './fitWidthZoom';
 import './KendoPdfViewer.css';
 
@@ -29,7 +30,6 @@ interface KendoPdfViewerProps {
   onDocumentLoad: (document: PDFDocumentProxy | null) => void;
   isMobile: boolean;
   attachments: PdfAttachment[];
-  placement: AttachmentPlacement;
 }
 
 
@@ -43,8 +43,8 @@ interface KendoPdfViewerProps {
  * so the thumbnail sidebar stays in sync.
  *
  * Embedded attachments are not this component's concern: the page lists them
- * and passes the finished list down, and the placements that live in here
- * render themselves or nothing.
+ * and passes the finished list down, and the toolbar indicator renders itself
+ * or nothing.
  */
 
 /** Toolbar tools. Mobile drops search and open to fit the narrow bar. */
@@ -74,7 +74,6 @@ export default function KendoPdfViewer({
   onDocumentLoad,
   isMobile,
   attachments,
-  placement,
 }: KendoPdfViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
 
@@ -272,11 +271,13 @@ export default function KendoPdfViewer({
         onLoad={handleLoad}
         onPageChange={handlePageChange}
         onError={handleError}
-        onRenderToolbar={placement === 'toolbar' ? renderToolbar : undefined}
+        onRenderToolbar={renderToolbar}
         style={{ height: '100%' }}
       />
 
-      {placement === 'bottom' && <BottomBarAttachments attachments={attachments} />}
+      {/* Bottom bar retired in favour of the toolbar and details panel.
+          Kept commented out rather than deleted, in case it comes back. */}
+      {/* <BottomBarAttachments attachments={attachments} /> */}
     </div>
   );
 }

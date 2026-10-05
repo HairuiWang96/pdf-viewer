@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PdfDetails from './PdfDetails';
-import { makeCase, threeCases } from '../../test/fixtures';
+import { makeCase, mixedAttachments, threeCases } from '../../test/fixtures';
 
 /**
  * Tests for the details sidebar.
@@ -47,6 +47,7 @@ function renderDetails(props: Partial<PdfDetailsProps> = {}) {
     hasMultipleCases: true,
     selectedCaseId: '1',
     onSelectCase: vi.fn(),
+    attachments: [],
     // Overrides come from a Partial, which would otherwise widen the required
     // props back to `T | undefined`.
     ...props,
@@ -108,6 +109,14 @@ describe('PdfDetails', () => {
       for (const section of ['General', 'Description', 'File Info', 'Dates', 'Tags']) {
         expect(screen.getByRole('heading', { name: section })).toBeInTheDocument();
       }
+    });
+
+    it('lists the attachments alongside the file info', () => {
+      // Shown here as well as in the viewer toolbar — no longer one or the other.
+      renderDetails({ attachments: mixedAttachments });
+
+      expect(screen.getByRole('heading', { name: /attachments/i })).toBeInTheDocument();
+      expect(screen.getByText('note.mp3')).toBeInTheDocument();
     });
   });
 

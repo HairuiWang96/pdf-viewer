@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import KendoPdfViewer from './KendoPdfViewer';
 
 /**
@@ -49,8 +50,8 @@ vi.mock('@progress/kendo-react-all', async () => {
   };
 });
 
-// The placements have their own suites; here the viewer only has to report
-// the document up and mount the right one.
+// The indicators have their own suites; here the viewer only has to report
+// the document up and put the toolbar one in Kendo's toolbar.
 vi.mock('../PdfAttachments', () => ({
   BottomBarAttachments: () => <div data-testid="bottom-bar" />,
   ToolbarAttachments: () => <div data-testid="toolbar-attachments" />,
@@ -65,7 +66,6 @@ const defaultProps = {
   onDocumentLoad: vi.fn(),
   isMobile: false,
   attachments: [],
-  placement: 'bottom' as const,
 };
 
 describe('KendoPdfViewer', () => {
@@ -91,15 +91,21 @@ describe('KendoPdfViewer', () => {
     expect(onLoadSuccess).not.toHaveBeenCalled();
   });
 
-  it('mounts only the placement it was given', async () => {
-    const { rerender } = render(<KendoPdfViewer {...defaultProps} placement="bottom" />);
+  it('adds the attachments indicator to the toolbar, and no bottom bar', async () => {
+    render(<KendoPdfViewer {...defaultProps} />);
     await screen.findByTestId('kendo-pdfviewer');
-    expect(screen.getByTestId('bottom-bar')).toBeInTheDocument();
 
-    // 'details' renders in PdfDetails, so the viewer should show neither.
-    rerender(<KendoPdfViewer {...defaultProps} placement="details" />);
+    // The stand-in never calls onRenderToolbar itself, so call it the way
+    // Kendo would, with a toolbar that already holds one built-in tool.
+    const renderToolbar = mockState.received.mock.lastCall![0].onRenderToolbar as (
+      toolbar: ReactElement,
+    ) => ReactElement;
+    expect(renderToolbar).toBeTypeOf('function');
+    render(renderToolbar(<div><span data-testid="pager" /></div>));
+
+    expect(screen.getByTestId('pager')).toBeInTheDocument();
+    expect(screen.getByTestId('toolbar-attachments')).toBeInTheDocument();
     expect(screen.queryByTestId('bottom-bar')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('toolbar-attachments')).not.toBeInTheDocument();
   });
 
   /**
