@@ -62,8 +62,8 @@
    is clipped out of existence the moment it extends below the bar. `top` and
    `right` are set inline from the button's measured rect.
 
-   Above the document but below the slide-in panels (z-index 20), matching the
-   bottom bar's stacking. */
+   Above the document but below the slide-in panels (z-index 20), the same
+   layer the bottom bar uses. */
 .toolbar-attachments-popover {
   position: fixed;
   z-index: 15;

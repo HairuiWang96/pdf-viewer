@@ -14,7 +14,8 @@
   height: 100%;
   /* Paired with flex-shrink:0 on .pdf-attachments: the viewer is the one that
      yields the strip of space the attachments bar needs, and min-height:0 is
-     what lets a flex item shrink below its content at all. */
+     what lets a flex item shrink below its content at all. The bar is not
+     mounted at the moment, so this only matters if it comes back. */
   min-height: 0;
 }
 
@@ -31,7 +32,9 @@
   /* On mobile the attachments bar is position:fixed, so it overlays the
      document instead of taking space from it. This lets the last page scroll
      clear of the bar. :has() keeps the room reserved only when there is a bar
-     to reserve it for — PdfAttachments renders nothing without attachments. */
+     to reserve it for — BottomBarAttachments renders nothing without
+     attachments, and is not mounted at all at the moment, so this rule is
+     currently inert. */
   .kendo-pdf-viewer:has(.pdf-attachments) .k-pdf-viewer .k-canvas {
     padding-bottom: 52px;
   }

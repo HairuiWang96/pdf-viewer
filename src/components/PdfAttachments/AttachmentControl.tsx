@@ -14,10 +14,14 @@ interface AttachmentControlProps {
  * The part of an attachment row that actually costs something: the control
  * that fetches the file, and the player or download it turns into.
  *
- * Shared by all three placements rather than written three times, because it
- * is the one piece of attachment UI that is not a design question. Where the
- * indicator lives is what the placements are comparing; what happens after
- * someone presses play is the same answer in all three.
+ * Shared by every placement rather than written once per placement, because
+ * it is the one piece of attachment UI that is not a design question. Where
+ * the indicator lives is what the placements compared; what happens after
+ * someone presses play is the same answer in all of them.
+ *
+ * Shared code, not shared state: the toolbar and the details panel each mount
+ * their own copy, and each keeps its own player. Playing in one does not show
+ * in the other — deliberately.
  *
  * Every attachment starts as a button and nothing else. The bytes are read on
  * that first press — see PdfAttachment — so until then this is a label, and a

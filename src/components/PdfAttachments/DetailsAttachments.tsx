@@ -8,7 +8,8 @@ interface DetailsAttachmentsProps {
 }
 
 /**
- * Placement 3 of 3 — a section inside the Document Details panel.
+ * Placement 3 of 3 — a section inside the Document Details panel. In use,
+ * alongside ToolbarAttachments.
  *
  * The filed-away option: attachments become another property of the document,
  * sitting with Title, File Size and Tags rather than with the viewer controls.
@@ -20,7 +21,8 @@ interface DetailsAttachmentsProps {
  * the document. The cost is discovery, and it is the steepest of the three —
  * on mobile the panel is closed by default, so the indicator is two taps and
  * a scroll away, and nothing anywhere hints that it is worth the trip. Best
- * read as a complement to a louder placement rather than as the only one.
+ * read as a complement to a louder placement rather than as the only one —
+ * which is how it ships, with the toolbar button as the louder one.
  */
 export default function DetailsAttachments({ attachments }: DetailsAttachmentsProps) {
   if (attachments.length === 0) return null;

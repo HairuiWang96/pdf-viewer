@@ -33,8 +33,10 @@ export function guessAudioMimeType(filename: string): string | null {
  * megabytes. Most people open a document, see that it has an attachment, and
  * never play it, so loading those bytes to render a badge is the wrong trade.
  *
- * `read` is therefore deferred and called at most once per attachment, by
- * useAttachmentUrl, when someone actually asks for the file.
+ * `read` is therefore deferred, and called by useAttachmentUrl only when
+ * someone actually asks for the file — at most once per control. The toolbar
+ * and the details panel each render their own control, so pressing play in
+ * both reads the file twice; that is accepted rather than shared.
  */
 export interface PdfAttachment {
   /**

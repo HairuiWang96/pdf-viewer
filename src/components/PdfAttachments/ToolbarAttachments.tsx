@@ -11,7 +11,8 @@ interface ToolbarAttachmentsProps {
 }
 
 /**
- * Placement 2 of 3 — an icon and count in the viewer's toolbar.
+ * Placement 2 of 3 — an icon and count in the viewer's toolbar. In use,
+ * alongside DetailsAttachments.
  *
  * The compact option: costs no layout space at all, because it lives in a bar
  * that already exists. Clicking opens a popover anchored under the button, so

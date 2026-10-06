@@ -9,7 +9,9 @@ interface BottomBarAttachmentsProps {
 }
 
 /**
- * Placement 1 of 3 — a persistent bar pinned under the document.
+ * Placement 1 of 3 — a persistent bar pinned under the document. Not mounted:
+ * its line in KendoPdfViewer is commented out, and the component is kept in
+ * case it comes back.
  *
  * The ambient option: always on screen whenever the document has attachments,
  * costing a strip of vertical space to buy the guarantee that nobody has to go
@@ -20,8 +22,8 @@ interface BottomBarAttachmentsProps {
  * permanent bar is also permanently in the way, and on a phone it has to be
  * loud enough to not be mistaken for browser chrome.
  *
- * See placement.ts for the alternatives. Renders nothing when the document has
- * no attachments, which is the common case.
+ * See ToolbarAttachments and DetailsAttachments for the alternatives. Renders
+ * nothing when the document has no attachments, which is the common case.
  */
 export default function BottomBarAttachments({ attachments }: BottomBarAttachmentsProps) {
   // Starts closed for every document: the page clears attachments on file
