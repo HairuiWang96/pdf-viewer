@@ -31,6 +31,10 @@ import { makeAttachment, mixedAttachments } from '../../test/fixtures';
  * That difference is the placements' whole personality, and it is why the
  * contract can only assert what is true *after* reveal. What each costs to
  * reach is the thing the ticket is actually deciding between.
+ *
+ * The ticket has since been answered: the app shows Toolbar and Details
+ * together, and BottomBar is not mounted. All three are still tested here,
+ * since all three still exist.
  */
 
 interface Placement {
@@ -114,7 +118,7 @@ describe.each(placements)('$id — the shared contract', ({ Component, reveal })
   });
 
   /**
-   * The behaviour the whole lazy design exists for. Whichever placement wins,
+   * The behaviour the whole lazy design exists for. In every placement,
    * showing that a document has attachments must not cost the attachments.
    */
   it('reads nothing until a control is pressed', async () => {

@@ -4,9 +4,10 @@ import type { ReactElement } from 'react';
 import KendoPdfViewer from './KendoPdfViewer';
 
 /**
- * Tests for the viewer wrapper itself. The attachments panel it renders has
- * its own suite next to the component — what matters here is that the viewer
- * reports the page count and hands the parsed document over.
+ * Tests for the viewer wrapper itself. The attachments button it adds to the
+ * toolbar has its own suite next to the component — what matters here is that
+ * the viewer reports the page count, hands the parsed document over, and puts
+ * that button in the toolbar.
  *
  * KendoReact's PDFViewer needs a canvas and a pdf.js worker to mount, neither
  * of which jsdom provides, so it is replaced with a stand-in that exposes the

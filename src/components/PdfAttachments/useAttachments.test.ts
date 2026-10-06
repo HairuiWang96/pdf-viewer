@@ -7,10 +7,10 @@ import { guessAudioMimeType, formatSize } from './attachments';
 /**
  * Listing what a document carries, without reading any of it.
  *
- * The hook fetches and parses the file itself rather than taking a pdf.js
- * document, so these tests stub fetch with real PDF bytes. The three placement
- * components take the finished list and have their own suites; nothing here
- * renders anything.
+ * Given no viewer document to borrow from, the hook fetches and parses the
+ * file itself, so most of these tests stub fetch with real PDF bytes. The
+ * placement components take the finished list and have their own suites;
+ * nothing here renders anything.
  */
 
 /** A one-page PDF with the given files in the catalog's attachment tree. */
