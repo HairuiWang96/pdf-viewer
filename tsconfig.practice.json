@@ -1,0 +1,13 @@
+{
+  // Code copied from the other project. Same settings as the app, except
+  // verbatimModuleSyntax, which the other project does not use: with it on,
+  // its type imports written without `import type` fail here but not there.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.practice.tsbuildinfo",
+    "verbatimModuleSyntax": false
+  },
+  // The test setup brings in the jest-dom matcher types
+  "include": ["src/practice", "src/test/setup.ts"],
+  "exclude": []
+}
