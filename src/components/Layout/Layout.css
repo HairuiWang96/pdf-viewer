@@ -44,6 +44,15 @@
   font-size: 16px;
   margin: 0;
   letter-spacing: -0.3px;
+  /* One line, cut with an ellipsis. A long case title otherwise wraps past
+     the fixed 52px header on a phone, or pushes the buttons onto a row of
+     their own. The full title is in the details panel. min-width:0 is what
+     lets a flex item shrink below its text at all. */
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .layout-main {
@@ -57,6 +66,9 @@
   margin-left: auto;
   display: flex;
   gap: 8px;
+  /* The title gives way, never the buttons. */
+  flex-shrink: 0;
+  padding-left: 12px;
 }
 
 .layout-details-toggle {

@@ -24,7 +24,7 @@ export default function Layout({
         <div className='layout'>
             <a href='#main-content' className='skip-to-main'>Skip to main content</a>
             <header className='layout-header'>
-                <h1 className='layout-logo'>{title}</h1>
+                <h1 className='layout-logo' title={title}>{title}</h1>
                 {isMobile && (
                     <div className='layout-header-actions'>
                         {/* \u25A3 = ▣ thumbnail grid icon */}
