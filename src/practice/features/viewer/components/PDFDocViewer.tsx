@@ -6,15 +6,22 @@
 //   - removed `console.log(url)`
 //   - moved the tool lists out of the component and exported them, so the
 //     tests can compare against them by name
-import { useCallback, useRef } from 'react';
+//
+// Added:
+//   - the attachments button at the end of Kendo's toolbar
+import { Children, cloneElement, useCallback, useRef } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { PDFViewer } from '@progress/kendo-react-all';
 import type { PDFViewerHandle, PDFViewerTool } from '@progress/kendo-react-all';
-import type { PDFBytesSource } from '../hooks/useAttachments';
+import type { AttachmentInfo, PDFBytesSource, ReadAttachment } from '../hooks/useAttachments';
+import { ToolbarAttachments } from './ToolbarAttachments';
 
 interface PDFDocViewerProps {
   url?: string;
   isMobile: boolean;
   onDocumentLoad: (document: PDFBytesSource | null) => void;
+  attachments: AttachmentInfo[];
+  readAttachment: ReadAttachment;
 }
 
 export const toolsDesktop: PDFViewerTool[] = [
@@ -30,12 +37,35 @@ export const toolsDesktop: PDFViewerTool[] = [
 
 export const toolsMobile: PDFViewerTool[] = ['pager', 'zoomInOut', 'download', 'print'];
 
-export default function PDFDocViewer({ url, isMobile, onDocumentLoad }: PDFDocViewerProps) {
+export default function PDFDocViewer({
+  url,
+  isMobile,
+  onDocumentLoad,
+  attachments,
+  readAttachment,
+}: PDFDocViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
 
   const handleLoad = useCallback(() => {
     onDocumentLoad((viewerRef.current?.document as PDFBytesSource | undefined) ?? null);
   }, [onDocumentLoad]);
+
+  // `tools` only takes Kendo's built-in names, so the attachments button is
+  // added by copying Kendo's toolbar with one more child at the end
+  const renderToolbar = useCallback(
+    (defaultRendering: ReactElement<{ children?: ReactNode }>) =>
+      cloneElement(
+        defaultRendering,
+        undefined,
+        ...Children.toArray(defaultRendering.props.children),
+        <ToolbarAttachments
+          key="attachments"
+          attachments={attachments}
+          readAttachment={readAttachment}
+        />,
+      ),
+    [attachments, readAttachment],
+  );
 
   if (!url) return <div />;
 
@@ -47,6 +77,7 @@ export default function PDFDocViewer({ url, isMobile, onDocumentLoad }: PDFDocVi
       tools={isMobile ? toolsMobile : toolsDesktop}
       defaultZoom={isMobile ? 0.5 : 1}
       onLoad={handleLoad}
+      onRenderToolbar={renderToolbar}
     />
   );
 }

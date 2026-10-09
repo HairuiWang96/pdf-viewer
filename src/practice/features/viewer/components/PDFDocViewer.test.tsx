@@ -47,7 +47,16 @@ const fakeDocument = { getData: () => Promise.resolve(new Uint8Array([1, 2, 3]))
 function renderViewer(props: Partial<React.ComponentProps<typeof PDFDocViewer>> = {}) {
   const onDocumentLoad = vi.fn();
 
-  render(<PDFDocViewer url='/case.pdf' isMobile={false} onDocumentLoad={onDocumentLoad} {...props} />);
+  render(
+    <PDFDocViewer
+      url='/case.pdf'
+      isMobile={false}
+      onDocumentLoad={onDocumentLoad}
+      attachments={[]}
+      readAttachment={() => null}
+      {...props}
+    />,
+  );
 
   return { onDocumentLoad };
 }

@@ -140,7 +140,7 @@ export function DocumentDetailsPanel({
             <span>{docketText}</span>
 
             <GridLayoutItem colSpan={2}>
-              <AttachmentIndicator attchments={attachments} readAttachment={readAttachment} />
+              <AttachmentIndicator attachments={attachments} readAttachment={readAttachment} />
             </GridLayoutItem>
           </GridLayout>
         </CardBody>

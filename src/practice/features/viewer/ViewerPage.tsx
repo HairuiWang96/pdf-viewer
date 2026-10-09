@@ -142,6 +142,8 @@ export function ViewerPage({
             url={documentData?.url}
             isMobile={isMobile}
             onDocumentLoad={onDocumentLoad}
+            attachments={attachments}
+            readAttachment={readAttachment}
           />
         </DrawerContent>
       </Drawer>

@@ -12,7 +12,7 @@ export interface PDFBytesSource {
 // libpdf does not export this type, so take it from what getAttachments() returns
 export type AttachmentInfo = ReturnType<PDF['getAttachments']> extends Map<string, infer T> ? T : never;
 
-export type ReadAttachment = (attchment: AttachmentInfo) => Uint8Array | null;
+export type ReadAttachment = (attachment: AttachmentInfo) => Uint8Array | null;
 
 // List the files embedded in a PDF, and reads on demand.
 export function useAttachments(document: PDFBytesSource | null) {
@@ -61,7 +61,7 @@ export function useAttachments(document: PDFBytesSource | null) {
 
   // Returns one attachment's bytes, or null if document is gone
   const readAttachment = useCallback<ReadAttachment>(
-    (attchment) => readersRef.current?.get(attchment.name)?.() ?? null,
+    (attachment) => readersRef.current?.get(attachment.name)?.() ?? null,
     [],
   );
 
