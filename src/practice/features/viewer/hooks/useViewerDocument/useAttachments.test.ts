@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act, cleanup } from '@testing-library/react';
 import { PDF } from '@libpdf/core';
 import { useAttachments } from './useAttachments';
-import type { PDFBytesSource } from './useAttachments';
-import { findRichMediaAudio } from '../utils/richMediaAudio';
+import type { PDFBytesSource } from '../../types/attachments';
+import { findRichMediaAudio } from '../../utils/richMediaAudio';
 
 /**
  * Tests for the hook that lists a PDF's embedded audio and reads it on demand.
@@ -15,7 +15,7 @@ import { findRichMediaAudio } from '../utils/richMediaAudio';
  */
 
 vi.mock('@libpdf/core', () => ({ PDF: { load: vi.fn() } }));
-vi.mock('../utils/richMediaAudio', () => ({ findRichMediaAudio: vi.fn() }));
+vi.mock('../../utils/richMediaAudio', () => ({ findRichMediaAudio: vi.fn() }));
 
 /** A parsed PDF with the given files attached directly. */
 function fakePdf(files: Record<string, Uint8Array>) {

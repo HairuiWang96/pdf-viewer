@@ -34,7 +34,7 @@ import useNotification from './hooks/useNotification';
 import { DocumentDetailsPanel } from './components/DocumentDetails';
 import PDFDocViewer from './components/PDFDocViewer';
 import type { DocumentDetailsData, DocumentDetailsPanelProps } from './components/DocumentDetails';
-import type { AttachmentInfo, ReadAttachment } from './hooks/useAttachments';
+import type { AttachmentInfo, ReadAttachment } from './types/attachments';
 import { useViewerDocument } from './hooks/useViewerDocument';
 
 // Renders one document-details entry inside the Kendo drawer.

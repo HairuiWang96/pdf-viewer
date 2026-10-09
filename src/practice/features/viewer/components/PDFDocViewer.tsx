@@ -13,7 +13,7 @@ import { Children, cloneElement, useCallback, useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { PDFViewer } from '@progress/kendo-react-all';
 import type { PDFViewerHandle, PDFViewerTool } from '@progress/kendo-react-all';
-import type { AttachmentInfo, PDFBytesSource, ReadAttachment } from '../hooks/useAttachments';
+import type { AttachmentInfo, PDFBytesSource, ReadAttachment } from '../types/attachments';
 import { ToolbarAttachments } from './ToolbarAttachments';
 
 interface PDFDocViewerProps {

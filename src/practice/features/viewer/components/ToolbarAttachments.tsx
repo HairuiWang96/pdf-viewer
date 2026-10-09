@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Popup } from '@progress/kendo-react-all';
 import { volumeUpIcon } from '@progress/kendo-svg-icons';
-import type { AttachmentInfo, ReadAttachment } from '../hooks/useAttachments';
+import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
 import { AttachmentIndicator } from './AttachmentIndicator';
 
 interface ToolbarAttachmentsProps {

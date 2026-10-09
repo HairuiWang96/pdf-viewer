@@ -30,7 +30,7 @@ import {
 } from '@progress/kendo-react-all';
 import CaseNumber from './CaseNumber';
 import { AttachmentIndicator } from './AttachmentIndicator';
-import type { AttachmentInfo, ReadAttachment } from '../hooks/useAttachments';
+import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
 
 const CaseStamp = (_props: {
   displayCaseStamp?: boolean;

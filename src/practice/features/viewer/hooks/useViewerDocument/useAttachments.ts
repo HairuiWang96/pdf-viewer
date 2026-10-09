@@ -2,17 +2,8 @@
 // of its source, unchanged. Only here to test against.
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PDF } from '@libpdf/core';
-import { findRichMediaAudio } from '../utils/richMediaAudio';
-
-// The only thing we need from Kendo's loaded document: its raw bytes
-export interface PDFBytesSource {
-  getData(): Promise<Uint8Array>;
-}
-
-// libpdf does not export this type, so take it from what getAttachments() returns
-export type AttachmentInfo = ReturnType<PDF['getAttachments']> extends Map<string, infer T> ? T : never;
-
-export type ReadAttachment = (attachment: AttachmentInfo) => Uint8Array | null;
+import { findRichMediaAudio } from '../../utils/richMediaAudio';
+import type { AttachmentInfo, PDFBytesSource, ReadAttachment } from '../../types/attachments';
 
 // List the files embedded in a PDF, and reads on demand.
 export function useAttachments(document: PDFBytesSource | null) {

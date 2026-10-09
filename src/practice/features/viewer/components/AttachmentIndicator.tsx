@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AttachmentInfo, ReadAttachment } from '../hooks/useAttachments';
+import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
 import { detectAudioType } from '../utils/audioDetection';
 import { Button } from '@progress/kendo-react-all';
 import { SvgIcon } from '@progress/kendo-react-common';

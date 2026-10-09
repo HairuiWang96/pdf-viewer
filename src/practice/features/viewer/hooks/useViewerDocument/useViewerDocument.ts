@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAttachments } from './useAttachments';
-import type { PDFBytesSource } from './useAttachments';
+import type { PDFBytesSource } from '../../types/attachments';
 
 export function useViewerDocument(pdfUrl: string | undefined) {
   const [pdfDocument, setPdfDocument] = useState<PDFBytesSource | null>(null);
