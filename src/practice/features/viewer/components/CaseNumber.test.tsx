@@ -81,6 +81,47 @@ describe('CaseNumber', () => {
     });
   });
 
+  describe('info icon', () => {
+    const INFO = 'Selecting a new case number will refresh all document details.';
+
+    it('shows the info icon when there are several cases', () => {
+      renderCaseNumber();
+
+      expect(screen.getByRole('img', { name: INFO })).toBeInTheDocument();
+    });
+
+    it('shows the info text on hover', async () => {
+      const { user } = renderCaseNumber();
+
+      // The svg, not the span: that is where a real mouse lands, and it has
+      // no title of its own
+      await user.hover(screen.getByRole('img', { name: INFO }).querySelector('svg')!);
+
+      // Kendo's tooltip popup, not the icon's own label
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(INFO);
+    });
+
+    it('shows the info text on keyboard focus too', async () => {
+      // The main project's CaseSelector does the same: Tab reaches the icon,
+      // so keyboard users can read the text without a mouse.
+      const { user } = renderCaseNumber();
+
+      await user.tab();
+      expect(screen.getByRole('img', { name: INFO })).toHaveFocus();
+
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(INFO);
+    });
+
+    it.each([
+      ['one case', [{ caseNumber: 'CASE-2026-001' }]],
+      ['no cases', null],
+    ])('shows no info icon with %s', (_label, someCases) => {
+      renderCaseNumber({ cases: someCases, selectedCaseNumber: null });
+
+      expect(screen.queryByRole('img', { name: INFO })).not.toBeInTheDocument();
+    });
+  });
+
   describe('selecting', () => {
     it('reports the chosen case number to the parent', async () => {
       const { user, onSelectCase } = renderCaseNumber();

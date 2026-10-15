@@ -1,0 +1,35 @@
+/* Stand-in for the other project's global CSS file under app/ */
+
+/* ── Viewer header: a long title stays on one line and ends in "…" ──
+   All three rules are needed. Without the first, the button wraps to a
+   second row; without the second, the title cannot shrink at all.
+   `.k-appbar` / `.k-appbar-section` are repeated so these win over Kendo's
+   own rules whichever stylesheet loads last. */
+
+/* Kendo's AppBar wraps by default */
+.k-appbar.viewer-appbar {
+  flex-wrap: nowrap;
+}
+
+/* Takes the free space, and may shrink below its text (min-width: 0) */
+.k-appbar-section.viewer-title-section {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* One line, cut with "…"; the full text shows on hover via title="" */
+.viewer-title {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Case Number: label and info icon side by side ──
+   Kendo's Tooltip wraps the icon in a block <div>, which would otherwise put
+   it on a line of its own. */
+.case-number-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
