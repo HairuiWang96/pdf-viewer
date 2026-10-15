@@ -1,24 +1,22 @@
-export interface DocumentDetailsData {
-  caseNumber?: string;
-  caseName?: string;
-  caseStampToggle?: boolean;
-  restrictionStatus?: string;
-  filedBy?: string;
-  filedDate?: string;
-  fileSize?: string | number;
-  docketText?: string;
-  url?: string;
-}
+// Practice copy of DocumentDetailsPanel from the other project, which reads
+// everything from the viewer store.
+//
+// Changed from the original:
+//   - attachments and readAttachment are still props, since the practice
+//     AttachmentIndicator does not read the store yet
+//
+// Added, so picking a case refreshes the details (to copy to the other project):
+//   - onCaseChange is the store's selectCase (sets the number and swaps in
+//     that case's details) instead of setCurrentCaseNumber (number only)
+//   - the fields show only once the details are for the selected case
+//   - an "unavailable" message when the case's details are missing
+export type { DocumentDetailsData } from '../types/document';
 
-export interface DocumentDetailsPanelProps extends DocumentDetailsData {
-  cases?: { caseNumber?: string }[] | null;
-  onCaseChange: (caseNumber: string) => void;
-  onToggleStamp: (stamp: boolean) => void;
+export interface DocumentDetailsPanelProps {
   attachments: AttachmentInfo[];
   readAttachment: ReadAttachment;
 }
 
-import { useCallback } from 'react';
 import {
   Card,
   CardBody,
@@ -26,62 +24,33 @@ import {
   GridLayout,
   GridLayoutItem,
   Label,
-  RadioGroup,
 } from '@progress/kendo-react-all';
 import CaseNumber from './CaseNumber';
+import CaseStamp from './CaseStamp';
 import { AttachmentIndicator } from './AttachmentIndicator';
+import { useViewerStore } from '../data/viewerStore';
 import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
 
-const CaseStamp = (_props: {
-  displayCaseStamp?: boolean;
-  setDisplayCaseStamp: (stamp: boolean) => void;
-}) => {
-  const { displayCaseStamp, setDisplayCaseStamp } = _props;
+export function DocumentDetailsPanel({ attachments, readAttachment }: DocumentDetailsPanelProps) {
+  const details = useViewerStore((state) => state.details);
+  const { caseName, restrictionStatus, filedBy, filedDate, fileSize, docketText } =
+    details ?? {};
 
-  const caseStampOptions = [
-    { label: 'Include Case Stamp', value: 'display' },
-    { label: 'Do not include Case Stamp', value: 'hide' },
-  ];
+  const currentCaseNumber = useViewerStore((state) => state.currentCaseNumber);
 
-  const handleChange = useCallback(
-    (e: { value: string }) => {
-      setDisplayCaseStamp(e.value === 'display');
-    },
-    [setDisplayCaseStamp],
-  );
+  const cases = useViewerStore((state) => state.cases);
+  const onCaseChange = useViewerStore((state) => state.selectCase);
+  const caseError = useViewerStore((state) => state.caseError);
 
-  return (
-    <div id="caseStampRadio">
-      <Label id="case-stamp">
-        <strong>Case Stamp</strong>
-      </Label>
-      <RadioGroup
-        ariaLabelledBy="case-stamp"
-        name="caseStampInput"
-        data={caseStampOptions}
-        value={displayCaseStamp ? 'display' : 'hide'}
-        onChange={handleChange}
-        layout="vertical"
-      />
-    </div>
-  );
-};
+  const caseStampToggle = useViewerStore((state) => state.caseStampToggle);
+  const onToggleStamp = useViewerStore((state) => state.setCaseStampToggle);
 
-export function DocumentDetailsPanel({
-  attachments,
-  cases,
-  caseNumber,
-  caseName,
-  caseStampToggle,
-  restrictionStatus,
-  filedBy,
-  filedDate,
-  fileSize,
-  docketText,
-  onCaseChange,
-  onToggleStamp,
-  readAttachment,
-}: DocumentDetailsPanelProps) {
+  // Show the fields only once the loaded details are for the selected case:
+  //   one case    → pre-selected, details already match → shown
+  //   several     → nothing picked yet → hidden
+  //   just picked → details are still the old case's → hidden until loaded
+  const showDetails = !!currentCaseNumber && details?.caseNumber === currentCaseNumber;
+
   return (
     <div>
       <Card>
@@ -100,45 +69,56 @@ export function DocumentDetailsPanel({
             <GridLayoutItem colSpan={2}>
               <CaseNumber
                 cases={cases}
-                selectedCaseNumber={caseNumber || null}
+                selectedCaseNumber={currentCaseNumber || null}
                 onSelectCase={onCaseChange}
               />
             </GridLayoutItem>
 
-            <Label>
-              <strong>Case</strong>
-            </Label>
-            <span>{caseName}</span>
+            {caseError && (
+              <GridLayoutItem colSpan={2}>
+                <p role="alert">{caseError}</p>
+              </GridLayoutItem>
+            )}
 
-            <GridLayoutItem colSpan={2}>
-              <CaseStamp displayCaseStamp={caseStampToggle} setDisplayCaseStamp={onToggleStamp} />
-            </GridLayoutItem>
+            {showDetails && (
+              <>
+                <Label>
+                  <strong>Case</strong>
+                </Label>
+                <span>{caseName}</span>
 
-            <Label>
-              <strong>Size</strong>
-            </Label>
-            <span>{restrictionStatus}</span>
+                <GridLayoutItem colSpan={2}>
+                  <CaseStamp displayCaseStamp={caseStampToggle} setDisplayCaseStamp={onToggleStamp} />
+                </GridLayoutItem>
 
-            <Label>
-              <strong>Filed By</strong>
-            </Label>
-            <span>{filedBy}</span>
+                <Label>
+                  <strong>Size</strong>
+                </Label>
+                <span>{restrictionStatus}</span>
 
-            <Label>
-              <strong>Filed Date</strong>
-            </Label>
-            <span>{filedDate}</span>
+                <Label>
+                  <strong>Filed By</strong>
+                </Label>
+                <span>{filedBy}</span>
 
-            <Label>
-              <strong>File Size</strong>
-            </Label>
-            <span>{fileSize}</span>
+                <Label>
+                  <strong>Filed Date</strong>
+                </Label>
+                <span>{filedDate}</span>
 
-            <Label>
-              <strong>Docket Text</strong>
-            </Label>
-            <span>{docketText}</span>
+                <Label>
+                  <strong>File Size</strong>
+                </Label>
+                <span>{fileSize}</span>
 
+                <Label>
+                  <strong>Docket Text</strong>
+                </Label>
+                <span>{docketText}</span>
+              </>
+            )}
+
+            {/* The PDF's attachments: the same for every case, always shown */}
             <GridLayoutItem colSpan={2}>
               <AttachmentIndicator attachments={attachments} readAttachment={readAttachment} />
             </GridLayoutItem>

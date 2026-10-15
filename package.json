@@ -22,10 +22,12 @@
     "@progress/kendo-react-all": "^16.1.0",
     "@progress/kendo-svg-icons": "^5.4.0",
     "@progress/kendo-theme-default": "^14.5.0",
+    "@tanstack/react-query": "^5.104.3",
     "pdfjs-dist": "5.5.207",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-pdf": "^10.5.0"
+    "react-pdf": "^10.5.0",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

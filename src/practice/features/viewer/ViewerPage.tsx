@@ -1,22 +1,18 @@
+// Case changes and the stamp toggle now go through the viewer store (see
+// DocumentDetails), so this page only hands the store its starting data.
 interface ViewerPageProps {
   cases: { caseNumber?: string }[] | null;
   documentId?: string;
   documentData?: DocumentDetailsData | null;
-  onCaseChange: (caseNumber: string) => void;
-  onToggleStamp: (stamp: boolean) => void;
 }
 
 interface DocDetailItemProps extends DrawerItemProps {
   id?: string;
   attachments?: AttachmentInfo[];
-  cases?: { caseNumber?: string }[] | null;
-  data?: DocumentDetailsData | null;
-  onCaseChange?: DocumentDetailsPanelProps['onCaseChange'];
-  onToggleStamp?: DocumentDetailsPanelProps['onToggleStamp'];
   readAttachment?: ReadAttachment;
 }
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AppBar,
   AppBarSection,
@@ -33,42 +29,37 @@ import useMediaQuery from './hooks/useMediaQuery';
 import useNotification from './hooks/useNotification';
 import { DocumentDetailsPanel } from './components/DocumentDetails';
 import PDFDocViewer from './components/PDFDocViewer';
-import type { DocumentDetailsData, DocumentDetailsPanelProps } from './components/DocumentDetails';
+import type { DocumentDetailsData } from './components/DocumentDetails';
 import type { AttachmentInfo, ReadAttachment } from './types/attachments';
 import { useViewerDocument } from './hooks/useViewerDocument';
+import { initializeViewer } from './data/viewerStore';
+import '../../app/global.css';
 
-// Renders one document-details entry inside the Kendo drawer.
-const DocDetailItem = ({
-  attachments,
-  cases,
-  data,
-  onCaseChange,
-  onToggleStamp,
-  readAttachment,
-}: DocDetailItemProps) => {
+// Renders one document-details entry inside the Kendo drawer. The details
+// themselves come from the store.
+const DocDetailItem = ({ attachments, readAttachment }: DocDetailItemProps) => {
   return (
     <DocumentDetailsPanel
       attachments={attachments ?? []}
-      cases={cases}
-      {...data}
-      onCaseChange={(details) => onCaseChange?.(details)}
-      onToggleStamp={(b) => onToggleStamp?.(b)}
       readAttachment={readAttachment ?? (() => null)}
     />
   );
 };
 
 // Renders the responsive document viewer page.
-export function ViewerPage({
-  cases,
-  documentId,
-  documentData,
-  onCaseChange,
-  onToggleStamp,
-}: ViewerPageProps) {
+export function ViewerPage({ cases, documentId, documentData }: ViewerPageProps) {
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
 
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  // Fill the store from the page's data: the cases, and the first details
+  useEffect(() => {
+    initializeViewer(cases ?? [], documentData ?? {});
+  }, [cases, documentData]);
+
+  // A narrow screen, or a phone turned sideways: wider than 768 px but short,
+  // and touch-driven. `pointer: coarse` keeps a short desktop window, driven
+  // by a mouse, on the desktop layout. Same rule as the main viewer's
+  // MOBILE_LAYOUT_QUERY.
+  const isMobile = useMediaQuery('(max-width: 768px), (max-height: 500px) and (pointer: coarse)');
 
   const { notification, dismissNotification } = useNotification();
 
@@ -78,14 +69,17 @@ export function ViewerPage({
 
   return (
     <main>
-      <AppBar>
-        <AppBarSection>
+      {/* A long title stays on one line and ends in "…" (see global.css) */}
+      <AppBar className="viewer-appbar">
+        <AppBarSection className="viewer-title-section">
           {/* TODO: Re-Enable DocumentFeeButton when its in scope */}
           {/* <AppBarSection>
             <DocumentFeeButton amount={0.1} />
           </AppBarSection> */}
           <AppBarSpacer style={{ width: 15 }} />
-          <h3>{docketTitle}</h3>
+          <h3 className="viewer-title" title={docketTitle}>
+            {docketTitle}
+          </h3>
         </AppBarSection>
         <AppBarSpacer style={{ marginRight: 105 }} />
         <AppBarSection>
@@ -126,10 +120,6 @@ export function ViewerPage({
           {
             id: documentId,
             attachments,
-            cases: cases,
-            data: documentData,
-            onCaseChange: onCaseChange,
-            onToggleStamp: onToggleStamp,
             readAttachment,
           },
         ]}
