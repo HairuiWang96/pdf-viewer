@@ -3,7 +3,7 @@ import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
 import { detectAudioType } from '../utils/audioDetection';
 import { Button } from '@progress/kendo-react-all';
 import { SvgIcon } from '@progress/kendo-react-common';
-import { playIcon, downloadIcon, paperclipIcon } from '@progress/kendo-svg-icons';
+import { playIcon, paperclipIcon } from '@progress/kendo-svg-icons';
 
 interface AttachmentIndicatorProps {
   attachments: AttachmentInfo[];
@@ -34,6 +34,8 @@ function AudioAttachment({
 }) {
   const [url, setUrl] = useState<string | null>(null);
 
+  // Cleanup only: frees the audio's memory when the URL is replaced or the
+  // player goes away. A blob URL holds its bytes until it is revoked.
   useEffect(
     () => () => {
       if (url) URL.revokeObjectURL(url);
@@ -58,10 +60,17 @@ function AudioAttachment({
   return (
     <div>
       <div>{attachment.filename}</div>
-      <audio controls autoPlay src={url} />
-      <a href={url} download={attachment.filename}>
-        <SvgIcon icon={downloadIcon} /> Download
-      </a>
+      {/* Play only, no download. nodownload hides Chrome and Edge's own
+          Download item in the player menu; blocking the right-click menu
+          removes "Save audio as". This discourages saving, it cannot prevent
+          it: the bytes are already in the browser. */}
+      <audio
+        controls
+        controlsList="nodownload"
+        onContextMenu={(event) => event.preventDefault()}
+        autoPlay
+        src={url}
+      />
     </div>
   );
 }

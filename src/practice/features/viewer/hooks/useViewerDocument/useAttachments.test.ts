@@ -91,7 +91,9 @@ describe('useAttachments', () => {
       const pdf = fakePdf({ 'call-1': new Uint8Array([1]) });
       const readRichMedia = vi.fn(() => new Uint8Array([9]));
       loadsAs(pdf);
-      vi.mocked(findRichMediaAudio).mockReturnValue([{ name: 'rich-1', filename: 'interview.mp3', read: readRichMedia }]);
+      vi.mocked(findRichMediaAudio).mockReturnValue([
+        { name: 'rich-1', filename: 'interview.mp3', mimeType: 'audio/mpeg', read: readRichMedia },
+      ]);
 
       const { result } = renderAttachments(fakeDocument());
 
@@ -119,7 +121,7 @@ describe('useAttachments', () => {
       // first recording, and the list would still look right.
       loadsAs(fakePdf({ 'call-1': new Uint8Array([1]), 'call-2': new Uint8Array([2]) }));
       vi.mocked(findRichMediaAudio).mockReturnValue([
-        { name: 'rich-1', filename: 'interview.mp3', read: () => new Uint8Array([9]) },
+        { name: 'rich-1', filename: 'interview.mp3', mimeType: 'audio/mpeg', read: () => new Uint8Array([9]) },
       ]);
 
       const { result } = renderAttachments(fakeDocument());
