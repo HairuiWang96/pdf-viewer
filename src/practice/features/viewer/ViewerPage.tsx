@@ -1,9 +1,9 @@
-// Case changes and the stamp toggle now go through the viewer store (see
-// DocumentDetails), so this page only hands the store its starting data.
+// Loads the document by id (useLoadViewerDocument runs the loader, which fills
+// the viewer store), then reads everything from the store: the PDF's bytes,
+// the selected case's details and the attachments. Needs a
+// QueryClientProvider above it, for the loader's query.
 interface ViewerPageProps {
-  cases: { caseNumber?: string }[] | null;
   documentId?: string;
-  documentData?: DocumentDetailsData | null;
 }
 
 interface DocDetailItemProps extends DrawerItemProps {
@@ -12,7 +12,7 @@ interface DocDetailItemProps extends DrawerItemProps {
   readAttachment?: ReadAttachment;
 }
 
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   AppBar,
   AppBarSection,
@@ -29,10 +29,9 @@ import useMediaQuery from './hooks/useMediaQuery';
 import useNotification from './hooks/useNotification';
 import { DocumentDetailsPanel } from './components/DocumentDetails';
 import PDFDocViewer from './components/PDFDocViewer';
-import type { DocumentDetailsData } from './components/DocumentDetails';
 import type { AttachmentInfo, ReadAttachment } from './types/attachments';
-import { useViewerDocument } from './hooks/useViewerDocument';
-import { initializeViewer } from './data/viewerStore';
+import { useLoadViewerDocument } from './hooks/useLoadViewerDocument';
+import { useViewerStore } from './data/viewerStore';
 import '../../app/global.css';
 
 // Renders one document-details entry inside the Kendo drawer. The details
@@ -47,13 +46,22 @@ const DocDetailItem = ({ attachments, readAttachment }: DocDetailItemProps) => {
 };
 
 // Renders the responsive document viewer page.
-export function ViewerPage({ cases, documentId, documentData }: ViewerPageProps) {
+export function ViewerPage({ documentId }: ViewerPageProps) {
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
 
-  // Fill the store from the page's data: the cases, and the first details
-  useEffect(() => {
-    initializeViewer(cases ?? [], documentData ?? {});
-  }, [cases, documentData]);
+  // Fetches the details and the PDF into the store
+  useLoadViewerDocument(documentId);
+
+  const document = useViewerStore((state) => state.document);
+  const details = useViewerStore((state) => state.details);
+  const attachments = useViewerStore((state) => state.attachments);
+  const attachmentReader = useViewerStore((state) => state.attachmentReader);
+
+  // One attachment's bytes, by its name, or null if the document is gone
+  const readAttachment = useCallback<ReadAttachment>(
+    (attachment) => attachmentReader?.get(attachment.name)?.(attachment) ?? null,
+    [attachmentReader],
+  );
 
   // A narrow screen, or a phone turned sideways: wider than 768 px but short,
   // and touch-driven. `pointer: coarse` keeps a short desktop window, driven
@@ -63,9 +71,7 @@ export function ViewerPage({ cases, documentId, documentData }: ViewerPageProps)
 
   const { notification, dismissNotification } = useNotification();
 
-  const { attachments, onDocumentLoad, readAttachment } = useViewerDocument(documentData?.url);
-
-  const docketTitle = documentData?.docketText || '<Docket Text Here>';
+  const docketTitle = details?.docketText || '<Docket Text Here>';
 
   return (
     <main>
@@ -129,9 +135,8 @@ export function ViewerPage({ cases, documentId, documentData }: ViewerPageProps)
       >
         <DrawerContent>
           <PDFDocViewer
-            url={documentData?.url}
+            document={document}
             isMobile={isMobile}
-            onDocumentLoad={onDocumentLoad}
             attachments={attachments}
             readAttachment={readAttachment}
           />

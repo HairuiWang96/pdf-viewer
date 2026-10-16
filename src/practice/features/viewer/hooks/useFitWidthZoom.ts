@@ -20,11 +20,13 @@ interface PDFPageSource {
 //   - handleZoom: pass to Kendo's `onZoom`, so its zoom buttons keep working
 //   - fitToWidth: call from Kendo's `onLoad`, once both sizes are known
 //
-// `url` re-arms the resize watch when the document changes.
+// `documentKey` is anything that changes when a new document's viewer appears
+// (PDFDocViewer passes its copy of the bytes). It re-arms the resize watch,
+// which can only find the viewer once it is on screen.
 export function useFitWidthZoom(
   viewerRef: RefObject<PDFViewerHandle | null>,
   isMobile: boolean,
-  url: string | undefined,
+  documentKey: unknown,
 ) {
   // Ours rather than Kendo's, so it can be set to fit after load
   const [zoom, setZoom] = useState(isMobile ? MOBILE_DEFAULT_ZOOM : DESKTOP_MAX_FIT_ZOOM);
@@ -76,10 +78,18 @@ export function useFitWidthZoom(
     });
     observer.observe(scroller);
     return () => observer.disconnect();
-  }, [viewerRef, url, isMobile, fitToWidth]);
+  }, [viewerRef, documentKey, isMobile, fitToWidth]);
 
-  // Refit when the layout switches (e.g. a tablet turned sideways), which the
-  // resize watch can miss. Always refits, even after a zoom by hand.
+  // Refit when the layout switches between mobile and desktop, e.g. a window
+  // snapped from 1280 px to 640 px, or a tablet turned sideways.
+  //
+  // The resize watch above can miss this. The switch restarts it, and it
+  // remembers the width at that moment, which is already the new one. When the
+  // resize report then arrives, the width matches what it remembered, so it
+  // sees no change and does not refit. The page would keep the old zoom (too
+  // wide, or too small) until the width changed again.
+  //
+  // Always refits, even after a zoom by hand: a new layout is a new screen.
   const lastIsMobile = useRef(isMobile);
   useEffect(() => {
     if (lastIsMobile.current === isMobile) return;

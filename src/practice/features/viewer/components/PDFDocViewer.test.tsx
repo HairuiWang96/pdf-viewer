@@ -12,7 +12,7 @@ import PDFDocViewer, { toolsDesktop, toolsMobile } from './PDFDocViewer';
  * test, and needs a real browser.
  *
  * The fake does four things:
- *   1. records the props it receives, for the url, tools and zoom tests
+ *   1. records the props it receives, for the document, tools and zoom tests
  *   2. exposes a `document` on its ref, as Kendo does once a PDF is parsed
  *   3. exposes an `element` holding Kendo's scroll container, for the fit
  *   4. calls onLoad when it mounts, as Kendo does once a PDF has loaded
@@ -87,22 +87,20 @@ class FakeResizeObserver {
   }
 }
 
+/** The PDF's bytes, as the document loader puts them in the store. */
+const pdfBytes = new Uint8Array([37, 80, 68, 70]); // "%PDF"
+
 /** Render with sensible defaults; each test overrides what it cares about. */
 function renderViewer(props: Partial<React.ComponentProps<typeof PDFDocViewer>> = {}) {
-  const onDocumentLoad = vi.fn();
-
-  render(
+  return render(
     <PDFDocViewer
-      url='/case.pdf'
+      document={pdfBytes}
       isMobile={false}
-      onDocumentLoad={onDocumentLoad}
       attachments={[]}
       readAttachment={() => null}
       {...props}
     />,
   );
-
-  return { onDocumentLoad };
 }
 
 /** The props the fake PDFViewer received on its latest render. Throws if it never rendered. */
@@ -127,20 +125,37 @@ describe('PDFDocViewer', () => {
   });
 
   describe('which document', () => {
-    it('renders no viewer when there is no url', () => {
-      // The common case before a case number is chosen. Kendo must not be
-      // mounted with nothing to load.
-      renderViewer({ url: undefined });
+    it('renders no viewer until the PDF has been downloaded', () => {
+      // Kendo must not be mounted with nothing to load.
+      renderViewer({ document: null });
 
       expect(screen.queryByTestId('kendo-pdfviewer')).not.toBeInTheDocument();
     });
 
-    it('hands the url to the viewer', () => {
-      // Not the helper's default, so this proves the prop is passed through
-      // rather than coincidentally matching.
-      renderViewer({ url: '/cases/CASE-2026-002.pdf' });
+    it('hands the viewer the PDF’s bytes', () => {
+      renderViewer();
 
-      expect(viewerProps().url).toBe('/cases/CASE-2026-002.pdf');
+      expect(new Uint8Array(viewerProps().arrayBuffer as ArrayBuffer)).toEqual(pdfBytes);
+    });
+
+    it('hands the viewer a copy, not the store’s own bytes', () => {
+      // pdf.js empties the buffer it is given. If that were the store's,
+      // attachment reading and stamping would find it empty.
+      renderViewer();
+
+      expect(viewerProps().arrayBuffer).not.toBe(pdfBytes.buffer);
+    });
+
+    it('keeps the same copy across re-renders of the same document', () => {
+      // A new buffer each render would make Kendo load the PDF again
+      const { rerender } = renderViewer();
+      const first = viewerProps().arrayBuffer;
+
+      rerender(
+        <PDFDocViewer document={pdfBytes} isMobile={false} attachments={[]} readAttachment={() => null} />,
+      );
+
+      expect(viewerProps().arrayBuffer).toBe(first);
     });
   });
 
@@ -269,8 +284,7 @@ describe('PDFDocViewer', () => {
         const viewer = fakeViewerElement(744);
         mockState.element = viewer.root;
         const props = {
-          url: '/case.pdf',
-          onDocumentLoad: vi.fn(),
+          document: pdfBytes,
           attachments: [],
           readAttachment: () => null,
         };
@@ -335,23 +349,23 @@ describe('PDFDocViewer', () => {
     });
   });
 
-  describe('handing the document up', () => {
-    it('passes the loaded document up to the parent', () => {
-      // The audio attachments are read from this document. If the handoff
-      // breaks they vanish with no error anywhere, so only this catches it.
-      const { onDocumentLoad } = renderViewer();
+  describe('when the PDF arrives after the page', () => {
+    it('fits, and watches for width changes, once the viewer appears', async () => {
+      // The page renders before the download finishes, so at first there is no
+      // viewer to measure or watch. The resize watch has to start when the
+      // bytes arrive, which is why the hook is keyed on them.
+      const viewer = fakeViewerElement(390);
+      mockState.element = viewer.root;
+      const props = { attachments: [], readAttachment: () => null, isMobile: true };
+      const { rerender } = render(<PDFDocViewer {...props} document={null} />);
 
-      expect(onDocumentLoad).toHaveBeenCalledWith(fakeDocument);
-    });
+      rerender(<PDFDocViewer {...props} document={pdfBytes} />);
+      await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
 
-    it('passes null up when the viewer has no document', () => {
-      // Set before rendering: the fake reads it when it mounts.
-      mockState.document = undefined;
+      viewer.setWidth(844);
+      act(() => resize());
 
-      const { onDocumentLoad } = renderViewer();
-
-      // null, not undefined: `?? null` keeps the promise made by the prop type.
-      expect(onDocumentLoad).toHaveBeenCalledWith(null);
+      await waitFor(() => expect(viewerProps().zoom).toBe(1.03));
     });
   });
 });
