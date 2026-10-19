@@ -1,9 +1,5 @@
 // Practice copy of DocumentDetailsPanel from the other project, which reads
-// everything from the viewer store.
-//
-// Changed from the original:
-//   - attachments and readAttachment are still props, since the practice
-//     AttachmentIndicator does not read the store yet
+// everything from the viewer store, the attachments included.
 //
 // Added, so picking a case refreshes the details (to copy to the other project):
 //   - onCaseChange is the store's selectCase (sets the number and swaps in
@@ -11,11 +7,6 @@
 //   - the fields show only once the details are for the selected case
 //   - an "unavailable" message when the case's details are missing
 export type { DocumentDetailsData } from '../types/document';
-
-export interface DocumentDetailsPanelProps {
-  attachments: AttachmentInfo[];
-  readAttachment: ReadAttachment;
-}
 
 import {
   Card,
@@ -29,9 +20,8 @@ import CaseNumber from './CaseNumber';
 import CaseStamp from './CaseStamp';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { useViewerStore } from '../data/viewerStore';
-import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
 
-export function DocumentDetailsPanel({ attachments, readAttachment }: DocumentDetailsPanelProps) {
+export function DocumentDetailsPanel() {
   const details = useViewerStore((state) => state.details);
   const { caseName, restrictionStatus, filedBy, filedDate, fileSize, docketText } =
     details ?? {};
@@ -120,7 +110,7 @@ export function DocumentDetailsPanel({ attachments, readAttachment }: DocumentDe
 
             {/* The PDF's attachments: the same for every case, always shown */}
             <GridLayoutItem colSpan={2}>
-              <AttachmentIndicator attachments={attachments} readAttachment={readAttachment} />
+              <AttachmentIndicator />
             </GridLayoutItem>
           </GridLayout>
         </CardBody>

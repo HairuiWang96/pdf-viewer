@@ -2,8 +2,6 @@
 // against.
 //
 // Changed from the original imports:
-//   - AttachmentInfo and ReadAttachment come from ../types/attachments, the
-//     practice's stand-in for ../utils/extractAttachments
 //   - the other types come from ../types/document, as the loader takes them
 //
 // In step with the other project as of 2026-10-15, plus documentId and
@@ -18,7 +16,7 @@
 //     case when there is no choice: the backend sends cases: [] for a
 //     one-case document, so its number comes from details, not cases[0]
 import { create } from 'zustand';
-import { type AttachmentInfo, ReadAttachment } from '../types/attachments';
+import { type AttachmentInfo, ReadAttachment } from '../utils/extractAttachments';
 import type { CaseNumberOptions, DocumentDetailsData, PDFBytes } from '../types/document';
 
 export type { PDFBytes };

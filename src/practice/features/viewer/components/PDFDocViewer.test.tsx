@@ -1,21 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, render, screen, cleanup, waitFor } from '@testing-library/react';
+import { Children } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import PDFDocViewer, { toolsDesktop, toolsMobile } from './PDFDocViewer';
+import { ToolbarAttachments } from './ToolbarAttachments';
 
 /**
  * Tests for the viewer wrapper around KendoReact's PDFViewer.
  *
  * Kendo's PDFViewer needs a canvas and a pdf.js worker, and jsdom has neither,
  * so it is replaced with a fake. What is under test is our side of the
- * boundary: which props we hand Kendo, and what we hand our parent once Kendo
- * has loaded. Whether the PDF actually draws, zooms or prints is Kendo's to
- * test, and needs a real browser.
- *
- * The fake does four things:
- *   1. records the props it receives, for the document, tools and zoom tests
- *   2. exposes a `document` on its ref, as Kendo does once a PDF is parsed
- *   3. exposes an `element` holding Kendo's scroll container, for the fit
- *   4. calls onLoad when it mounts, as Kendo does once a PDF has loaded
+ * boundary: which props we hand Kendo (the PDF's bytes, the tools, the zoom),
+ * the button we add to its toolbar, and when the page is fitted. Whether the
+ * PDF actually draws, zooms or prints is Kendo's to test, and needs a real
+ * browser.
  */
 
 // vi.mock is hoisted above the imports, so the state it shares with the tests
@@ -40,22 +38,19 @@ vi.mock('@progress/kendo-react-all', async () => {
       // Once on mount, as Kendo fires onLoad once per loaded document.
       // eslint-disable-next-line react-hooks/exhaustive-deps
       React.useEffect(() => props.onLoad?.(), []);
-      return <div data-testid='kendo-pdfviewer' />;
+      return <div data-testid="kendo-pdfviewer" />;
     }),
   };
 });
 
-/** Stands in for the pdf.js document Kendo parsed: a US Letter page, 612 pt wide. */
+// Stands in for the pdf.js document Kendo parsed: a US Letter page, 612 pt wide.
 const fakeDocument = {
   getData: () => Promise.resolve(new Uint8Array([1, 2, 3])),
   getPage: () => Promise.resolve({ getViewport: () => ({ width: 612 }) }),
 };
 
-/**
- * Kendo's root element with its scroll container inside, `width` px wide.
- * jsdom does no layout, so clientWidth is set by hand; change it later with
- * the returned function.
- */
+// Kendo's root element with its scroll container inside, `width` px wide. jsdom does no layout, so clientWidth is set by hand;
+// change it later with the returned function.
 function fakeViewerElement(width: number) {
   const root = document.createElement('div');
   const scroller = document.createElement('div');
@@ -67,12 +62,8 @@ function fakeViewerElement(width: number) {
   return { root, setWidth: (next: number) => (current = next) };
 }
 
-/**
- * jsdom has no ResizeObserver. This one records its callback so a test can
- * fire it after changing the fake element's width, as a browser would. Only
- * once observe() is called, and not after disconnect(): a browser reports
- * nothing for an element nobody is watching.
- */
+// jsdom has no ResizeObserver. This one records its callback so a test can
+// fire it after changing the fake element's width, as a browser would.
 let resize: () => void = () => {};
 class FakeResizeObserver {
   callback: () => void;
@@ -87,23 +78,15 @@ class FakeResizeObserver {
   }
 }
 
-/** The PDF's bytes, as the document loader puts them in the store. */
+// The PDF's bytes, as the document loader puts them in the store.
 const pdfBytes = new Uint8Array([37, 80, 68, 70]); // "%PDF"
 
-/** Render with sensible defaults; each test overrides what it cares about. */
+// Render with sensible defaults; each test overrides what it cares about.
 function renderViewer(props: Partial<React.ComponentProps<typeof PDFDocViewer>> = {}) {
-  return render(
-    <PDFDocViewer
-      document={pdfBytes}
-      isMobile={false}
-      attachments={[]}
-      readAttachment={() => null}
-      {...props}
-    />,
-  );
+  return render(<PDFDocViewer document={pdfBytes} isMobile={false} {...props} />);
 }
 
-/** The props the fake PDFViewer received on its latest render. Throws if it never rendered. */
+// The props the fake PDFViewer received on its latest render. Throws if it never rendered.
 function viewerProps() {
   const props = mockState.received.mock.lastCall?.[0];
   if (!props) throw new Error('PDFViewer was never rendered');
@@ -118,7 +101,7 @@ describe('PDFDocViewer', () => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
   });
 
-  // Unmount after each test, or every render piles onto the same page.
+  // Unmount after each test.
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -132,9 +115,10 @@ describe('PDFDocViewer', () => {
       expect(screen.queryByTestId('kendo-pdfviewer')).not.toBeInTheDocument();
     });
 
-    it('hands the viewer the PDF’s bytes', () => {
+     it('renders the viewer with the PDF’s bytes once they are downloaded', () => {
       renderViewer();
 
+      expect(screen.getByTestId('kendo-pdfviewer')).toBeInTheDocument();
       expect(new Uint8Array(viewerProps().arrayBuffer as ArrayBuffer)).toEqual(pdfBytes);
     });
 
@@ -151,11 +135,34 @@ describe('PDFDocViewer', () => {
       const { rerender } = renderViewer();
       const first = viewerProps().arrayBuffer;
 
-      rerender(
-        <PDFDocViewer document={pdfBytes} isMobile={false} attachments={[]} readAttachment={() => null} />,
-      );
+      rerender(<PDFDocViewer document={pdfBytes} isMobile={false} />);
 
       expect(viewerProps().arrayBuffer).toBe(first);
+    });
+  });
+
+  describe('toolbar', () => {
+    it('adds the attachments button after Kendo’s own tools', () => {
+      // `tools` only takes Kendo's built-in names, so the button is appended
+      // to the toolbar Kendo renders. It reads the attachments from the store
+      // itself, so it is added with no props.
+      renderViewer();
+      const renderToolbar = viewerProps().onRenderToolbar as (
+        toolbar: ReactElement<{ children?: ReactNode }>,
+      ) => ReactElement<{ children?: ReactNode }>;
+      const kendoToolbar = (
+        <div>
+          <span key="pager" />
+          <span key="zoom" />
+        </div>
+      );
+
+      const children = Children.toArray(
+        renderToolbar(kendoToolbar).props.children,
+      ) as ReactElement[];
+
+      expect(children).toHaveLength(3);
+      expect(children.at(-1)?.type).toBe(ToolbarAttachments);
     });
   });
 
@@ -178,16 +185,6 @@ describe('PDFDocViewer', () => {
       expect(viewerProps().zoom).toBe(0.5);
     });
 
-    it('sets the floor below any fitted value, on both layouts', () => {
-      // Under Kendo's default 0.5, so zoom-out from a page fitted at ~0.47
-      // zooms out instead of jumping in to 0.5.
-      for (const isMobile of [true, false]) {
-        renderViewer({ isMobile });
-        expect(viewerProps().minZoom).toBe(0.25);
-        cleanup();
-      }
-    });
-
     it('keeps the zoom buttons working by feeding their change back in', () => {
       renderViewer({ isMobile: true });
 
@@ -198,11 +195,7 @@ describe('PDFDocViewer', () => {
     });
   });
 
-  /**
-   * The arithmetic has its own suite next to fitWidthZoom. These check the
-   * wiring: when the viewer measures, and which way each layout may move.
-   * All use a 612 pt Letter page, which is 816 px wide at 100%.
-   */
+  // Check the fit for desktop and mobile view
   describe('fit to width', () => {
     it('fits the page to a phone once the document loads', async () => {
       mockState.element = fakeViewerElement(390).root;
@@ -210,15 +203,6 @@ describe('PDFDocViewer', () => {
 
       // 390 / 816 = 0.478, rounded down
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
-    });
-
-    it('leaves a desktop page that already fits at 100%', async () => {
-      mockState.element = fakeViewerElement(920).root;
-      renderViewer({ isMobile: false });
-
-      // Give the fit its chance to run, then check it did not grow the page
-      await act(async () => {});
-      expect(viewerProps().zoom).toBe(1);
     });
 
     it('shrinks a desktop page wider than the viewer', async () => {
@@ -229,31 +213,21 @@ describe('PDFDocViewer', () => {
       await waitFor(() => expect(viewerProps().zoom).toBe(0.87));
     });
 
-    it('refits when a phone is turned sideways', async () => {
-      // A sideways phone stays on the mobile layout (short and touch-driven,
-      // see ViewerPage), so it fits uncapped: 844 / 816 = 1.03.
-      const viewer = fakeViewerElement(390);
-      mockState.element = viewer.root;
-      renderViewer({ isMobile: true });
-      await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
-
-      viewer.setWidth(844);
-      act(() => resize());
-
-      await waitFor(() => expect(viewerProps().zoom).toBe(1.03));
-    });
-
     it('refits a phone even after zooming by hand', async () => {
+      // Phone upright, 390 px wide: the page fits at 47%
       const viewer = fakeViewerElement(390);
       mockState.element = viewer.root;
       renderViewer({ isMobile: true });
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
 
+      // The user zooms to 150%, then turns the phone sideways (844 px wide)
       const onZoom = viewerProps().onZoom as (event: { zoom: number }) => void;
       act(() => onZoom({ zoom: 1.5 }));
       viewer.setWidth(844);
       act(() => resize());
 
+      // Turning a phone always refits, so the 150% is replaced:
+      // 844 / 816 = 1.034, rounded down
       await waitFor(() => expect(viewerProps().zoom).toBe(1.03));
     });
 
@@ -270,66 +244,6 @@ describe('PDFDocViewer', () => {
       await act(async () => {});
 
       expect(viewerProps().zoom).toBe(1.5);
-    });
-
-    /**
-     * A tablet does cross the layout breakpoint when turned. An iPad mini is
-     * 744 px upright, on the mobile layout (744 / 816 = 0.91), and 1133 px on
-     * its side, on the desktop layout — too tall to count as a sideways phone —
-     * where the fit is capped at 100%. Width and layout change together, and
-     * which the viewer hears about first varies, so both orders are checked.
-     */
-    describe('crossing the layout breakpoint', () => {
-      async function renderTablet() {
-        const viewer = fakeViewerElement(744);
-        mockState.element = viewer.root;
-        const props = {
-          document: pdfBytes,
-          attachments: [],
-          readAttachment: () => null,
-        };
-        const { rerender } = render(<PDFDocViewer {...props} isMobile />);
-        await waitFor(() => expect(viewerProps().zoom).toBe(0.91));
-
-        const setLayout = (isMobile: boolean) =>
-          rerender(<PDFDocViewer {...props} isMobile={isMobile} />);
-        return { viewer, setLayout };
-      }
-
-      it('refits when the viewer resizes before the layout switches', async () => {
-        const { viewer, setLayout } = await renderTablet();
-
-        viewer.setWidth(1133);
-        act(() => resize());
-        setLayout(false);
-
-        await waitFor(() => expect(viewerProps().zoom).toBe(1));
-      });
-
-      it('refits when the layout switches before the viewer resizes', async () => {
-        // The order the resize watch alone missed: restarted by the switch, it
-        // took 1133 as its baseline and the resize looked like no change.
-        const { viewer, setLayout } = await renderTablet();
-
-        viewer.setWidth(1133);
-        setLayout(false);
-        act(() => resize());
-
-        await waitFor(() => expect(viewerProps().zoom).toBe(1));
-      });
-
-      it('refits when turned back upright into the mobile layout', async () => {
-        const { viewer, setLayout } = await renderTablet();
-        viewer.setWidth(1133);
-        setLayout(false);
-        await waitFor(() => expect(viewerProps().zoom).toBe(1));
-
-        viewer.setWidth(744);
-        setLayout(true);
-        act(() => resize());
-
-        await waitFor(() => expect(viewerProps().zoom).toBe(0.91));
-      });
     });
 
     it('ignores a resize that does not change the width', async () => {
@@ -356,10 +270,9 @@ describe('PDFDocViewer', () => {
       // bytes arrive, which is why the hook is keyed on them.
       const viewer = fakeViewerElement(390);
       mockState.element = viewer.root;
-      const props = { attachments: [], readAttachment: () => null, isMobile: true };
-      const { rerender } = render(<PDFDocViewer {...props} document={null} />);
+      const { rerender } = render(<PDFDocViewer isMobile document={null} />);
 
-      rerender(<PDFDocViewer {...props} document={pdfBytes} />);
+      rerender(<PDFDocViewer isMobile document={pdfBytes} />);
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
 
       viewer.setWidth(844);

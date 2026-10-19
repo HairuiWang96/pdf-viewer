@@ -28,7 +28,7 @@ const allDetails = [firstDetails, secondDetails];
 
 function renderPanel() {
   const user = userEvent.setup();
-  render(<DocumentDetailsPanel attachments={[]} readAttachment={() => null} />);
+  render(<DocumentDetailsPanel />);
   return { user };
 }
 

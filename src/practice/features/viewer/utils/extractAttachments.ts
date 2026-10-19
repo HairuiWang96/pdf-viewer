@@ -3,9 +3,15 @@
 // loader can call with the downloaded bytes.
 import { PDF } from '@libpdf/core';
 import { findRichMediaAudio } from './richMediaAudio';
-import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
+import type { AttachmentInfo, AttachmentReader } from '../types/attachments';
 
-export type { AttachmentInfo, ReadAttachment };
+export type { AttachmentInfo };
+
+// Reads ONE attachment's bytes, called with no argument. The other project's
+// AttachmentIndicator calls it as `readAttachment()`, so this is its meaning
+// there (types/attachments' ReadAttachment, which takes the attachment, is the
+// old useAttachments shape).
+export type ReadAttachment = AttachmentReader;
 
 export interface ExtractedAttachments {
   // The list shown on screen

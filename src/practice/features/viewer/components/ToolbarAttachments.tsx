@@ -1,21 +1,20 @@
+// Practice copy of ToolbarAttachments from the other project, pasted from its
+// source on 2026-10-19, unchanged apart from this header.
 import { useEffect, useState } from 'react';
-import { Button, Popup } from '@progress/kendo-react-all';
+import { Button } from '@progress/kendo-react-buttons';
+import { Popup } from '@progress/kendo-react-popup';
 import { volumeUpIcon } from '@progress/kendo-svg-icons';
-import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
 import { AttachmentIndicator } from './AttachmentIndicator';
+import { useViewerStore } from '../data/viewerStore';
 
-interface ToolbarAttachmentsProps {
-  attachments: AttachmentInfo[];
-  readAttachment: ReadAttachment;
-}
-
-// Audio icon and count in the viewer toolbar; opens the attachment list in a popup
-export function ToolbarAttachments({ attachments, readAttachment }: ToolbarAttachmentsProps) {
+export function ToolbarAttachments() {
   const [isOpen, setIsOpen] = useState(false);
-  // Kept in state, not a ref: the Popup needs the element during render
+  // Kept in state, not a ref: the popup needs the element during render
   const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null);
 
-  // Close on Escape while open
+  const attachments = useViewerStore((state) => state.attachments);
+
+  // Close on Escap Key when open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -33,24 +32,32 @@ export function ToolbarAttachments({ attachments, readAttachment }: ToolbarAttac
 
   return (
     <span ref={setAnchor}>
-      <Button type='button' fillMode='flat' svgIcon={volumeUpIcon} title={label} aria-label={label} aria-expanded={isOpen} onClick={() => setIsOpen(open => !open)}>
-        {attachments.length}
+      <Button
+        type="button"
+        fillMode="flat"
+        svgIcon={volumeUpIcon}
+        title={label}
+        aria-label={label}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        {/* {attachments.length} */}
       </Button>
-      {/* Rendered into document.body, so the toolbar's overflow cannot clip it */}
+
       <Popup
         anchor={anchor}
         show={isOpen}
         anchorAlign={{ horizontal: 'right', vertical: 'bottom' }}
         popupAlign={{ horizontal: 'right', vertical: 'top' }}
-        onMouseDownOutside={event => {
+        onMouseDownOutside={(event) => {
           // The button toggles on its own; closing here too would reopen it
           if (anchor?.contains(event.event.target as Node)) return;
           setIsOpen(false);
         }}
       >
         {/* Wide enough that the audio player keeps its seek bar */}
-        <div style={{ width: 320, maxWidth: 'calc(100vw - 16px)', padding: 12 }}>
-          <AttachmentIndicator attachments={attachments} readAttachment={readAttachment} />
+        <div style={{ width: 320, maxWidth: 'calc(100vw - 16px)' }}>
+          <AttachmentIndicator />
         </div>
       </Popup>
     </span>

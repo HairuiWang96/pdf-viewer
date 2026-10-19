@@ -13,16 +13,13 @@
 //     the page to the viewer once the document loads, and refit when the
 //     viewer's width changes
 //
-// Like the other project's current version, it is handed the PDF's bytes
-// (downloaded by the document loader) instead of a url. Attachments are
-// extracted by the loader too, so Kendo's document is no longer passed up.
-// Unlike it, attachments and readAttachment are still props, since the
-// practice ToolbarAttachments does not read the store yet.
+// In step with the other project's version as of 2026-10-19: it is handed the
+// PDF's bytes (downloaded by the document loader) instead of a url, and the
+// attachments button reads the store itself, so neither is a prop.
 import { Children, cloneElement, useCallback, useMemo, useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { PDFViewer } from '@progress/kendo-react-all';
 import type { PDFViewerHandle, PDFViewerTool } from '@progress/kendo-react-all';
-import type { AttachmentInfo, ReadAttachment } from '../types/attachments';
 import type { PDFBytes } from '../types/document';
 import { useFitWidthZoom } from '../hooks/useFitWidthZoom';
 import { MIN_ZOOM } from '../utils/fitWidthZoom';
@@ -31,8 +28,6 @@ import { ToolbarAttachments } from './ToolbarAttachments';
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
-  attachments: AttachmentInfo[];
-  readAttachment: ReadAttachment;
 }
 
 export const toolsDesktop: PDFViewerTool[] = [
@@ -48,12 +43,7 @@ export const toolsDesktop: PDFViewerTool[] = [
 
 export const toolsMobile: PDFViewerTool[] = ['pager', 'zoomInOut', 'download', 'print'];
 
-export default function PDFDocViewer({
-  document,
-  isMobile,
-  attachments,
-  readAttachment,
-}: PDFDocViewerProps) {
+export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
 
   // Kendo gets a copy: pdf.js hands the buffer it is given to its worker,
@@ -79,13 +69,9 @@ export default function PDFDocViewer({
         defaultRendering,
         undefined,
         ...Children.toArray(defaultRendering.props.children),
-        <ToolbarAttachments
-          key="attachments"
-          attachments={attachments}
-          readAttachment={readAttachment}
-        />,
+        <ToolbarAttachments key="attachments" />,
       ),
-    [attachments, readAttachment],
+    [],
   );
 
   if (!viewerData) return <div />;

@@ -1,18 +1,16 @@
 // Loads the document by id (useLoadViewerDocument runs the loader, which fills
 // the viewer store), then reads everything from the store: the PDF's bytes,
-// the selected case's details and the attachments. Needs a
-// QueryClientProvider above it, for the loader's query.
+// and the selected case's details (the panels read the attachments
+// themselves). Needs a QueryClientProvider above it, for the loader's query.
 interface ViewerPageProps {
   documentId?: string;
 }
 
 interface DocDetailItemProps extends DrawerItemProps {
   id?: string;
-  attachments?: AttachmentInfo[];
-  readAttachment?: ReadAttachment;
 }
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import {
   AppBar,
   AppBarSection,
@@ -29,21 +27,14 @@ import useMediaQuery from './hooks/useMediaQuery';
 import useNotification from './hooks/useNotification';
 import { DocumentDetailsPanel } from './components/DocumentDetails';
 import PDFDocViewer from './components/PDFDocViewer';
-import type { AttachmentInfo, ReadAttachment } from './types/attachments';
 import { useLoadViewerDocument } from './hooks/useLoadViewerDocument';
 import { useViewerStore } from './data/viewerStore';
 import '../../app/global.css';
 
 // Renders one document-details entry inside the Kendo drawer. The details
 // themselves come from the store.
-const DocDetailItem = ({ attachments, readAttachment }: DocDetailItemProps) => {
-  return (
-    <DocumentDetailsPanel
-      attachments={attachments ?? []}
-      readAttachment={readAttachment ?? (() => null)}
-    />
-  );
-};
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const DocDetailItem = (_props: DocDetailItemProps) => <DocumentDetailsPanel />;
 
 // Renders the responsive document viewer page.
 export function ViewerPage({ documentId }: ViewerPageProps) {
@@ -54,14 +45,6 @@ export function ViewerPage({ documentId }: ViewerPageProps) {
 
   const document = useViewerStore((state) => state.document);
   const details = useViewerStore((state) => state.details);
-  const attachments = useViewerStore((state) => state.attachments);
-  const attachmentReader = useViewerStore((state) => state.attachmentReader);
-
-  // One attachment's bytes, by its name, or null if the document is gone
-  const readAttachment = useCallback<ReadAttachment>(
-    (attachment) => attachmentReader?.get(attachment.name)?.(attachment) ?? null,
-    [attachmentReader],
-  );
 
   // A narrow screen, or a phone turned sideways: wider than 768 px but short,
   // and touch-driven. `pointer: coarse` keeps a short desktop window, driven
@@ -122,24 +105,13 @@ export function ViewerPage({ documentId }: ViewerPageProps) {
         animation={isMobile ? false : true}
         className="viewer-content"
         expanded={showDetailsPanel}
-        items={[
-          {
-            id: documentId,
-            attachments,
-            readAttachment,
-          },
-        ]}
+        items={[{ id: documentId }]}
         item={DocDetailItem}
         mode="push"
         position="end"
       >
         <DrawerContent>
-          <PDFDocViewer
-            document={document}
-            isMobile={isMobile}
-            attachments={attachments}
-            readAttachment={readAttachment}
-          />
+          <PDFDocViewer document={document} isMobile={isMobile} />
         </DrawerContent>
       </Drawer>
     </main>
