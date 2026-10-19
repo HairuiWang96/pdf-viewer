@@ -13,7 +13,7 @@ import type { AttachmentInfo, ReadAttachment } from '../utils/extractAttachments
 
 /** An attachment as the store holds it: its info, and the reader for its bytes. */
 function attachment(filename: string, read: ReadAttachment = () => new Uint8Array([1])) {
-  const info = { name: filename, filename } as AttachmentInfo;
+  const info: AttachmentInfo = { name: filename, filename };
   return { info, read };
 }
 
@@ -25,15 +25,20 @@ function storeAttachments(...items: ReturnType<typeof attachment>[]) {
   });
 }
 
+// Kept in its own variable so tests assert on it directly, rather than on
+// `URL.revokeObjectURL` (a method pulled off its object).
+const revokeObjectURL = vi.fn();
+
 describe('AttachmentIndicator', () => {
   beforeEach(() => {
     useViewerStore.setState(useViewerStore.getInitialState(), true);
     // jsdom has no blob URLs; pressing play makes one
     let counter = 0;
+    revokeObjectURL.mockClear();
     vi.stubGlobal('URL', {
       ...URL,
       createObjectURL: vi.fn(() => `blob:mock-${counter++}`),
-      revokeObjectURL: vi.fn(),
+      revokeObjectURL,
     });
   });
 
@@ -70,7 +75,7 @@ describe('AttachmentIndicator', () => {
   it('skips an attachment that has no reader', () => {
     // Listed but unreadable: a play button would do nothing
     useViewerStore.setState({
-      attachments: [{ name: 'lost.mp3', filename: 'lost.mp3' } as AttachmentInfo],
+      attachments: [{ name: 'lost.mp3', filename: 'lost.mp3' }],
       attachmentReader: new Map(),
     });
 
@@ -125,6 +130,6 @@ describe('AttachmentIndicator', () => {
 
     unmount();
 
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-0');
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-0');
   });
 });

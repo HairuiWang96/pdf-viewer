@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { act, render, screen, cleanup, waitFor } from '@testing-library/react';
 import { Children } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import PDFDocViewer, { toolsDesktop, toolsMobile } from './PDFDocViewer';
+import PDFDocViewer from './PDFDocViewer';
+import { toolsDesktop, toolsMobile } from './PDFViewerTools';
 import { ToolbarAttachments } from './ToolbarAttachments';
+import { useViewerStore } from '../data/viewerStore';
 
 /**
  * Tests for the viewer wrapper around KendoReact's PDFViewer.
@@ -18,13 +21,15 @@ import { ToolbarAttachments } from './ToolbarAttachments';
 
 // vi.mock is hoisted above the imports, so the state it shares with the tests
 // must be hoisted too.
-const { mockState } = vi.hoisted(() => ({
-  mockState: {
-    document: undefined as unknown,
-    element: null as HTMLElement | null,
-    received: vi.fn<(props: Record<string, unknown>) => void>(),
-  },
-}));
+// Typed up front rather than with `as` on each field.
+const { mockState } = vi.hoisted(() => {
+  const mockState: {
+    document: unknown;
+    element: HTMLElement | null;
+    received: Mock<(props: Record<string, unknown>) => void>;
+  } = { document: undefined, element: null, received: vi.fn() };
+  return { mockState };
+});
 
 vi.mock('@progress/kendo-react-all', async () => {
   const React = await import('react');
@@ -35,11 +40,14 @@ vi.mock('@progress/kendo-react-all', async () => {
         document: mockState.document,
         element: mockState.element,
       }));
-      // Once on mount, as Kendo fires onLoad once per loaded document.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      React.useEffect(() => props.onLoad?.(), []);
+      // Once on mount, as Kendo fires onLoad once per loaded document. Held in
+      // a ref so the effect needs no dependencies (and no lint exception).
+      const onLoad = React.useRef(props.onLoad);
+      React.useEffect(() => onLoad.current?.(), []);
       return <div data-testid="kendo-pdfviewer" />;
     }),
+    // Shown instead of the viewer while the PDF downloads
+    ProgressBar: () => <div data-testid="progress-bar" />,
   };
 });
 
@@ -95,6 +103,8 @@ function viewerProps() {
 
 describe('PDFDocViewer', () => {
   beforeEach(() => {
+    // No download in progress, so the viewer shows rather than the progress bar
+    useViewerStore.setState({ isDocumentLoading: false });
     mockState.received.mockClear();
     mockState.document = fakeDocument;
     mockState.element = null;
@@ -112,6 +122,15 @@ describe('PDFDocViewer', () => {
       // Kendo must not be mounted with nothing to load.
       renderViewer({ document: null });
 
+      expect(screen.queryByTestId('kendo-pdfviewer')).not.toBeInTheDocument();
+    });
+
+    it('shows the progress bar, not the viewer, while the PDF downloads', () => {
+      useViewerStore.setState({ isDocumentLoading: true });
+
+      renderViewer();
+
+      expect(screen.getByTestId('progress-bar')).toBeInTheDocument();
       expect(screen.queryByTestId('kendo-pdfviewer')).not.toBeInTheDocument();
     });
 

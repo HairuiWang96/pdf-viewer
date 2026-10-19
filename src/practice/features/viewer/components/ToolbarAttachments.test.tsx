@@ -3,7 +3,6 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ToolbarAttachments } from './ToolbarAttachments';
 import { useViewerStore } from '../data/viewerStore';
-import type { AttachmentInfo } from '../utils/extractAttachments';
 
 /**
  * Tests for the audio button in the viewer toolbar. It reads the attachments
@@ -14,7 +13,7 @@ import type { AttachmentInfo } from '../utils/extractAttachments';
 /** Put audio attachments in the store, each with a reader, as the loader does. */
 function storeAttachments(...filenames: string[]) {
   useViewerStore.setState({
-    attachments: filenames.map((f) => ({ name: f, filename: f }) as AttachmentInfo),
+    attachments: filenames.map((f) => ({ name: f, filename: f })),
     attachmentReader: new Map(filenames.map((f) => [f, () => new Uint8Array([1])])),
   });
 }

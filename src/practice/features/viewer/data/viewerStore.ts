@@ -40,6 +40,9 @@ interface ViewerData {
   currentCaseNumber?: string;
 
   documentLoaded: boolean;
+  // True while the PDF is being downloaded; PDFDocViewer shows a progress bar.
+  // In the other project's store; how it is set there has not been seen.
+  isDocumentLoading: boolean;
   attachmentsLoaded: boolean;
   stampedDocumentLoaded: boolean;
 
@@ -82,6 +85,7 @@ const emptyDocument: ViewerData = {
   currentCaseNumber: undefined,
 
   documentLoaded: false,
+  isDocumentLoading: false,
   attachmentsLoaded: false,
   stampedDocumentLoaded: false,
 

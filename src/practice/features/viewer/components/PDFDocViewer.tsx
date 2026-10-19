@@ -1,94 +1,123 @@
-// Practice copy of PDFDocViewer from the other project, rebuilt from a photo
-// of its source. Only here to test against.
+// Practice copy of PDFDocViewer from the other project, after its merge on
+// 2026-10-19 (the download progress bar). Only here to test against.
 //
-// Changed from the original:
-//   - removed the empty `import { } from '…/case-embedded-audio-media.pdf'`
-//   - removed `console.log(url)`
-//   - moved the tool lists out of the component and exported them, so the
-//     tests can compare against them by name
-//
-// Added:
-//   - the attachments button at the end of Kendo's toolbar
-//   - fit to width (see useFitWidthZoom): the zoom is controlled, set to fit
-//     the page to the viewer once the document loads, and refit when the
-//     viewer's width changes
-//
-// In step with the other project's version as of 2026-10-19: it is handed the
-// PDF's bytes (downloaded by the document loader) instead of a url, and the
-// attachments button reads the store itself, so neither is a prop.
-import { Children, cloneElement, useCallback, useMemo, useRef } from 'react';
-import type { ReactElement, ReactNode } from 'react';
-import { PDFViewer } from '@progress/kendo-react-all';
-import type { PDFViewerHandle, PDFViewerTool } from '@progress/kendo-react-all';
-import type { PDFBytes } from '../types/document';
-import { useFitWidthZoom } from '../hooks/useFitWidthZoom';
-import { MIN_ZOOM } from '../utils/fitWidthZoom';
-import { ToolbarAttachments } from './ToolbarAttachments';
-
+// Changed from the pasted version:
+//   - `if (!viewerData) return <div />` moved below the last hook. It was
+//     above renderLoader's useCallback, so a render without bytes ran one hook
+//     fewer than the next: "Rendered more hooks than during the previous render"
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
 }
 
-export const toolsDesktop: PDFViewerTool[] = [
-  'pager',
-  'spacer',
-  'zoomInOut',
-  'zoom',
-  'selection',
-  'spacer',
-  'download',
-  'print',
-];
+import { useCallback, useRef, useMemo, Children, cloneElement, useState, useEffect } from 'react';
+import type { ReactElement, ReactNode } from 'react';
+import { PDFViewer, PDFViewerHandle, ProgressBar } from '@progress/kendo-react-all';
+import { useFitWidthZoom } from '../hooks/useFitWidthZoom';
+import { MIN_ZOOM } from '../utils/fitWidthZoom';
+import { ToolbarAttachments } from './ToolbarAttachments';
+import type { PDFBytes } from '../types/document';
+import { toolsMobile, toolsDesktop } from './PDFViewerTools';
+import { useViewerStore } from '../data/viewerStore';
 
-export const toolsMobile: PDFViewerTool[] = ['pager', 'zoomInOut', 'download', 'print'];
+// This will be removed when we switch to utilizing an actual request
+async function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) {
   const viewerRef = useRef<PDFViewerHandle | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
+  const { isDocumentLoading } = useViewerStore.getState();
 
-  // Kendo gets a copy: pdf.js hands the buffer it is given to its worker,
-  // which empties it, and the store's bytes are still needed (attachments,
-  // stamping). Once per document, since useMemo keeps the same copy.
+  useEffect(() => {
+    // The progress bar loader will be updated to use actual request for loading once the
+    // connection to BE is up.
+    async function loadingDelay() {
+      setIsLoading(true);
+      setProgress(0);
+
+      const totalSteps = 10;
+      const delayTime = 300;
+
+      for (let i = 1; i <= totalSteps; i++) {
+        await delay(delayTime);
+
+        const currentProgress = i * 10;
+        setProgress(currentProgress);
+      }
+      await delay(200);
+      setIsLoading(false);
+    }
+    if (isDocumentLoading) {
+      void loadingDelay();
+    }
+  }, [isDocumentLoading]);
+
   const viewerData = useMemo(() => (document ? new Uint8Array(document) : undefined), [document]);
 
-  // viewerData changes when a new document's viewer appears, which is when
-  // the hook has to start watching it
   const { zoom, handleZoom, fitToWidth } = useFitWidthZoom(viewerRef, isMobile, viewerData);
 
-  // Kendo has parsed the PDF and laid it out: only now are both sizes known.
-  // A new document is always fitted, even if the last one was zoomed by hand.
   const handleLoad = useCallback(() => {
     void fitToWidth();
   }, [fitToWidth]);
 
-  // `tools` only takes Kendo's built-in names, so the attachments button is
-  // added by copying Kendo's toolbar with one more child at the end
+  // 'tools' only takes Kendo's built-in names, so the attachments button is added by copying Kendo's toolbar with one more child at the end
   const renderToolbar = useCallback(
-    (defaultRendering: ReactElement<{ children?: ReactNode }>) =>
-      cloneElement(
+    (defaultRendering: ReactElement<{ children?: ReactNode }>) => {
+      if (isLoading) return <></>;
+      return cloneElement(
         defaultRendering,
         undefined,
         ...Children.toArray(defaultRendering.props.children),
-        <ToolbarAttachments key="attachments" />,
-      ),
-    [],
+        <ToolbarAttachments key="attachment" />,
+      );
+    },
+    [isLoading],
   );
 
+  // prevent confusion from back2back loaders when pdfviewer loading pdf from memory
+  // progress bar loads pdf to client -> this loads from client memory to pdfViewer so it never takes
+  // longer than a second or two at most since we already have the bytearray
+  const renderLoader = useCallback((loader: React.ReactElement<unknown> | null) => {
+    return loader && <></>;
+  }, []);
+
+  // After every hook: the same hooks must run on every render
   if (!viewerData) return <div />;
 
   return (
-    <PDFViewer
-      ref={viewerRef}
-      arrayBuffer={viewerData.buffer}
-      style={{ height: '100%' }}
-      tools={isMobile ? toolsMobile : toolsDesktop}
-      // Controlled so it can be fitted. Kendo's zoom buttons still work: each
-      // change comes back through onZoom and is fed straight back in.
-      zoom={zoom}
-      minZoom={MIN_ZOOM}
-      onZoom={handleZoom}
-      onLoad={handleLoad}
-      onRenderToolbar={renderToolbar}
-    />
+    <>
+      {isDocumentLoading || isLoading ? (
+        <div
+          style={{ height: '100vh' }}
+          className="k-d-flex k-justify-content-center k-align-items-center"
+        >
+          <ProgressBar
+            style={{ width: '50%' }}
+            value={progress}
+            label={(props) => `${props.value}%`}
+            animation={false}
+            min={0}
+            max={100}
+            progressStyle={{ backgroundColor: 'green' }}
+          />
+        </div>
+      ) : (
+        <PDFViewer
+          ref={viewerRef}
+          arrayBuffer={viewerData?.buffer ?? undefined}
+          style={{ height: '100%' }}
+          tools={isMobile ? toolsMobile : toolsDesktop}
+          zoom={zoom}
+          minZoom={MIN_ZOOM}
+          onZoom={handleZoom}
+          onLoad={handleLoad}
+          onRenderToolbar={renderToolbar}
+          onRenderLoader={renderLoader}
+        />
+      )}
+    </>
   );
 }
