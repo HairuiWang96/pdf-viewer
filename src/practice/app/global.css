@@ -25,6 +25,30 @@
   text-overflow: ellipsis;
 }
 
+/* ── Audio attachment player ──
+   A browser's <audio> player is a fixed 300px wide. In the details panel
+   that is wider than the room left inside the panel's padding, so it ran
+   over the padding and past the panel's edge. Fill the space it is given
+   instead. */
+.attachment-audio {
+  width: 100%;
+}
+
+/* ── Audio dot on the toolbar's speaker icon ──
+   A small dot in the button's top-right corner, like an "unread" marker.
+   Kendo's smallest badge is sized for a number and would cover the speaker,
+   so it is shrunk to a dot here. It sits on top of the button, so
+   pointer-events: none lets a click on it reach the button underneath
+   (otherwise clicking the dot would not open the list). */
+.k-badge.audio-dot-badge {
+  pointer-events: none;
+  min-width: 0;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  transform: translate(-10%, 15%);
+}
+
 /* ── Case Number: label and info icon side by side ──
    Kendo's Tooltip wraps the icon in a block <div>, which would otherwise put
    it on a line of its own. */

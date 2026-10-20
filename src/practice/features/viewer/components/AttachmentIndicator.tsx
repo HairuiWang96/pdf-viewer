@@ -45,6 +45,7 @@ function AudioAttachment({
       <div>{attachment.filename}</div>
       {/* Play only, no download */}
       <audio
+        className="attachment-audio"
         controls
         controlsList="nodownload"
         onContextMenu={(event) => event.preventDefault()}
