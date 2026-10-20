@@ -3,10 +3,10 @@ import type { Mock } from 'vitest';
 import { act, render, screen, cleanup, waitFor } from '@testing-library/react';
 import { Children } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import PDFDocViewer from './PDFDocViewer';
+import PDFDocViewer from '.';
 import { toolsDesktop, toolsMobile } from './PDFViewerTools';
-import { ToolbarAttachments } from './ToolbarAttachments';
-import { useViewerStore } from '../data/viewerStore';
+import { ToolbarAttachments } from '../ToolbarAttachments';
+import { useViewerStore } from '../../data/viewerStore';
 
 /**
  * Tests for the viewer wrapper around KendoReact's PDFViewer.

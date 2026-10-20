@@ -13,12 +13,12 @@ interface PDFDocViewerProps {
 import { useCallback, useRef, useMemo, Children, cloneElement, useState, useEffect } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { PDFViewer, PDFViewerHandle, ProgressBar } from '@progress/kendo-react-all';
-import { useFitWidthZoom } from '../hooks/useFitWidthZoom';
-import { MIN_ZOOM } from '../utils/fitWidthZoom';
-import { ToolbarAttachments } from './ToolbarAttachments';
-import type { PDFBytes } from '../types/document';
+import { useFitWidthZoom } from '../../hooks/useFitWidthZoom';
+import { MIN_ZOOM } from '../../utils/fitWidthZoom';
+import { ToolbarAttachments } from '../ToolbarAttachments';
+import type { PDFBytes } from '../../types/document';
 import { toolsMobile, toolsDesktop } from './PDFViewerTools';
-import { useViewerStore } from '../data/viewerStore';
+import { useViewerStore } from '../../data/viewerStore';
 
 // This will be removed when we switch to utilizing an actual request
 async function delay(ms: number) {
