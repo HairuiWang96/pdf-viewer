@@ -72,6 +72,19 @@ describe('AttachmentIndicator', () => {
     expect(screen.queryByRole('button', { name: 'report.pdf' })).not.toBeInTheDocument();
   });
 
+  it('plays a file the PDF declares as audio, whatever its extension', () => {
+    // A recording embedded with the wrong or no extension: the declared type
+    // decides, so it still gets a player
+    useViewerStore.setState({
+      attachments: [{ name: 'rec.bin', filename: 'rec.bin', mimeType: 'audio/x-wav' }],
+      attachmentReader: new Map([['rec.bin', () => new Uint8Array([1])]]),
+    });
+
+    render(<AttachmentIndicator />);
+
+    expect(screen.getByRole('button', { name: 'rec.bin' })).toBeInTheDocument();
+  });
+
   it('skips an attachment that has no reader', () => {
     // Listed but unreadable: a play button would do nothing
     useViewerStore.setState({
