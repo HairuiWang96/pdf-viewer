@@ -289,7 +289,7 @@ describe('PDFDocViewer', () => {
       // bytes arrive, which is why the hook is keyed on them.
       const viewer = fakeViewerElement(390);
       mockState.element = viewer.root;
-      const { rerender } = render(<PDFDocViewer isMobile document={null} />);
+      const { rerender } = renderViewer({ isMobile: true, document: null });
 
       rerender(<PDFDocViewer isMobile document={pdfBytes} />);
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
