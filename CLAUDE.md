@@ -81,6 +81,10 @@ Use `tsc -b`, not `tsc -p .`: the root tsconfig only references the others, so
   purpose and confirm the test catches it.
 - **Root cause before fallback.** Find why a value is wrong before patching the
   display with `?? something`.
+- **Code review on request.** Run `/code-review` when the user asks for it,
+  not after every change. When a larger piece of work is finished (a feature, a
+  batch of doc-viewer changes), suggest it in one line, e.g.
+  `/code-review high src/practice`, and leave the decision to the user.
 - **Styles** go in `src/practice/app/global.css` as classes, not inline styles.
 - **Git:** commit and push only when asked. Before committing, run the
   typecheck, tests and build. Work is on the `libpdf-attachments` branch;
