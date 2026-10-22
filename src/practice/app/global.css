@@ -37,6 +37,27 @@
   width: 100%;
 }
 
+/* ── PDF viewer toolbar below 520px: fit more on one row ──
+   Kendo's toolbar wraps on narrow screens. These shrink the pager, its widest
+   tool (as the main viewer's KendoPdfViewer.css does). */
+@media (max-width: 520px) {
+  /* Page numbers are 1-3 digits; no desktop-width box needed */
+  .k-pdf-viewer .k-pager-input .k-numerictextbox {
+    width: 4em;
+    min-width: 0;
+  }
+
+  /* "Page" repeats what "of N" already says */
+  .k-pdf-viewer .k-pager-input > span:first-child {
+    display: none;
+  }
+
+  /* Half of Kendo's 8px between tools */
+  .k-pdf-viewer .k-toolbar {
+    gap: 4px;
+  }
+}
+
 /* ── Audio dot on the toolbar's audio icon ──
    A small dot in the button's top-right corner, like an "unread" marker.
    Kendo's smallest badge is sized for a number and would cover the icon,
