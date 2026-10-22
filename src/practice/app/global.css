@@ -11,10 +11,13 @@
   flex-wrap: nowrap;
 }
 
-/* Takes the free space, and may shrink below its text (min-width: 0) */
+/* Takes the free space, and may shrink below its text (min-width: 0). The
+   right margin keeps a cut-off title's "…" clear of the button beside it:
+   Kendo's own gap alone (16px) left them looking crowded. */
 .k-appbar-section.viewer-title-section {
   flex: 1 1 auto;
   min-width: 0;
+  margin-right: 16px;
 }
 
 /* One line, cut with "…"; the full text shows on hover via title="" */
