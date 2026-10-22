@@ -58,6 +58,15 @@
   }
 }
 
+/* ── Mobile toolbar: download, print and audio to the right ──
+   An auto margin uses only free space; Kendo's 'spacer' tool forced a wrap.
+   The query matches ViewerPage's mobile layout. */
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  .k-pdf-viewer .k-toolbar > .k-button:has(.k-svg-i-download) {
+    margin-inline-start: auto;
+  }
+}
+
 /* ── Audio dot on the toolbar's audio icon ──
    A small dot in the button's top-right corner, like an "unread" marker.
    Kendo's smallest badge is sized for a number and would cover the icon,
