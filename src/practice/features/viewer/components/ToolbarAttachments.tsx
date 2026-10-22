@@ -75,18 +75,31 @@ export function ToolbarAttachments() {
         )}
       </BadgeContainer>
 
+      {/* A popup, not a modal:
+          |                | Popup (this)                  | Modal (Kendo Dialog/Window)   |
+          | Where          | attached to the button        | centred on the screen         |
+          | Rest of page   | still usable                  | blocked, behind an overlay    |
+          | Closing        | click outside, Escape, button | close/OK button, Escape       |
+          | Keyboard focus | moves freely                  | trapped inside                |
+          | Meant for      | quick lists and menus         | things needing full attention |
+          The audio list is quick, and the PDF should stay usable while it's open. */}
       <Popup
         anchor={anchor}
         show={isOpen}
+        // Each "align" picks a point: the button's bottom-right meets the
+        // popup's top-right, so it opens below with right edges lined up
         anchorAlign={{ horizontal: 'right', vertical: 'bottom' }}
         popupAlign={{ horizontal: 'right', vertical: 'top' }}
         onMouseDownOutside={(event) => {
-          // The button toggles on its own; closing here too would reopen it
+          // Close when clicking anywhere outside the popup, except on the
+          // button: its own onClick already opens and closes the popup. If
+          // we closed here too, the button would then toggle it open again.
           if (anchor?.contains(event.event.target as Node)) return;
           setIsOpen(false);
         }}
       >
-        {/* Wide enough that the audio player keeps its seek bar */}
+        {/* Wide enough that the audio player keeps its seek bar.
+            A plain number means px in inline styles; other units need a string. */}
         <div style={{ width: 320, maxWidth: 'calc(100vw - 16px)' }}>
           <AttachmentIndicator />
         </div>
