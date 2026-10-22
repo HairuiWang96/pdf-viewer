@@ -8,16 +8,31 @@ import { useViewerStore } from '../data/viewerStore';
  * Tests for the audio button in the viewer toolbar. It reads the attachments
  * from the viewer store and opens the list in a Kendo Popup, which renders
  * into document.body. The list itself has its own suite (AttachmentIndicator).
+ *
+ * The three ways these tests find things on the page:
+ *   getByRole    expect it now   throws if missing (fails the test right there)
+ *   queryByRole  expect it gone  returns null if missing, so .not.toBeInTheDocument() can pass
+ *   findByRole   expect it soon  waits up to ~1s for it to appear; needs `await`
+ * Each has an *All* version (getAllByRole, …) that returns every match.
  */
 
 /** Put audio attachments in the store, each with a reader, as the loader does. */
 function storeAttachments(...filenames: string[]) {
   useViewerStore.setState({
-    attachments: filenames.map((f) => ({ name: f, filename: f })),
-    attachmentReader: new Map(filenames.map((f) => [f, () => new Uint8Array([1])])),
+    attachments: filenames.map(f => ({ name: f, filename: f })),
+    attachmentReader: new Map(filenames.map(f => [f, () => new Uint8Array([1])])),
   });
 }
 
+// The audio button, found by its role and accessible name ("Audio (1)", from
+// its aria-label), whatever the count.
+//
+// A function, not a variable: each call searches the page again, so after a
+// click or a re-render the test gets the button as it is now, not a stale copy from earlier.
+
+// By role and name rather than a class like `.k-button`: it tests what users
+// rely on. If the button lost its label, screen-reader users couldn't identify
+// it, and this would fail and catch that.
 const audioButton = () => screen.getByRole('button', { name: /^Audio \(/ });
 
 describe('ToolbarAttachments', () => {
@@ -30,9 +45,22 @@ describe('ToolbarAttachments', () => {
   });
 
   it('renders nothing when the document has no attachments', () => {
+    // `container` is the empty <div> render() puts the component in. With no
+    // attachments the component returns null, so there is nothing to find by
+    // role; checking the container is empty is the direct way to say "nothing
+    // at all", and also catches anything left behind, like an empty <span>.
     const { container } = render(<ToolbarAttachments />);
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('shows a button named for a single attachment', () => {
+    // The usual case: a document has one recording
+    storeAttachments('call-1.mp3');
+
+    render(<ToolbarAttachments />);
+
+    expect(screen.getByRole('button', { name: 'Audio (1)' })).toBeInTheDocument();
   });
 
   it('shows a button named for the number of attachments', () => {
@@ -119,7 +147,7 @@ describe('ToolbarAttachments', () => {
     });
   });
 
-  it('updates when the attachments arrive after the toolbar is shown', () => {
+  it('updates when the attachments arrive after the toolbar is shown', async () => {
     // The loader extracts attachments after the PDF is on screen, so the
     // toolbar first renders with none and must appear once they land
     render(<ToolbarAttachments />);
@@ -127,6 +155,10 @@ describe('ToolbarAttachments', () => {
 
     storeAttachments('call-1.mp3');
 
-    return waitFor(() => expect(screen.getByRole('button', { name: 'Audio (1)' })).toBeInTheDocument());
+    // waitFor retries for up to ~1s and returns a Promise, so the test must
+    // wait for it: `await` here, or `return waitFor(...)` from a non-async
+    // test does the same. Without either, the test ends before the check runs
+    // and passes no matter what.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Audio (1)' })).toBeInTheDocument());
   });
 });
