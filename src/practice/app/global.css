@@ -34,9 +34,9 @@
   width: 100%;
 }
 
-/* ── Audio dot on the toolbar's speaker icon ──
+/* ── Audio dot on the toolbar's audio icon ──
    A small dot in the button's top-right corner, like an "unread" marker.
-   Kendo's smallest badge is sized for a number and would cover the speaker,
+   Kendo's smallest badge is sized for a number and would cover the icon,
    so it is shrunk to a dot here. It sits on top of the button, so
    pointer-events: none lets a click on it reach the button underneath
    (otherwise clicking the dot would not open the list). */

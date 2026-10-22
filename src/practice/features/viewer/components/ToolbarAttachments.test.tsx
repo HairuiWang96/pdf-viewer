@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { act, render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ToolbarAttachments } from './ToolbarAttachments';
 import { useViewerStore } from '../data/viewerStore';
@@ -80,6 +80,43 @@ describe('ToolbarAttachments', () => {
     await userEvent.keyboard('{Escape}');
 
     await waitFor(() => expect(audioButton()).toHaveAttribute('aria-expanded', 'false'));
+  });
+
+  describe('the "unseen" dot', () => {
+    const dot = () => document.querySelector('.audio-dot-badge');
+
+    it('shows a grey icon with a blue dot before the list is opened', () => {
+      storeAttachments('call-1.mp3');
+
+      render(<ToolbarAttachments />);
+
+      expect(dot()).toBeInTheDocument();
+      // Grey like Kendo's other tools: no theme colour on the button itself
+      expect(audioButton()).not.toHaveClass('k-button-info');
+    });
+
+    it('hides the dot once the list has been opened, even after closing it', async () => {
+      storeAttachments('call-1.mp3');
+      render(<ToolbarAttachments />);
+
+      await userEvent.click(audioButton());
+      expect(dot()).not.toBeInTheDocument();
+
+      await userEvent.click(audioButton());
+      expect(dot()).not.toBeInTheDocument();
+    });
+
+    it('shows the dot again for a new document’s attachments', async () => {
+      // Its audio has not been seen yet
+      storeAttachments('call-1.mp3');
+      render(<ToolbarAttachments />);
+      await userEvent.click(audioButton());
+      expect(dot()).not.toBeInTheDocument();
+
+      act(() => storeAttachments('other-call.mp3'));
+
+      expect(dot()).toBeInTheDocument();
+    });
   });
 
   it('updates when the attachments arrive after the toolbar is shown', () => {
