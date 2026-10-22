@@ -11,7 +11,16 @@ import type { AttachmentInfo, ReadAttachment } from '../utils/extractAttachments
  * loader does after extracting them. The real Kendo Button is used.
  */
 
-/** An attachment as the store holds it: its info, and the reader for its bytes. */
+/**
+ * An attachment as the store holds it: its info, and the reader for its bytes.
+ * The default reader returns a fake one-byte file (`new Uint8Array([1])`): the
+ * tests play no real audio, they just need some bytes for Play to use.
+ *
+ * In the app, pressing Play makes the reader pull the recording's real bytes
+ * out of the PDF (via libpdf) as a Uint8Array, millions of bytes long.
+ * AttachmentIndicator wraps them in a Blob, makes a URL from it, and hands
+ * that to the <audio> player.
+ */
 function attachment(filename: string, read: ReadAttachment = () => new Uint8Array([1])) {
   const info: AttachmentInfo = { name: filename, filename };
   return { info, read };
@@ -138,9 +147,13 @@ describe('AttachmentIndicator', () => {
 
   it('frees the audio’s memory when the list goes away', async () => {
     storeAttachments(attachment('call-1.mp3'));
+    // render() returns several tools; this test takes `unmount`
     const { unmount } = render(<AttachmentIndicator />);
     await userEvent.click(screen.getByRole('button', { name: 'call-1.mp3' }));
 
+    // Removes the component from the page, as if it went away in the app (the
+    // popup closing, or another document opening). React then runs its
+    // cleanup, which should revoke the blob URL.
     unmount();
 
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-0');
