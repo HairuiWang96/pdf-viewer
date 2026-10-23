@@ -72,6 +72,7 @@ function fakeViewerElement(width: number) {
 
 // jsdom has no ResizeObserver. This one records its callback so a test can
 // fire it after changing the fake element's width, as a browser would.
+// A class because the hook creates it with `new ResizeObserver(callback)`.
 let resize: () => void = () => {};
 class FakeResizeObserver {
   callback: () => void;
@@ -266,8 +267,10 @@ describe('PDFDocViewer', () => {
     });
 
     it('ignores a resize that does not change the width', async () => {
-      // Mobile browsers resize the height whenever the address bar slides in
-      // or out. Refitting on that would fight the reader's scrolling.
+      // On a phone, the address bar slides in and out as you scroll. That
+      // changes the viewer's height, so the ResizeObserver fires. But the
+      // width didn't change, so there's no reason to refit. Refitting would
+      // jump the zoom back while the person is reading.
       const viewer = fakeViewerElement(390);
       mockState.element = viewer.root;
       renderViewer({ isMobile: true });
