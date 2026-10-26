@@ -1,0 +1,48 @@
+[
+  {
+    "caseNumber": "2026-CV-10452",
+    "caseName": "Smith v. Acme Corp",
+    "caseStampToggle": false,
+    "restrictionStatus": "Public",
+    "filedBy": "Sarah Jenkins",
+    "filedDate": "2026-01-15T09:15:00Z",
+    "fileSize": "4.2 MB",
+    "docketText": "ORDER Granting in Part and Denying in Part Defendants' Motion to Dismiss the Second Amended Complaint, With Leave to Amend Within Twenty-One Days (Linearised for Fast Web View).",
+    "url": "/doc-viewer/case-embedded-audio-media.pdf"
+  },
+  [
+    {
+      "caseNumber": "2026-CR-00912",
+      "caseName": "State v. Jane Doe",
+      "caseStampToggle": false,
+      "restrictionStatus": "Confidential",
+      "filedBy": "John Smith, Esq.",
+      "filedDate": "2026-09-28T14:30:00Z",
+      "fileSize": "1.4 MB",
+      "docketText": "Motion for discovery filed by defense counsel.",
+      "url": "/doc-viewer/FederalCourtsPrimer.pdf"
+    },
+    {
+      "caseNumber": "2026-CR-19891",
+      "caseName": "New State v. Jane Doe",
+      "caseStampToggle": false,
+      "restrictionStatus": "Confidential",
+      "filedBy": "Joe Smith, Esq.",
+      "filedDate": "2026-09-28T14:30:00Z",
+      "fileSize": "0.4 MB",
+      "docketText": "Motion for discovery filed by plaintiff counsel.",
+      "url": "/doc-viewer/FederalCourtsPrimer.pdf"
+    }
+  ],
+  {
+    "caseNumber": "2026-CR-78976",
+    "caseName": "State v. Jane Doe",
+    "caseStampToggle": false,
+    "restrictionStatus": "Confidential",
+    "filedBy": "John Smith, Esq.",
+    "filedDate": "2026-09-28T14:30:00Z",
+    "fileSize": "0.4 MB",
+    "docketText": "ORDER Granting in Part and Denying in Part Defendants' Motion to Dismiss the Second Amended Complaint, With Leave to Amend Within Twenty-One Days (Linearised for Fast Web View).",
+    "url": "/doc-viewer/case-audio-attachment.pdf"
+  }
+]
