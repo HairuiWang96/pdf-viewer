@@ -90,3 +90,9 @@
   align-items: center;
   gap: 4px;
 }
+
+/* The icon's span is inline, so the icon sat on the text baseline, a little
+   low. As a flex box it is just the icon's size, centred by the row above. */
+.case-number-info {
+  display: flex;
+}

@@ -10,6 +10,8 @@
 //     extraction failed"), and checks isCurrentDocument in its catch like
 //     doExtractAttachments does
 //   - fetchDocumentDetails gets the signal, so it can be cancelled too
+//   - (proposed, not in doc-viewer yet) the case list is sorted by case
+//     number, ascending
 //   - a missing url throws DocumentNotFoundError instead of fetching
 //     "undefined" (url is optional in DocumentDetailsData)
 //   - loadDocumentVierwer → loadViewerDocument (typo)
@@ -71,8 +73,15 @@ export async function loadViewerDocument(
 
   const documentCaseDetails = data[0];
 
+  // Sorted for the dropdown. `numeric` puts CASE-2 before CASE-10.
   const cases: CaseNumberOptions[] =
-    data.length > 1 ? data.map((c) => ({ caseNumber: c.caseNumber })) : [];
+    data.length > 1
+      ? data
+          .map((c) => ({ caseNumber: c.caseNumber }))
+          .sort((a, b) =>
+            (a.caseNumber ?? '').localeCompare(b.caseNumber ?? '', undefined, { numeric: true }),
+          )
+      : [];
 
   initializeViewer(cases, documentCaseDetails, data);
 

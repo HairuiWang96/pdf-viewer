@@ -72,6 +72,27 @@ describe('loadViewerDocument', () => {
       expect(state().allDetails).toEqual([first, second]);
     });
 
+    it('sorts the case list by case number, ascending', async () => {
+      // The backend's order is not sorted. Numbers inside compare as numbers,
+      // so CASE-2 comes before CASE-10.
+      fetchDetailsMock.mockResolvedValue([
+        { ...first, caseNumber: 'CASE-10' },
+        { ...first, caseNumber: 'CASE-2' },
+        { ...first, caseNumber: 'CASE-1' },
+      ]);
+
+      await loadViewerDocument('doc-1', new AbortController().signal);
+
+      expect(state().cases).toEqual([
+        { caseNumber: 'CASE-1' },
+        { caseNumber: 'CASE-2' },
+        { caseNumber: 'CASE-10' },
+      ]);
+      // Only the dropdown list is sorted: the page still opens on the
+      // backend's first entry
+      expect(state().details?.caseNumber).toBe('CASE-10');
+    });
+
     it('lets a picked case’s details be found after loading', async () => {
       // The point of passing data to initializeViewer
       fetchDetailsMock.mockResolvedValue([first, second]);

@@ -3,7 +3,8 @@
 //
 // Added, so picking a case refreshes the details (to copy to the other project):
 //   - onCaseChange is the store's selectCase (sets the number and swaps in
-//     that case's details) instead of setCurrentCaseNumber (number only)
+//     that case's details) instead of setCurrentCaseNumber (number only).
+//     Wrapped to return a Promise, as CaseNumber's onSelectCase type asks
 //   - the fields show only once the details are for the selected case
 //   - an "unavailable" message when the case's details are missing
 export type { DocumentDetailsData } from '../types/document';
@@ -60,7 +61,11 @@ export function DocumentDetailsPanel() {
               <CaseNumber
                 cases={cases}
                 selectedCaseNumber={currentCaseNumber || null}
-                onSelectCase={onCaseChange}
+                // CaseNumber expects a Promise; selectCase is synchronous
+                onSelectCase={(caseNumber) => {
+                  onCaseChange(caseNumber);
+                  return Promise.resolve();
+                }}
               />
             </GridLayoutItem>
 
