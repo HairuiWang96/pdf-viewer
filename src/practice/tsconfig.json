@@ -1,0 +1,51 @@
+// Copy of the other project's tsconfig.json (at its root; here it sits at the
+// root of the practice folder).
+//
+// Changed from the original: `include`. doc-viewer's is
+// ["src", "*.ts", "test"]; here the code is in these folders instead, the
+// tests sit next to it, and the test setup (which brings in the jest-dom
+// matcher types, e.g. toBeInTheDocument) is ../test/setup.ts. Also added
+// the learning comment on `types`.
+//
+// `npm run build` and `npx tsc -b` do not use this file; they use
+// ../../tsconfig.practice.json. Check against this one with
+// `npx tsc -p src/practice`.
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+
+    "target": "es2025",
+    "useDefineForClassFields": true,
+    "lib": ["ES2025", "DOM", "DOM.Iterable"],
+
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "skipLibCheck": true,
+
+    // Which extra global type packages to load: types for things that exist
+    // without any `import`.
+    //   - vite/client: what Vite adds to the browser code, mainly
+    //     import.meta.env (MODE, DEV, PROD, BASE_URL), plus imports of files
+    //     like `import logo from './logo.png'`. Without it, import.meta.env
+    //     in loadConfig.ts is a type error.
+    //   - node: Node.js globals and built-in modules (process, __dirname,
+    //     Buffer, `import fs from 'node:fs'`), from @types/node. Needed for
+    //     files that run in Node, not the browser: vite.config.ts, the test
+    //     setup.
+    // It is a whitelist: only these global type packages load, so other
+    // packages in node_modules/@types cannot add globals you did not ask for.
+    // Imports are not affected: `import React from 'react'` still finds its
+    // types the normal way.
+    // Side effect: with node loaded, browser code could use process or Buffer
+    // without a type error, though neither exists in the browser.
+    "types": ["vite/client", "node"]
+  },
+  "include": ["app", "config", "features", "*.ts", "../test/setup.ts"]
+}
