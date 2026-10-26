@@ -3,13 +3,25 @@
 // own vite.config.ts at the top. It is kept to read alongside runtime.ts and
 // loadConfig.ts, and the typecheck and lint still run against it.
 //
-// Changed from the original: added the learning comments on the coverage
-// reporters and the junit reporter.
+// Changed from the original: added the learning comments on `plugins`, the
+// coverage reporters and the junit reporter.
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ command }) => ({
   base: '/doc-viewer/',
+  // A plugin is an add-on that teaches Vite something extra. On its own Vite
+  // serves and bundles plain JavaScript and TypeScript, but knows nothing
+  // about React. react() adds:
+  //   1. JSX: turns <Button onClick={…}>Print</Button> in .tsx files into
+  //      plain JavaScript the browser can run.
+  //   2. Fast Refresh: saving a component during `npm run dev` updates the
+  //      page without a reload, keeping its state (an open drawer stays
+  //      open, a selected case stays selected).
+  // `react` is a function that builds the plugin; `react()` calls it with the
+  // default settings (options would go inside the brackets). The list can
+  // hold several plugins: this repo's own vite.config.ts also has a custom
+  // one, advertisePdfRanges().
   plugins: [react()],
   define: {
     __LOCAL_DEV_SERVER__: JSON.stringify(command === 'serve'),

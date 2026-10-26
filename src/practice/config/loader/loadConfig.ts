@@ -23,7 +23,7 @@
 //          ↑ '/doc-viewer/' (build time)  ↑ the file it downloads (load time)
 //
 // TypeScript has to be told these exist: `"types": ["vite/client"]` in
-// tsconfig does it for import.meta.env, ../globals.d.ts for
+// tsconfig does it for import.meta.env, ../../vite-env.d.ts for
 // __LOCAL_DEV_SERVER__ (explained in runtime.ts, where it is used).
 
 // More detail. Where import.meta.env comes from:
@@ -63,7 +63,7 @@
 // ‼️`command` is 'serve' for `npm run dev` (and when Vitest runs the tests) and
 // 'build' for `npm run build`. So it is true on your computer, false in the
 // built app. Vite's own types don't know this name, so it needs its own
-// declaration (see ../globals.d.ts).
+// declaration (see ../../vite-env.d.ts).
 export async function loadConfig(): Promise<AppConfig> {
   // doc-viewer's BASE_URL is '/doc-viewer/', so this fetches
   // '/doc-viewer/config/config.json'.

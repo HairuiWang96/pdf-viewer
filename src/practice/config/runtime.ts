@@ -1,5 +1,5 @@
 // Copy of the other project's src/config/runtime.ts. No code changes.
-// __LOCAL_DEV_SERVER__ is declared by a stand-in here: see globals.d.ts.
+// __LOCAL_DEV_SERVER__ is declared in ../vite-env.d.ts.
 //
 // Changed from the original: added the learning comments above
 // `declare global` and `const params`, and in getInfo and initRuntime.
