@@ -57,6 +57,7 @@ device instead.
 | Document | What it covers |
 |---|---|
 | [TESTING.md](TESTING.md) | What the suite covers, and what jsdom cannot see |
+| [NPM-INSTALL.md](NPM-INSTALL.md) | `npm install` vs. `npm ci`, and when to commit or restore `package-lock.json` |
 | [PDF-LIBRARIES.md](PDF-LIBRARIES.md) | pdf.js vs. pdf-lib vs. pyHanko, and how each branch packages its engine |
 | [VIEWER-BENCHMARKS.md](VIEWER-BENCHMARKS.md) | Measured comparison of the viewer branches |
 | [KENDO-LIMITATIONS.md](KENDO-LIMITATIONS.md) | KendoReact PDF Viewer's open issues and missing features, from its issue tracker |
