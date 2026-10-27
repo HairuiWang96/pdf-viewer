@@ -32,8 +32,9 @@ function renderPanel() {
   return { user };
 }
 
+// The arrow button opens the ComboBox's list; clicking the text box does not
 async function pick(user: ReturnType<typeof userEvent.setup>, caseNumber: string) {
-  await user.click(screen.getByRole('combobox'));
+  await user.click(screen.getByRole('button', { name: 'expand combobox' }));
   await user.click(screen.getByRole('option', { name: caseNumber }));
 }
 
@@ -66,8 +67,10 @@ describe('DocumentDetailsPanel', () => {
       initializeViewer(twoCases, firstDetails, allDetails);
       renderPanel();
 
-      expect(screen.getByRole('combobox')).toHaveTextContent('Please select a case number');
-      expect(screen.getByRole('combobox')).not.toHaveTextContent('CASE-001');
+      // A ComboBox is a text box: the placeholder is an attribute, the
+      // selected case its value
+      expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', 'Select a case number');
+      expect(screen.getByRole('combobox')).toHaveValue('');
     });
 
     it('hides the details until a case is picked', () => {
@@ -102,7 +105,7 @@ describe('DocumentDetailsPanel', () => {
     });
 
     it('says the case is unavailable when its details are missing', async () => {
-      // CASE-002 is in the dropdown, but the backend sent no details for it
+      // CASE-002 is in the list, but the backend sent no details for it
       initializeViewer(twoCases, firstDetails, [firstDetails]);
       const { user } = renderPanel();
 

@@ -1,25 +1,19 @@
-// Practice copy of CaseNumber from the other project, rebuilt from a photo of
-// its source. Only here to test against. One fix from the original:
-// hasMultipleCases was `> 0`, which gave a single case a one-option dropdown.
+// Practice copy of the other project's CaseNumber. Every list of two or more
+// cases gets a ComboBox you can type in to filter; there is no DropDownList.
 //
-// Changed since (proposed, not in doc-viewer yet): more than ten cases get a
-// ComboBox you can type in to filter, instead of the DropDownList.
+// Changed from the original:
+//   - imports: doc-viewer takes Label, Tooltip, SvgIcon and infoCircleIcon
+//     from '@cmm-courts/ui' and loads '@cmm-courts/ui/cmm-courts-ui.css'.
+//     That package is not installed here, so they come from Kendo directly,
+//     with Kendo's default theme.
+//   - the props interface sits below the imports (doc-viewer: above them).
+//   - the learning comments.
 import { useCallback, useState } from 'react';
-import { ComboBox, DropDownList, Label, Tooltip } from '@progress/kendo-react-all';
-import type {
-  ComboBoxChangeEvent,
-  ComboBoxFilterChangeEvent,
-  DropDownListChangeEvent,
-} from '@progress/kendo-react-all';
+import { ComboBox, Label, Tooltip } from '@progress/kendo-react-all';
+import type { ComboBoxChangeEvent, ComboBoxFilterChangeEvent } from '@progress/kendo-react-all';
 import { SvgIcon } from '@progress/kendo-react-common';
 import { infoCircleIcon } from '@progress/kendo-svg-icons';
 import '@progress/kendo-theme-default/dist/all.css';
-
-const CASE_CHANGE_INFO = 'Selecting a new case number will refresh all document details.';
-
-// Above this many cases, a list is long to scroll: switch to a ComboBox,
-// where typing part of a case number narrows the list
-const MAX_DROPDOWN_CASES = 10;
 
 interface DropDownListProps {
   cases?: { caseNumber?: string }[] | null;
@@ -27,11 +21,13 @@ interface DropDownListProps {
   onSelectCase?: (selectedCase: string) => Promise<void>;
 }
 
+const CASE_SELECTION_INFO = 'Selecting a new case number will refresh all document details.';
+const PLACEHOLDER = 'Select a case number';
+
 export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: DropDownListProps) {
   // No list (null/undefined) is the same as an empty one
   const caseList = cases ?? [];
   const hasMultipleCases = caseList.length > 1;
-  const showComboBox = caseList.length > MAX_DROPDOWN_CASES;
 
   // What the user has typed into the ComboBox; the list shows only the case
   // numbers containing it ("912" finds 2026-CR-00912)
@@ -49,25 +45,9 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
     [onSelectCase],
   );
 
-  const handleDropDownChange = useCallback(
-    (e: DropDownListChangeEvent) => {
-      const selected = e.target.value as { caseNumber?: string };
-      if (
-        selected?.caseNumber &&
-        selected.caseNumber !== 'Please select a case number' &&
-        onSelectCase
-      )
-        void onSelectCase(selected.caseNumber);
-    },
-    [onSelectCase],
-  );
-
-  let selectedCase: { caseNumber?: string } | null = null;
-  if (cases && cases.length > 0) {
-    selectedCase = selectedCaseNumber
-      ? (cases.find((c) => c.caseNumber === selectedCaseNumber) ?? null)
-      : null;
-  }
+  const selectedCase = selectedCaseNumber
+    ? (caseList.find((c) => c.caseNumber === selectedCaseNumber) ?? null)
+    : null;
 
   return (
     <div>
@@ -109,9 +89,9 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
               tabIndex={0}
               // The tooltip's text. Kendo reads it from here and shows it in
               // its own box instead of the browser's plain one.
-              title={CASE_CHANGE_INFO}
+              title={CASE_SELECTION_INFO}
               // What a screen reader reads aloud: the icon has no words
-              aria-label={CASE_CHANGE_INFO}
+              aria-label={CASE_SELECTION_INFO}
               // Announce it as a picture; an empty span means nothing to a
               // screen reader
               role="img"
@@ -122,8 +102,7 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
           </Tooltip>
         )}
       </div>
-
-      {showComboBox ? (
+      {hasMultipleCases ? (
         <ComboBox
           data={filteredCases}
           textField="caseNumber"
@@ -135,19 +114,9 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
           // Show the whole list next time. Picking a case closes the list too,
           // so this covers both; leaving the box, Kendo clears it itself.
           onClose={() => setFilter('')}
-          placeholder="Please select a case number"
+          placeholder={PLACEHOLDER}
           // A case must stay selected, so there is nothing to clear
           clearButton={false}
-          ariaLabel="Select case number"
-        />
-      ) : hasMultipleCases ? (
-        <DropDownList
-          data={caseList}
-          textField="caseNumber"
-          dataItemKey="caseNumber"
-          value={selectedCase}
-          onChange={handleDropDownChange}
-          defaultItem={{ id: null, caseNumber: 'Please select a case number' }}
           ariaLabel="Select case number"
         />
       ) : (
