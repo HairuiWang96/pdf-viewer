@@ -69,7 +69,7 @@ describe('DocumentDetailsPanel', () => {
 
       // A ComboBox is a text box: the placeholder is an attribute, the
       // selected case its value
-      expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', 'Select a case number');
+      expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', 'Select or search a case number');
       expect(screen.getByRole('combobox')).toHaveValue('');
     });
 

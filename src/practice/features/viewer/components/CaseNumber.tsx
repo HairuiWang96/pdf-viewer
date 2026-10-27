@@ -3,9 +3,9 @@
 //
 // Changed from the original:
 //   - imports: doc-viewer takes Label, Tooltip, SvgIcon and infoCircleIcon
-//     from '@cmm-courts/ui' and loads '@cmm-courts/ui/cmm-courts-ui.css'.
-//     That package is not installed here, so they come from Kendo directly,
-//     with Kendo's default theme.
+//     from '@cmm-courts/ui'. That package is not installed here, so they come
+//     from Kendo directly. ComboBox and its event types come from Kendo in
+//     both ('@cmm-courts/ui' has no ComboBox).
 //   - the props interface sits below the imports (doc-viewer: above them).
 //   - the learning comments.
 import { useCallback, useState } from 'react';
@@ -13,18 +13,17 @@ import { ComboBox, Label, Tooltip } from '@progress/kendo-react-all';
 import type { ComboBoxChangeEvent, ComboBoxFilterChangeEvent } from '@progress/kendo-react-all';
 import { SvgIcon } from '@progress/kendo-react-common';
 import { infoCircleIcon } from '@progress/kendo-svg-icons';
-import '@progress/kendo-theme-default/dist/all.css';
 
-interface DropDownListProps {
+interface CaseNumberProps {
   cases?: { caseNumber?: string }[] | null;
   selectedCaseNumber: string | null;
   onSelectCase?: (selectedCase: string) => Promise<void>;
 }
 
 const CASE_SELECTION_INFO = 'Selecting a new case number will refresh all document details.';
-const PLACEHOLDER = 'Select a case number';
+const PLACEHOLDER = 'Select or search a case number';
 
-export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: DropDownListProps) {
+export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: CaseNumberProps) {
   // No list (null/undefined) is the same as an empty one
   const caseList = cases ?? [];
   const hasMultipleCases = caseList.length > 1;

@@ -17,7 +17,7 @@ import CaseNumber from './CaseNumber';
  * to choose between.
  */
 
-const PLACEHOLDER = 'Select a case number';
+const PLACEHOLDER = 'Select or search a case number';
 
 const cases = [
   { caseNumber: 'CASE-2026-001' },
