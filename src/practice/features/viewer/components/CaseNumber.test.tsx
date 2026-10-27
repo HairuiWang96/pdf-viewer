@@ -1,3 +1,7 @@
+// Practice copy of doc-viewer's test/features/viewer/components/CaseNumber.test.tsx.
+// Changed from the original: the import path (the test sits next to the
+// component here). Proposed, not in doc-viewer yet: the review changes (the
+// wording fixes, the two-case test, the cleared-text test).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,10 +10,11 @@ import CaseNumber from './CaseNumber';
 /**
  * Tests for the case number picker.
  *
- * The real KendoReact ComboBox renders fine in jsdom, so they are not mocked.
- * Kendo's own keyboard handling and ARIA are Telerik's to test; what is ours isthe glue:
- * which control shows, which item shows as selected, which string reaches the parent, the
- * placeholder guard, the ComboBox's filter, and the fallback when there is nothing to choose between.
+ * The real KendoReact ComboBox renders fine in jsdom, so it is not mocked.
+ * Kendo's own keyboard handling and ARIA are Telerik's to test; what is ours is the glue:
+ * when the ComboBox shows, which case shows as selected, which string reaches the parent,
+ * the ComboBox's filter, ignoring a cleared box, and the fallback when there is nothing
+ * to choose between.
  */
 
 const PLACEHOLDER = 'Select a case number';
@@ -20,7 +25,8 @@ const cases = [
   { caseNumber: 'CASE-2026-003' },
 ];
 
-// Cases that are more than 10
+// Any number of cases, CASE-01 … CASE-NN, so typing "1" matches several and
+// "11" just one.
 const manyCases = (count: number) =>
   Array.from({ length: count }, (_, i) => ({
     caseNumber: `CASE-${String(i + 1).padStart(2, '0')}`,
@@ -90,16 +96,14 @@ describe('CaseNumber', () => {
   });
 
   describe('the combo box', () => {
-    // Both controls have the combobox role; only the ComboBox is a text box
-    // you can type in, so an <input> tells them apart
-    const isTypeable = () =>
-      screen.getByRole('combobox', { name: 'Select case number' }).tagName === 'INPUT';
+    // Two is the smallest list that gets the ComboBox: the boundary. With only
+    // larger lists, the tests still pass if the threshold went back to "> 10".
+    it('shows an empty combo box with the placeholder from two cases', () => {
+      renderCaseNumber({ cases: manyCases(2) });
 
-    it('shows a combo box when we have more than 1 case', () => {
-      renderCaseNumber({ cases: manyCases(11) });
-
-      expect(isTypeable()).toBe(true);
-      expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', PLACEHOLDER);
+      const box = screen.getByRole('combobox', { name: 'Select case number' });
+      expect(box).toHaveAttribute('placeholder', PLACEHOLDER);
+      expect(box).toHaveValue('');
     });
 
     it('narrows the list to the case numbers containing what is typed', async () => {
@@ -124,6 +128,20 @@ describe('CaseNumber', () => {
       expect(onSelectCase).toHaveBeenCalledWith('CASE-11');
     });
 
+    it('keeps the current case when the text is cleared', async () => {
+      // Clearing the box and leaving it makes Kendo send null; the guard in
+      // handleComboBoxChange ignores it rather than report no case
+      const { user, onSelectCase } = renderCaseNumber({
+        cases: manyCases(12),
+        selectedCaseNumber: 'CASE-07',
+      });
+
+      await user.clear(screen.getByRole('combobox'));
+      await user.tab();
+
+      expect(onSelectCase).not.toHaveBeenCalled();
+    });
+
     it('shows the selected case in the box', () => {
       renderCaseNumber({ cases: manyCases(12), selectedCaseNumber: 'CASE-07' });
 
@@ -136,7 +154,7 @@ describe('CaseNumber', () => {
       expect(screen.getByRole('combobox')).toHaveValue('');
     });
 
-    it('ingores upper and lower case when narrowing', async () => {
+    it('ignores upper and lower case when narrowing', async () => {
       const { user } = renderCaseNumber({ cases: manyCases(12) });
 
       await user.type(screen.getByRole('combobox'), 'case-1');
@@ -189,7 +207,7 @@ describe('CaseNumber', () => {
   });
 
   describe('with nothing to choose between', () => {
-    it('shows a single case as text, not a one-option dropdown', () => {
+    it('shows a single case as text, not a one-option combo box', () => {
       renderCaseNumber({
         cases: [{ caseNumber: 'CASE-2026-001' }],
         selectedCaseNumber: 'CASE-2026-001',
@@ -203,7 +221,7 @@ describe('CaseNumber', () => {
       ['null', null],
       ['undefined', undefined],
       ['an empty list', []],
-    ])('shows no dropdown and does not crash when cases is %s', (_label, noCases) => {
+    ])('shows no combo box and does not crash when cases is %s', (_label, noCases) => {
       renderCaseNumber({ cases: noCases, selectedCaseNumber: null });
 
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
