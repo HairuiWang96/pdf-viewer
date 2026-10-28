@@ -1,0 +1,62 @@
+# Practice copy of doc-viewer's dev Docker Compose file, pasted on 2026-10-28.
+# Only here to read and discuss: nothing in this repo runs it. The file name is
+# a guess (compose.yaml); its paths say it sits in doc-viewer's container.dev/
+# folder, next to the dev Dockerfile it builds.
+#
+# What it does: runs doc-viewer's dev server (npm run dev) inside a Linux
+# container on a Windows machine, opened at http://localhost:5173.
+#
+# The main ideas:
+#   build        build the image from container.dev/Dockerfile, a dev
+#                Dockerfile (not the production one in ../container/, which
+#                copies a ready-built payload/)
+#   ..:/workspace  the Windows project folder is shared live into the
+#                container, so edits on Windows show up inside straight away
+#   node_modules volume  keeps node_modules inside Linux only, separate from
+#                Windows, because some packages differ per operating system
+#   ports        connects the container's port 5173 to the machine's
+#   environment  settings passed into the container: the npm token from the
+#                shell, dev mode, and file-watching tweaks for Windows
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: container.dev/Dockerfile
+
+    # Keep npm/native package resolution on Linux x64/glibc,
+    # regardless of the Windows host architecture.
+    platform: linux/amd64
+
+    working_dir: /workspace
+    init: true
+
+    ports:
+      - '5173:5173'
+
+    volumes:
+      # Windows working tree -> Linux container.
+      - ..:/workspace
+
+      # IMPORTANT: node_modules is Linux-only and never comes from Windows.
+      - node_modules:/workspace/node_modules
+
+    environment:
+      # Pass through the value exported in the Git Bash environment.
+      # The value is not stored in this compose file.
+      - GITLAB_NPM_TOKEN
+
+      - NODE_ENV=development
+
+      # More reliable file watching when source is bind-mounted from Windows.
+      # Remove these two variables if native file watching works well enough
+      # in your Docker Desktop setup.
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=250
+
+    command:
+      - npm
+      - run
+      - dev
+
+volumes:
+  node_modules:

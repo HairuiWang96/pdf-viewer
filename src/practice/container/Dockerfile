@@ -1,6 +1,8 @@
-# Practice copy of doc-viewer's Dockerfile, pasted on 2026-10-28. Only here to
-# read and discuss: nothing in this repo builds it, and the payload/ folder it
-# copies from is made by doc-viewer's pipeline, not here.
+# Practice copy of doc-viewer's production Dockerfile, pasted on 2026-10-28.
+# Only here to read and discuss: nothing in this repo builds it, and the
+# payload/ folder it copies from is made by doc-viewer's pipeline, not here.
+# Assumed to be container/Dockerfile there, beside container.dev/ (the dev
+# setup, see ../container.dev/compose.yaml).
 FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal as base
 
 # microdnf: the package installer on Amazon Linux's minimal image (like npm,
