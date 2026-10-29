@@ -3,7 +3,8 @@
 //
 // Changed since (proposed, not in doc-viewer yet): the icon is Kendo's
 // file-audio icon, grey, with a blue dot that shows until the list has been
-// opened for this document.
+// opened for this document. The popup lines up with the right end of the
+// whole toolbar, not with the audio button.
 import { useEffect, useState } from 'react';
 import { Button } from '@progress/kendo-react-buttons';
 import { Badge, BadgeContainer } from '@progress/kendo-react-indicators';
@@ -40,6 +41,12 @@ export function ToolbarAttachments() {
   if (attachments.length === 0) return null;
 
   const label = `Audio (${attachments.length})`;
+
+  // The popup lines up with the whole toolbar (Kendo's .k-toolbar around this
+  // button), so it sits at the toolbar's right end whatever comes after the
+  // audio button (the details button on desktop, nothing on mobile). Outside a
+  // toolbar, as in the tests, there is none: it lines up with the button.
+  const toolbar = anchor?.closest<HTMLElement>('.k-toolbar') ?? anchor;
 
   return (
     <span ref={setAnchor}>
@@ -84,9 +91,9 @@ export function ToolbarAttachments() {
           | Meant for      | quick lists and menus         | things needing full attention |
           The audio list is quick, and the PDF should stay usable while it's open. */}
       <Popup
-        anchor={anchor}
+        anchor={toolbar}
         show={isOpen}
-        // Each "align" picks a point: the button's bottom-right meets the
+        // Each "align" picks a point: the toolbar's bottom-right meets the
         // popup's top-right, so it opens below with right edges lined up
         anchorAlign={{ horizontal: 'right', vertical: 'bottom' }}
         popupAlign={{ horizontal: 'right', vertical: 'top' }}
