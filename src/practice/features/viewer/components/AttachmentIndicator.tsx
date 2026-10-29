@@ -1,5 +1,9 @@
 // Practice copy of AttachmentIndicator from the other project, pasted from its
-// source on 2026-10-19, unchanged apart from this header.
+// source on 2026-10-19.
+//
+// Changed since (proposed, not in doc-viewer yet): the "▷ filename" button is
+// a full-width pill (Kendo's rounded="full", size="large"), like the browser's
+// audio player it opens into.
 import { useEffect, useState } from 'react';
 import { detectAudioType } from '../utils/audioDetection';
 import { Button } from '@progress/kendo-react-all';
@@ -33,8 +37,18 @@ function AudioAttachment({
   };
 
   if (!url) {
+    // A pill like the player it opens into: Kendo's own rounded, large button,
+    // so the theme sets its colours, hover and focus. global.css only makes it
+    // full width, left-aligned, with long names ending in "…"
     return (
-      <Button type="button" svgIcon={playIcon} onClick={play}>
+      <Button
+        type="button"
+        svgIcon={playIcon}
+        rounded="full"
+        size="large"
+        className="attachment-play"
+        onClick={play}
+      >
         {attachment.filename}
       </Button>
     );

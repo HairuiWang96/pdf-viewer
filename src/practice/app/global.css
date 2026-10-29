@@ -37,6 +37,44 @@
   width: 100%;
 }
 
+/* ── The "▷ filename" button before the player opens ──
+   Kendo's own pill button (rounded="full", size="large"): the theme gives its
+   colours, hover and focus. This only makes it fill the row like the player it
+   opens into, with the icon and name at the left instead of centred.
+   `.k-button` in the selector outweighs Kendo's button styles. */
+.k-button.attachment-play {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* A long file name ends in "…" instead of widening the row. Kendo puts the
+   name in its own <span class="k-button-text"> inside the button.
+   The name is the theme's normal text size (14px), not the large button's
+   16px; the pill keeps the large button's padding. */
+.attachment-play .k-button-text {
+  font-size: var(--kendo-font-size);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Without this, a long name squeezes the ▶ smaller */
+.attachment-play .k-button-icon {
+  flex: none;
+}
+
+/* ── The toolbar's audio popup ──
+   Wide enough that the audio player keeps its seek bar: 320px inside, plus
+   12px of padding left and right. border-box makes the 344px include the
+   padding; max-width keeps it on screen on narrow phones. */
+.attachment-popup {
+  box-sizing: border-box;
+  width: 344px;
+  max-width: calc(100vw - 16px);
+  padding: 0 12px;
+}
+
 /* ── PDF viewer toolbar below 520px: fit more on one row ──
    Kendo's toolbar wraps on narrow screens. These shrink the pager, its widest
    tool (as the main viewer's KendoPdfViewer.css does). */

@@ -4,7 +4,8 @@
 // Changed since (proposed, not in doc-viewer yet): the icon is Kendo's
 // file-audio icon, grey, with a blue dot that shows until the list has been
 // opened for this document. The popup lines up with the right end of the
-// whole toolbar, not with the audio button.
+// whole toolbar, not with the audio button, and has 12px of padding left and
+// right inside.
 import { useEffect, useState } from 'react';
 import { Button } from '@progress/kendo-react-buttons';
 import { Badge, BadgeContainer } from '@progress/kendo-react-indicators';
@@ -105,9 +106,8 @@ export function ToolbarAttachments() {
           setIsOpen(false);
         }}
       >
-        {/* Wide enough that the audio player keeps its seek bar.
-            A plain number means px in inline styles; other units need a string. */}
-        <div style={{ width: 320, maxWidth: 'calc(100vw - 16px)' }}>
+        {/* Wide enough that the audio player keeps its seek bar (global.css) */}
+        <div className="attachment-popup">
           <AttachmentIndicator />
         </div>
       </Popup>
