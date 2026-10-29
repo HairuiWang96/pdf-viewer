@@ -1,0 +1,92 @@
+<!doctype html>
+<!--
+  Audio unpack demo: shows how long unpacking a PDF's audio takes, and that
+  the page freezes while it runs. Run with `npm run audio-unpack-demo`.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audio Unpack Demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 24px; max-width: 900px; color: #222; }
+      h1 { font-size: 22px; margin-bottom: 4px; }
+      p { line-height: 1.5; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 16px 0; }
+      .live { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+      .track { position: relative; width: 320px; height: 16px; background: #eee; border-radius: 8px; overflow: hidden; }
+      #bar { position: absolute; top: 0; left: 0; width: 20px; height: 16px; background: #2b7de9; border-radius: 8px; }
+      .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+      button { font: inherit; padding: 6px 12px; margin: 4px 6px 4px 0; cursor: pointer; }
+      #status { min-height: 1.5em; font-weight: 600; color: #b35c00; }
+      table { border-collapse: collapse; width: 100%; font-size: 14px; }
+      th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; }
+      td.n { text-align: right; font-variant-numeric: tabular-nums; }
+      .frozen { color: #c0392b; font-weight: 600; }
+      code { background: #f4f4f4; padding: 1px 4px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Audio unpack demo</h1>
+    <p>
+      Unpacks each audio file from a PDF the way the viewer does on ▶
+      (<code>extractAttachments</code> from the practice folder), and times it.
+      Unpacking runs in one go on the page's main thread, so while it runs the
+      page cannot update or react.
+    </p>
+
+    <div class="card">
+      <strong>Is the page alive?</strong>
+      <p>
+        Both of these need the page's main thread. During a freeze the counter
+        and the blue bar stop, and clicks wait, then all land at once.
+      </p>
+      <div class="live">
+        <div>Frames drawn: <span id="frames" class="num">0</span></div>
+        <div class="track"><div id="bar"></div></div>
+        <div>
+          <button id="click-me" type="button">Click me</button>
+          clicks counted: <span id="clicks" class="num">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <strong>Unpack a PDF's audio</strong>
+      <p>Test PDFs from <code>public/</code>:</p>
+      <div id="samples"></div>
+      <p>
+        Or a bigger one, built here from the 30 MB test PDF's audio repeated 5
+        times (~150 MB, compressed like the original; building it takes a few
+        seconds):
+      </p>
+      <button id="build-big" type="button">Build and unpack a ~150 MB test PDF</button>
+      <p>Or any PDF from your computer: <input id="pick" type="file" accept="application/pdf" /></p>
+      <p id="status"></p>
+    </div>
+
+    <div class="card">
+      <strong>Results</strong>
+      <p>
+        "Longest freeze" is the longest gap between two drawn frames while the
+        unpack ran: how long the page could not update. A normal frame is about
+        17 ms. To see what a slower laptop does, use Chrome DevTools →
+        Performance → ⚙ → CPU: 4× slowdown, then unpack again.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>PDF</th>
+            <th>Audio file</th>
+            <th>Audio size</th>
+            <th>Unpack time</th>
+            <th>Longest freeze</th>
+          </tr>
+        </thead>
+        <tbody id="results"></tbody>
+      </table>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

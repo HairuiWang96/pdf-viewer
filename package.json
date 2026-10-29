@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "compare-pdfs": "node scripts/compare-pdfs.mjs"
+    "compare-pdfs": "node scripts/compare-pdfs.mjs",
+    "audio-unpack-demo": "vite --config scripts/audio-unpack-demo/vite.config.mjs"
   },
   "dependencies": {
     "@libpdf/core": "^0.4.2",
