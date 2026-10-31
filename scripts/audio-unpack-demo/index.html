@@ -24,6 +24,7 @@
       td.n { text-align: right; font-variant-numeric: tabular-nums; }
       .frozen { color: #c0392b; font-weight: 600; }
       code { background: #f4f4f4; padding: 1px 4px; border-radius: 4px; }
+      .player-label { margin: 14px 0 6px; font-size: 14px; }
     </style>
   </head>
   <body>
@@ -49,6 +50,22 @@
           clicks counted: <span id="clicks" class="num">0</span>
         </div>
       </div>
+    </div>
+
+    <div class="card">
+      <strong>The browser's audio player, three ways</strong>
+      <p>Try pressing ▶ on each.</p>
+      <p class="player-label">1. No audio at all (no <code>src</code>): greyed out, ignores clicks</p>
+      <audio controls></audio>
+      <p class="player-label">
+        2. A tiny silent placeholder: looks ready, but shows <code>0:00 / 0:00</code> until
+        played (the approach we decided against)
+      </p>
+      <audio id="placeholder-player" controls></audio>
+      <p class="player-label">
+        3. Real audio (from <code>case-audio-attachment.pdf</code>): shows its length straight away
+      </p>
+      <audio id="real-player" controls></audio>
     </div>
 
     <div class="card">

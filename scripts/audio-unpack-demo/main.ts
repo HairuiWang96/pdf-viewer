@@ -89,6 +89,23 @@ async function fetchPdf(name: string) {
   return new Uint8Array(await (await fetch(`/${name}`)).arrayBuffer());
 }
 
+// ── The browser's audio player, three ways ──
+// 1 has no source at all, so it is left alone.
+// 2: a silent WAV one sample long, the placeholder AttachmentIndicatorWithPlaceholder uses
+el<HTMLAudioElement>('placeholder-player').src =
+  'data:audio/wav;base64,UklGRiUAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQEAAACA';
+// 3: a small real recording, unpacked from a test PDF (a few ms)
+void (async () => {
+  const { list, readers } = await extractAttachments(await fetchPdf('case-audio-attachment.pdf'));
+  const first = list.find((a) => detectAudioType(a.filename, a.mimeType));
+  const bytes = first && readers.get(first.name)?.();
+  if (!first || !bytes) return;
+  const type = detectAudioType(first.filename, first.mimeType)!;
+  el<HTMLAudioElement>('real-player').src = URL.createObjectURL(
+    new Blob([bytes as BlobPart], { type }),
+  );
+})();
+
 // ── The controls ──
 const SAMPLES = [
   'case-audio-attachment.pdf',
