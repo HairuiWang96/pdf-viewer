@@ -5,6 +5,9 @@
 //   - `if (!viewerData) return <div />` moved below the last hook. It was
 //     above renderLoader's useCallback, so a render without bytes ran one hook
 //     fewer than the next: "Rendered more hooks than during the previous render"
+//
+// Changed since (proposed, not in doc-viewer yet): the toolbar gets our own
+// print button (ToolbarPrint) where Kendo's was, before the attachments button.
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
@@ -16,6 +19,7 @@ import { PDFViewer, PDFViewerHandle, ProgressBar } from '@progress/kendo-react-a
 import { useFitWidthZoom } from '../../hooks/useFitWidthZoom';
 import { MIN_ZOOM } from '../../utils/fitWidthZoom';
 import { ToolbarAttachments } from '../ToolbarAttachments';
+import { ToolbarPrint } from '../ToolbarPrint';
 import type { PDFBytes } from '../../types/document';
 import { toolsMobile, toolsDesktop } from './PDFViewerTools';
 import { useViewerStore } from '../../data/viewerStore';
@@ -63,18 +67,21 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
     void fitToWidth();
   }, [fitToWidth]);
 
-  // 'tools' only takes Kendo's built-in names, so the attachments button is added by copying Kendo's toolbar with one more child at the end
+  // 'tools' only takes Kendo's built-in names, so the print and attachments buttons are added by copying Kendo's toolbar with two more children at the end
   const renderToolbar = useCallback(
     (defaultRendering: ReactElement<{ children?: ReactNode }>) => {
-      if (isLoading) return <></>;
+      if (isLoading || !document) return <></>;
       return cloneElement(
         defaultRendering,
         undefined,
         ...Children.toArray(defaultRendering.props.children),
+        // The store's bytes, not viewerData: pdf.js empties the buffer the
+        // viewer is given, so printing that would print an empty file
+        <ToolbarPrint key="print" document={document} />,
         <ToolbarAttachments key="attachment" />,
       );
     },
-    [isLoading],
+    [isLoading, document],
   );
 
   // prevent confusion from back2back loaders when pdfviewer loading pdf from memory

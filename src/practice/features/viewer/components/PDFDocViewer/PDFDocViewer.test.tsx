@@ -6,6 +6,7 @@ import type { ReactElement, ReactNode } from 'react';
 import PDFDocViewer from '.';
 import { toolsDesktop, toolsMobile } from './PDFViewerTools';
 import { ToolbarAttachments } from '../ToolbarAttachments';
+import { ToolbarPrint } from '../ToolbarPrint';
 import { useViewerStore } from '../../data/viewerStore';
 
 /**
@@ -162,11 +163,9 @@ describe('PDFDocViewer', () => {
   });
 
   describe('toolbar', () => {
-    it('adds the attachments button after Kendo’s own tools', () => {
-      // `tools` only takes Kendo's built-in names, so the button is appended
-      // to the toolbar Kendo renders. It reads the attachments from the store
-      // itself, so it is added with no props.
-      renderViewer();
+    // The children of the toolbar we hand back to Kendo, given a Kendo
+    // toolbar with two tools of its own.
+    function toolbarChildren() {
       const renderToolbar = viewerProps().onRenderToolbar as (
         toolbar: ReactElement<{ children?: ReactNode }>,
       ) => ReactElement<{ children?: ReactNode }>;
@@ -176,13 +175,44 @@ describe('PDFDocViewer', () => {
           <span key="zoom" />
         </div>
       );
+      return Children.toArray(renderToolbar(kendoToolbar).props.children) as ReactElement<{
+        document?: Uint8Array;
+      }>[];
+    }
 
-      const children = Children.toArray(
-        renderToolbar(kendoToolbar).props.children,
-      ) as ReactElement[];
+    it('adds the print and attachments buttons after Kendo’s own tools', () => {
+      // `tools` only takes Kendo's built-in names, so the buttons are appended
+      // to the toolbar Kendo renders. The attachments button reads the store
+      // itself, so it is added with no props.
+      renderViewer();
 
-      expect(children).toHaveLength(3);
+      const children = toolbarChildren();
+
+      expect(children).toHaveLength(4);
+      expect(children.at(-2)?.type).toBe(ToolbarPrint);
       expect(children.at(-1)?.type).toBe(ToolbarAttachments);
+    });
+
+    it('still has the whole PDF to print after pdf.js has emptied the viewer’s copy', () => {
+      // pdf.js takes over the buffer the viewer is given, leaving it empty
+      // (0 bytes). Printing that copy printed an empty file: Edge showed
+      // "We can't open this file".
+      renderViewer();
+      const viewerBuffer = viewerProps().arrayBuffer as ArrayBuffer;
+      structuredClone(viewerBuffer, { transfer: [viewerBuffer] }); // empties it, as pdf.js does
+      expect(viewerBuffer.byteLength).toBe(0);
+
+      const printButton = toolbarChildren().at(-2);
+
+      // The same PDF the viewer shows, so the printout matches the screen
+      expect(printButton?.props.document).toEqual(pdfBytes);
+      expect(printButton?.props.document?.byteLength).toBe(4);
+    });
+
+    it('leaves Kendo’s own print tool out, on desktop and on mobile', () => {
+      // Kendo's prints pages that don't fit the paper (#3742)
+      expect(toolsDesktop).not.toContain('print');
+      expect(toolsMobile).not.toContain('print');
     });
   });
 

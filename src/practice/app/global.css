@@ -105,6 +105,17 @@
   }
 }
 
+/* ── Hidden frame the print button prints from (utils/printPdf.ts) ──
+   Zero size rather than display: none, which some browsers refuse to print. */
+.print-frame {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border: 0;
+}
+
 /* ── Audio dot on the toolbar's audio icon ──
    A small dot in the button's top-right corner, like an "unread" marker.
    Kendo's smallest badge is sized for a number and would cover the icon,
