@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 /**
  * Tests for printPdf: the PDF's bytes go into a hidden iframe, which prints.
@@ -23,6 +24,11 @@ let printPdf: (bytes: Uint8Array) => void;
 let urlCount = 0;
 const createObjectURL = vi.fn<(blob: Blob) => string>(() => `blob:fake/${++urlCount}`);
 const revokeObjectURL = vi.fn();
+
+// The spy on window.open (the new-tab fallback), so no real tab opens. Checked
+// through this variable, not `expect(window.open)`: doc-viewer's lint
+// (unbound-method) rejects taking a method off its object like that.
+let openTab: MockInstance<typeof window.open>;
 
 const pdfBytes = new Uint8Array([37, 80, 68, 70]); // "%PDF"
 
@@ -55,7 +61,7 @@ describe('printPdf', () => {
     createObjectURL.mockClear();
     revokeObjectURL.mockClear();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
-    vi.spyOn(window, 'open').mockImplementation(() => null);
+    openTab = vi.spyOn(window, 'open').mockImplementation(() => null);
   });
 
   afterEach(() => {
@@ -88,7 +94,7 @@ describe('printPdf', () => {
     frames()[0].dispatchEvent(new Event('load'));
 
     expect(print).toHaveBeenCalledOnce();
-    expect(window.open).not.toHaveBeenCalled();
+    expect(openTab).not.toHaveBeenCalled();
   });
 
   it('opens the PDF in a new tab when the browser refuses to print the frame', () => {
@@ -96,7 +102,19 @@ describe('printPdf', () => {
       throw new DOMException('Blocked', 'SecurityError');
     });
 
-    expect(window.open).toHaveBeenCalledWith('blob:fake/1', '_blank');
+    expect(openTab).toHaveBeenCalledWith('blob:fake/1', '_blank');
+  });
+
+  it('opens the PDF in a new tab when the frame has no window to print', () => {
+    // A frame taken out of the page has no window (contentWindow is null).
+    // Without the check, `?.print()` would silently do nothing: no print and
+    // no tab.
+    printPdf(pdfBytes);
+    Object.defineProperty(frames()[0], 'contentWindow', { value: null });
+
+    frames()[0].dispatchEvent(new Event('load'));
+
+    expect(openTab).toHaveBeenCalledWith('blob:fake/1', '_blank');
   });
 
   it('keeps the frame after printing, as the dialog may still be opening', () => {
