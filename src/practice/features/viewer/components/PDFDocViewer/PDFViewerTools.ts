@@ -4,7 +4,7 @@ import type { PDFViewerTool } from '@progress/kendo-react-all';
 // file exports only a component, which React's fast refresh needs.
 //
 // Changed (proposed, not in doc-viewer yet): no 'print'. PDFDocViewer adds our
-// own print button (ToolbarPrint) in its place.
+// own print button (ToolbarPrint) in its place, or 'print' back in Firefox.
 export const toolsDesktop: PDFViewerTool[] = [
   'pager',
   'spacer',

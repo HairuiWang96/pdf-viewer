@@ -8,6 +8,7 @@
 //
 // Changed since (proposed, not in doc-viewer yet): the toolbar gets our own
 // print button (ToolbarPrint) where Kendo's was, before the attachments button.
+// Firefox keeps Kendo's print instead (see kendoPrint below).
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
@@ -16,6 +17,8 @@ interface PDFDocViewerProps {
 import { useCallback, useRef, useMemo, Children, cloneElement, useState, useEffect } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { PDFViewer, PDFViewerHandle, ProgressBar } from '@progress/kendo-react-all';
+import type { PDFViewerTool } from '@progress/kendo-react-all';
+import { isFirefox } from '../../utils/isFirefox';
 import { useFitWidthZoom } from '../../hooks/useFitWidthZoom';
 import { MIN_ZOOM } from '../../utils/fitWidthZoom';
 import { ToolbarAttachments } from '../ToolbarAttachments';
@@ -67,7 +70,19 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
     void fitToWidth();
   }, [fitToWidth]);
 
-  // 'tools' only takes Kendo's built-in names, so the print and attachments buttons are added by copying Kendo's toolbar with two more children at the end
+  // Firefox keeps Kendo's own print. Our print (ToolbarPrint) shows the PDF in
+  // a hidden frame, which Firefox sends to Adobe or downloads unless its PDF
+  // setting is "Open in Firefox". Kendo's prints pictures of the pages, so it
+  // ignores that setting, and Firefox's default "shrink to fit" keeps each on
+  // one sheet. Read once: the browser doesn't change while the page is open.
+  const [kendoPrint] = useState(() => isFirefox());
+
+  const tools = useMemo<PDFViewerTool[]>(() => {
+    const layoutTools = isMobile ? toolsMobile : toolsDesktop;
+    return kendoPrint ? [...layoutTools, 'print'] : layoutTools;
+  }, [isMobile, kendoPrint]);
+
+  // 'tools' only takes Kendo's built-in names, so the print and attachments buttons are added by copying Kendo's toolbar with more children at the end
   const renderToolbar = useCallback(
     (defaultRendering: ReactElement<{ children?: ReactNode }>) => {
       if (isLoading || !document) return <></>;
@@ -77,11 +92,11 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
         ...Children.toArray(defaultRendering.props.children),
         // The store's bytes, not viewerData: pdf.js empties the buffer the
         // viewer is given, so printing that would print an empty file
-        <ToolbarPrint key="print" document={document} />,
+        !kendoPrint && <ToolbarPrint key="print" document={document} />,
         <ToolbarAttachments key="attachment" />,
       );
     },
-    [isLoading, document],
+    [isLoading, document, kendoPrint],
   );
 
   // prevent confusion from back2back loaders when pdfviewer loading pdf from memory
@@ -116,7 +131,7 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
           ref={viewerRef}
           arrayBuffer={viewerData?.buffer ?? undefined}
           style={{ height: '100%' }}
-          tools={isMobile ? toolsMobile : toolsDesktop}
+          tools={tools}
           zoom={zoom}
           minZoom={MIN_ZOOM}
           onZoom={handleZoom}

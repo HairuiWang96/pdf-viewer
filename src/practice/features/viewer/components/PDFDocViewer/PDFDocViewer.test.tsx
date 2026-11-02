@@ -180,39 +180,91 @@ describe('PDFDocViewer', () => {
       }>[];
     }
 
-    it('adds the print and attachments buttons after Kendo’s own tools', () => {
-      // `tools` only takes Kendo's built-in names, so the buttons are appended
-      // to the toolbar Kendo renders. The attachments button reads the store
-      // itself, so it is added with no props.
-      renderViewer();
+    // Which print the viewer uses depends on the browser, read from its
+    // user-agent string, so each group says which browser it pretends to be.
+    function pretendToBe(userAgent: string) {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);
+    }
 
-      const children = toolbarChildren();
-
-      expect(children).toHaveLength(4);
-      expect(children.at(-2)?.type).toBe(ToolbarPrint);
-      expect(children.at(-1)?.type).toBe(ToolbarAttachments);
+    afterEach(() => {
+      vi.restoreAllMocks();
     });
 
-    it('still has the whole PDF to print after pdf.js has emptied the viewer’s copy', () => {
-      // pdf.js takes over the buffer the viewer is given, leaving it empty
-      // (0 bytes). Printing that copy printed an empty file: Edge showed
-      // "We can't open this file".
-      renderViewer();
-      const viewerBuffer = viewerProps().arrayBuffer as ArrayBuffer;
-      structuredClone(viewerBuffer, { transfer: [viewerBuffer] }); // empties it, as pdf.js does
-      expect(viewerBuffer.byteLength).toBe(0);
+    describe('in Chrome and Edge (any browser but Firefox)', () => {
+      // Kendo's print makes pages that don't fit the paper (#3742), so these
+      // get our own print button
+      beforeEach(() => {
+        pretendToBe(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+        );
+      });
 
-      const printButton = toolbarChildren().at(-2);
+      it('adds the print and attachments buttons after Kendo’s own tools', () => {
+        // `tools` only takes Kendo's built-in names, so the buttons are appended
+        // to the toolbar Kendo renders. The attachments button reads the store
+        // itself, so it is added with no props.
+        renderViewer();
 
-      // The same PDF the viewer shows, so the printout matches the screen
-      expect(printButton?.props.document).toEqual(pdfBytes);
-      expect(printButton?.props.document?.byteLength).toBe(4);
+        const children = toolbarChildren();
+
+        expect(children).toHaveLength(4);
+        expect(children.at(-2)?.type).toBe(ToolbarPrint);
+        expect(children.at(-1)?.type).toBe(ToolbarAttachments);
+      });
+
+      it('still has the whole PDF to print after pdf.js has emptied the viewer’s copy', () => {
+        // pdf.js takes over the buffer the viewer is given, leaving it empty
+        // (0 bytes). Printing that copy printed an empty file: Edge showed
+        // "We can't open this file".
+        renderViewer();
+        const viewerBuffer = viewerProps().arrayBuffer as ArrayBuffer;
+        structuredClone(viewerBuffer, { transfer: [viewerBuffer] }); // empties it, as pdf.js does
+        expect(viewerBuffer.byteLength).toBe(0);
+
+        const printButton = toolbarChildren().at(-2);
+
+        // The same PDF the viewer shows, so the printout matches the screen
+        expect(printButton?.props.document).toEqual(pdfBytes);
+        expect(printButton?.props.document?.byteLength).toBe(4);
+      });
+
+      it('leaves Kendo’s own print tool out, on desktop and on mobile', () => {
+        renderViewer({ isMobile: false });
+        expect(viewerProps().tools).not.toContain('print');
+
+        cleanup();
+        renderViewer({ isMobile: true });
+        expect(viewerProps().tools).not.toContain('print');
+      });
     });
 
-    it('leaves Kendo’s own print tool out, on desktop and on mobile', () => {
-      // Kendo's prints pages that don't fit the paper (#3742)
-      expect(toolsDesktop).not.toContain('print');
-      expect(toolsMobile).not.toContain('print');
+    describe('in Firefox', () => {
+      // Our print shows the PDF in a hidden frame, which Firefox downloads or
+      // sends to Adobe unless set to "Open in Firefox"; Kendo's doesn't.
+      beforeEach(() => {
+        pretendToBe(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0',
+        );
+      });
+
+      it('keeps Kendo’s own print tool, on desktop and on mobile', () => {
+        renderViewer({ isMobile: false });
+        expect(viewerProps().tools).toEqual([...toolsDesktop, 'print']);
+
+        cleanup();
+        renderViewer({ isMobile: true });
+        expect(viewerProps().tools).toEqual([...toolsMobile, 'print']);
+      });
+
+      it('adds only the attachments button, not ours for print', () => {
+        renderViewer();
+
+        const children = toolbarChildren();
+
+        expect(children).toHaveLength(3);
+        expect(children.map((child) => child.type)).not.toContain(ToolbarPrint);
+        expect(children.at(-1)?.type).toBe(ToolbarAttachments);
+      });
     });
   });
 
