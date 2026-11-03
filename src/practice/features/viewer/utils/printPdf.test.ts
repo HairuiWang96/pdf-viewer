@@ -10,6 +10,45 @@ import type { MockInstance } from 'vitest';
  * Whether the browser prints the pages to fit the paper needs a real browser.
  */
 
+/*
+ * The ways Vitest fakes things, as used in the print tests:‼️
+ *
+ *   vi.fn()              Makes a brand-new fake function from nothing.
+ *                        Here: createObjectURL, since jsdom has none.
+ *                        Nothing to restore; mockClear() wipes its call record.
+ *                        Use it when the thing doesn't exist, or to hand code
+ *                        a fake (a callback, say).
+ *
+ *   vi.spyOn(obj, 'm')   Takes over one method on an existing object.
+ *                        Here: window.open, and the frame's print and focus
+ *                        (spyOnFrame). Without .mockImplementation(...) the
+ *                        real method still runs, just recorded.‼️
+ *                        vi.restoreAllMocks() puts the real one back.
+ *
+ *   vi.mock('path')      Replaces a whole file (module) for everything that
+ *                        imports it, for the whole test file. Here:
+ *                        ToolbarPrint's tests replace printPdf, since they only
+ *                        check the button calls it right; printPdf has its own
+ *                        tests (these).
+ *
+ * Related helpers:
+ *   vi.mocked(fn)                 Fakes nothing; tells TypeScript "this is a
+ *                                 mock", so vi.mocked(printPdf).mockClear()
+ *                                 type-checks.
+ *   vi.spyOn(obj, 'prop', 'get')  spyOn on a property rather than a method;
+ *                                 'get' fakes reading it. ToolbarPrint's tests
+ *                                 fake navigator.userAgent this way
+ *                                 (pretendToBe).
+ *   vi.stubGlobal('Name', fake)   Replaces a whole global (ResizeObserver in
+ *                                 the PDFDocViewer tests); undone with
+ *                                 vi.unstubAllGlobals().
+ *   vi.useFakeTimers()            Fakes the clock, not a function; undone with
+ *                                 vi.useRealTimers().
+ *
+ * All of them record their calls the same way, so the same checks work on
+ * any: toHaveBeenCalled(), toHaveBeenCalledWith(...), toHaveBeenCalledOnce().
+ */
+
 // printPdf keeps the last print's frame in its module, so each test imports a
 // fresh copy rather than inheriting the one before it.
 //
@@ -17,7 +56,7 @@ import type { MockInstance } from 'vitest';
 // fills it. With a normal import at the top, every test would share that
 // memory: test A's leftover frame would be revoked by test B's first print,
 // failing B's "nothing revoked yet" check because of A.
-let printPdf: (bytes: Uint8Array) => void;
+let printPdf: (bytes: Uint8Array, options?: { delayMs?: number }) => void;
 
 // jsdom has no blob URLs, so these stand in and record what they are given.
 // Each call gets the next URL: blob:fake/1, blob:fake/2, …
@@ -67,6 +106,7 @@ describe('printPdf', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('loads the frame with the PDF as a blob', () => {
@@ -115,6 +155,44 @@ describe('printPdf', () => {
     frames()[0].dispatchEvent(new Event('load'));
 
     expect(openTab).toHaveBeenCalledWith('blob:fake/1', '_blank');
+  });
+
+  describe('with a wait (delayMs, as in Safari)', () => {
+    // Fake timers stand in for the wait, so a test moves time forward with
+    // vi.advanceTimersByTime instead of waiting
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    it('prints that long after the frame has loaded, not before', () => {
+      printPdf(pdfBytes, { delayMs: 3000 });
+      const print = spyOnFrame(frames()[0]);
+      frames()[0].dispatchEvent(new Event('load'));
+
+      vi.advanceTimersByTime(2999);
+      expect(print).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(print).toHaveBeenCalledOnce();
+    });
+
+    it('prints only the new frame when printed again during the wait', () => {
+      // The first frame is removed by the second print. Without the check,
+      // its timer would find no window and open the new-tab fallback.
+      printPdf(pdfBytes, { delayMs: 3000 });
+      const first = frames()[0];
+      const firstPrint = spyOnFrame(first);
+      first.dispatchEvent(new Event('load'));
+
+      printPdf(pdfBytes, { delayMs: 3000 });
+      const secondPrint = spyOnFrame(frames()[0]);
+      frames()[0].dispatchEvent(new Event('load'));
+      vi.advanceTimersByTime(3000);
+
+      expect(firstPrint).not.toHaveBeenCalled();
+      expect(secondPrint).toHaveBeenCalledOnce();
+      expect(openTab).not.toHaveBeenCalled();
+    });
   });
 
   it('keeps the frame after printing, as the dialog may still be opening', () => {

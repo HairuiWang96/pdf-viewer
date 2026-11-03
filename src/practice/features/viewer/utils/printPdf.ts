@@ -10,7 +10,20 @@
 // moment to remove them; the next print (or leaving the page) cleans up.
 let previous: { iframe: HTMLIFrameElement; url: string } | null = null;
 
-export function printPdf(bytes: Uint8Array) {
+// The wait ToolbarPrint uses in Safari. Without a wait, any file could print
+// blank there; with 3 seconds it printed correctly in testing (Safari 26).
+// Printing this long after the click, Safari first asks "This webpage is
+// trying to print. Do you want to print this webpage?"
+export const SAFARI_PRINT_DELAY_MS = 3000;
+
+interface PrintOptions {
+  // How long to wait after the frame loads before printing.‼️ Safari fires
+  // "load" before its PDF viewer has opened the file, and printing then gives
+  // blank pages; nothing tells us when it is ready, so ToolbarPrint waits.
+  delayMs?: number;
+}
+
+export function printPdf(bytes: Uint8Array, { delayMs = 0 }: PrintOptions = {}) {
   if (previous) {
     previous.iframe.remove();
     URL.revokeObjectURL(previous.url);
@@ -24,7 +37,14 @@ export function printPdf(bytes: Uint8Array) {
   iframe.setAttribute('aria-hidden', 'true');
   iframe.tabIndex = -1;
 
-  iframe.addEventListener('load', () => {
+  const print = () => {
+    // Stop if this frame is no longer the latest one. That happens when Print
+    // is clicked again during the Safari wait: the second click removes this
+    // frame and makes a new one, which does the printing. Without this check,
+    // this removed frame (no window left) would end up in the catch below and
+    // open an unwanted new tab.
+    if (previous?.iframe !== iframe) return;
+
     // Only print() is called on the frame. Firefox shows the PDF in its own
     // viewer from another origin, so reading anything inside it would throw.
     try {
@@ -37,6 +57,14 @@ export function printPdf(bytes: Uint8Array) {
       // to print from there
       window.open(url, '_blank');
     }
+  };
+
+  // ‼️"load" only means the file has arrived in the frame, not that the
+  // browser's PDF viewer has drawn it. Chrome and Edge wait for their viewer
+  // when printing; Safari doesn't, so it needs delayMs.
+  iframe.addEventListener('load', () => {
+    if (delayMs > 0) setTimeout(print, delayMs);
+    else print();
   });
 
   iframe.src = url;
