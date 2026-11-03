@@ -28,11 +28,9 @@ describe('ToolbarPrint', () => {
     vi.useRealTimers();
   });
 
-  describe('in Chrome and Edge (any browser but Safari)', () => {
+  describe('in Chrome and Edge', () => {
     beforeEach(() => {
-      pretendToBe(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-      );
+      pretendToBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36');
     });
 
     it('shows a button named Print', () => {
@@ -55,12 +53,10 @@ describe('ToolbarPrint', () => {
 
   describe('in Safari', () => {
     // Safari prints blank pages if print() runs as soon as the PDF loads, so
-    // the button waits, with a spinner. fireEvent rather than userEvent: the
+    // the button waits, with a spinner. ‼️ fireEvent rather than userEvent: the
     // timers are fake here, and userEvent waits on real ones.
     beforeEach(() => {
-      pretendToBe(
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
-      );
+      pretendToBe('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
       vi.useFakeTimers();
     });
 
@@ -89,7 +85,7 @@ describe('ToolbarPrint', () => {
       render(<ToolbarPrint document={pdfBytes} />);
       fireEvent.click(screen.getByRole('button', { name: 'Print' }));
 
-      // Braces, so the callback returns nothing and act() returns nothing. A
+      // ‼️ Braces, so the callback returns nothing and act() returns nothing. A
       // callback that returns a value makes act() return a Promise, which
       // doc-viewer's lint (no-floating-promises) rejects when not awaited.
       act(() => {

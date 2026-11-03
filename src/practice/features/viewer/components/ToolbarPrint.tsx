@@ -24,7 +24,11 @@ export function ToolbarPrint({ document }: ToolbarPrintProps) {
   const [delayMs] = useState(() => (isSafari() ? SAFARI_PRINT_DELAY_MS : 0));
   const [isPreparing, setIsPreparing] = useState(false);
 
-  // The timer that ends the spinner, cleared if the button goes away first
+  // The timer that ends the spinner, cleared if the button goes away first.
+  // The cleanup runs only once (on unmount, with []), yet still clears the
+  // right timer: spinnerTimer is a ref, and the cleanup reads .current when it
+  // runs, so it gets the latest timer (from the most recent click), not
+  // whatever was there when the effect started.
   const spinnerTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(spinnerTimer.current), []);
 
