@@ -5,9 +5,16 @@
 // Prints the PDF itself instead: its bytes go into a hidden iframe, and the
 // browser's own PDF printing fits each page to the paper, in page order.
 
-// The last print's iframe and blob URL. Chrome opens the print dialog after
-// print() returns and fires no "afterprint" for a PDF, so there is no safe
-// moment to remove them; the next print (or leaving the page) cleans up.
+// The last print's iframe and blob URL, kept rather than cleaned up (frame
+// removed, URL freed with revokeObjectURL) straight after printing. Neither
+// obvious moment is safe in Chrome (known behaviour, not tested here):
+//   - Right after print() returns: too early. print() returns at once and the
+//     dialog opens afterwards, still reading the PDF from the frame for its
+//     preview; removing it then would break the preview.
+//   - On "afterprint" (the dialog has closed): never comes. Chrome doesn't
+//     fire it when the page printed is a PDF in a frame.
+// So the next print cleans up the last one (top of printPdf), and leaving the
+// page frees everything anyway. At most one frame and one PDF copy stay.
 let previous: { iframe: HTMLIFrameElement; url: string } | null = null;
 
 // The wait ToolbarPrint uses in Safari. Without a wait, any file could print

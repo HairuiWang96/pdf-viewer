@@ -15,7 +15,7 @@ import type { MockInstance } from 'vitest';
  *
  *   vi.fn()              Makes a brand-new fake function from nothing.
  *                        Here: createObjectURL, since jsdom has none.
- *                        Nothing to restore; mockClear() wipes its call record.
+ *                        Nothing to restore; mockClear() wipes its call record.‼️
  *                        Use it when the thing doesn't exist, or to hand code
  *                        a fake (a callback, say).
  *
@@ -23,7 +23,7 @@ import type { MockInstance } from 'vitest';
  *                        Here: window.open, and the frame's print and focus
  *                        (spyOnFrame). Without .mockImplementation(...) the
  *                        real method still runs, just recorded.‼️
- *                        vi.restoreAllMocks() puts the real one back.
+ *                        vi.restoreAllMocks() puts the real one back.‼️
  *
  *   vi.mock('path')      Replaces a whole file (module) for everything that
  *                        imports it, for the whole test file. Here:
@@ -32,7 +32,7 @@ import type { MockInstance } from 'vitest';
  *                        tests (these).
  *
  * Related helpers:
- *   vi.mocked(fn)                 Fakes nothing; tells TypeScript "this is a
+ *   vi.mocked(fn)                 ‼️ Fakes nothing; tells TypeScript "this is a
  *                                 mock", so vi.mocked(printPdf).mockClear()
  *                                 type-checks.
  *   vi.spyOn(obj, 'prop', 'get')  spyOn on a property rather than a method;
@@ -52,7 +52,7 @@ import type { MockInstance } from 'vitest';
 // printPdf keeps the last print's frame in its module, so each test imports a
 // fresh copy rather than inheriting the one before it.
 //
-// This only declares an empty variable with the function's type; beforeEach
+// ‼️ This only declares an empty variable with the function's type; beforeEach
 // fills it. With a normal import at the top, every test would share that
 // memory: test A's leftover frame would be revoked by test B's first print,
 // failing B's "nothing revoked yet" check because of A.
@@ -83,6 +83,9 @@ function spyOnFrame(frame: HTMLIFrameElement, print: () => void = () => {}) {
 /** Print, then let the frame "finish loading". */
 function printAndLoad(print?: () => void) {
   printPdf(pdfBytes);
+  // The newest frame: printPdf adds it with appendChild, which puts it last.
+  // Usually it's the only one (each print removes the previous frame), but
+  // taking the last still finds this print's frame if an older one is left.
   const frame = frames()[frames().length - 1];
   spyOnFrame(frame, print);
   frame.dispatchEvent(new Event('load'));
@@ -92,7 +95,7 @@ function printAndLoad(print?: () => void) {
 describe('printPdf', () => {
   beforeEach(async () => {
     // Forget every loaded module, then load printPdf.ts again from scratch, so
-    // its memory of the last print starts empty. The brackets let the
+    // its memory of the last print starts empty. ‼️ The brackets let the
     // destructuring fill the existing variable rather than declare a new one.
     vi.resetModules();
     ({ printPdf } = await import('./printPdf'));
@@ -112,6 +115,11 @@ describe('printPdf', () => {
   it('loads the frame with the PDF as a blob', () => {
     printPdf(pdfBytes);
 
+    // Every vi.fn() / vi.spyOn fake keeps a record of what happened to it in
+    // `.mock`; toHaveBeenCalledWith reads the same record. `.mock.calls` is a
+    // list of calls, each a list of that call's arguments, so [0][0] is the
+    // 1st call's 1st argument: the Blob printPdf made. Taken out of the record
+    // because we don't know that exact object in advance, only its type.
     const blob = createObjectURL.mock.calls[0][0];
     expect(blob.type).toBe('application/pdf');
     expect(frames()[0].src).toBe('blob:fake/1');
