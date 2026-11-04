@@ -5,7 +5,8 @@
 // file-audio icon, grey, with a blue dot that shows until the list has been
 // opened for this document. The popup lines up with the right end of the
 // whole toolbar, not with the audio button, and has 12px of padding left and
-// right inside.
+// right inside. The span around the button is `buttonWrapper` (was `anchor`),
+// so it is not mixed up with the Popup's anchor, which is the toolbar.
 import { useEffect, useState } from 'react';
 import { Button } from '@progress/kendo-react-buttons';
 import { Badge, BadgeContainer } from '@progress/kendo-react-indicators';
@@ -17,8 +18,10 @@ import type { AttachmentInfo } from '../utils/extractAttachments';
 
 export function ToolbarAttachments() {
   const [isOpen, setIsOpen] = useState(false);
-  // Kept in state, not a ref: the popup needs the element during render
-  const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null);
+  // The <span> around the button. Kept in state, not a ref: the popup needs
+  // the element during render. Not the Popup's anchor: that is `toolbar`,
+  // found from this span below.
+  const [buttonWrapper, setButtonWrapper] = useState<HTMLSpanElement | null>(null);
 
   const attachments = useViewerStore((state) => state.attachments);
 
@@ -47,10 +50,20 @@ export function ToolbarAttachments() {
   // button), so it sits at the toolbar's right end whatever comes after the
   // audio button (the details button on desktop, nothing on mobile). Outside a
   // toolbar, as in the tests, there is none: it lines up with the button.
-  const toolbar = anchor?.closest<HTMLElement>('.k-toolbar') ?? anchor;
+  //
+  // The toolbar is Kendo's, not ours, and is never passed in. PDFViewer builds
+  // it with Kendo's Toolbar, whose outer <div> has class "k-toolbar", and
+  // PDFDocViewer's renderToolbar adds this component at its end. So we find it
+  // from our own span: closest() checks the span's parent, then its parent,
+  // and so on up the page, and returns the first with that class.
+  //
+  //   <div class="k-toolbar">   ← Kendo's: `toolbar`
+  //     … Kendo's buttons …
+  //     <span>                  ← ours: `buttonWrapper`
+  const toolbar = buttonWrapper?.closest<HTMLElement>('.k-toolbar') ?? buttonWrapper;
 
   return (
-    <span ref={setAnchor}>
+    <span ref={setButtonWrapper}>
       {/* Grey icon like Kendo's other tools, with a blue dot until the list
           has been opened once, like an "unread" marker. "info" is the theme's
           blue; "primary" is coral red there, which reads as an error. A dot
@@ -102,7 +115,19 @@ export function ToolbarAttachments() {
           // Close when clicking anywhere outside the popup, except on the
           // button: its own onClick already opens and closes the popup. If
           // we closed here too, the button would then toggle it open again.
-          if (anchor?.contains(event.event.target as Node)) return;
+          //
+          // How it knows the click was on the button: event.event is the
+          // browser's mouse event, and its target is the exact element the
+          // mouse went down on (e.g. the icon's <svg>). buttonWrapper is the
+          // <span> around the button, icon and dot, and contains() is true for
+          // that span or anything inside it. `as Node` is only for TypeScript.
+          //
+          // The span, not the Popup's anchor (`toolbar`): with the toolbar, a
+          // click on any toolbar button (zoom, …) would leave the popup open.
+          //
+          // Clicks inside the popup never get here: Kendo puts the popup's HTML
+          // at the end of <body>, outside the span, and they are not outside it.
+          if (buttonWrapper?.contains(event.event.target as Node)) return;
           setIsOpen(false);
         }}
       >
