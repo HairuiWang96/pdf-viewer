@@ -37,6 +37,13 @@ vi.mock('@progress/kendo-react-all', async () => {
   return {
     PDFViewer: React.forwardRef((props: { onLoad?: () => void }, ref: React.Ref<unknown>) => {
       mockState.received(props);
+      // useImperativeHandle lets a component choose what a parent's ref points
+      // to: instead of a DOM element, "give them this object". (It needs
+      // forwardRef above, so the component receives the ref at all.) Here
+      // PDFDocViewer's viewerRef.current becomes { document, element }, the
+      // same shape the real Kendo PDFViewer gives: useFitWidthZoom calls
+      // document.getPage(1) for the page width and measures element. Without
+      // it the fake would hand back nothing, and fitting would find nothing.
       React.useImperativeHandle(ref, () => ({
         document: mockState.document,
         element: mockState.element,
@@ -45,10 +52,10 @@ vi.mock('@progress/kendo-react-all', async () => {
       // a ref so the effect needs no dependencies (and no lint exception).
       const onLoad = React.useRef(props.onLoad);
       React.useEffect(() => onLoad.current?.(), []);
-      return <div data-testid="kendo-pdfviewer" />;
+      return <div data-testid='kendo-pdfviewer' />;
     }),
     // Shown instead of the viewer while the PDF downloads
-    ProgressBar: () => <div data-testid="progress-bar" />,
+    ProgressBar: () => <div data-testid='progress-bar' />,
   };
 });
 
@@ -68,6 +75,11 @@ function fakeViewerElement(width: number) {
 
   let current = width;
   Object.defineProperty(scroller, 'clientWidth', { get: () => current });
+  // setWidth(844) sets `current`, so clientWidth now reports 844. Both it and
+  // the getter above share `current` even after this function has returned
+  // (a closure: a function keeps the variables around where it was made).
+  // An arrow without { } returns what follows =>; the parentheses mark the
+  // assignment as meant, not a typo for ===. Same as { current = next; }.
   return { root, setWidth: (next: number) => (current = next) };
 }
 
@@ -136,7 +148,7 @@ describe('PDFDocViewer', () => {
       expect(screen.queryByTestId('kendo-pdfviewer')).not.toBeInTheDocument();
     });
 
-     it('renders the viewer with the PDF’s bytes once they are downloaded', () => {
+    it('renders the viewer with the PDF’s bytes once they are downloaded', () => {
       renderViewer();
 
       expect(screen.getByTestId('kendo-pdfviewer')).toBeInTheDocument();
@@ -166,13 +178,11 @@ describe('PDFDocViewer', () => {
     // The children of the toolbar we hand back to Kendo, given a Kendo
     // toolbar with two tools of its own.
     function toolbarChildren() {
-      const renderToolbar = viewerProps().onRenderToolbar as (
-        toolbar: ReactElement<{ children?: ReactNode }>,
-      ) => ReactElement<{ children?: ReactNode }>;
+      const renderToolbar = viewerProps().onRenderToolbar as (toolbar: ReactElement<{ children?: ReactNode }>) => ReactElement<{ children?: ReactNode }>;
       const kendoToolbar = (
         <div>
-          <span key="pager" />
-          <span key="zoom" />
+          <span key='pager' />
+          <span key='zoom' />
         </div>
       );
       return Children.toArray(renderToolbar(kendoToolbar).props.children) as ReactElement<{
@@ -190,13 +200,11 @@ describe('PDFDocViewer', () => {
       vi.restoreAllMocks();
     });
 
-    describe('in Chrome and Edge (any browser but Firefox)', () => {
+    describe('in Chrome and Edge', () => {
       // Kendo's print makes pages that don't fit the paper (#3742), so these
       // get our own print button
       beforeEach(() => {
-        pretendToBe(
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-        );
+        pretendToBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36');
       });
 
       it('adds the print and attachments buttons after Kendo’s own tools', () => {
@@ -242,9 +250,7 @@ describe('PDFDocViewer', () => {
       // Our print shows the PDF in a hidden frame, which Firefox downloads or
       // sends to Adobe unless set to "Open in Firefox"; Kendo's doesn't.
       beforeEach(() => {
-        pretendToBe(
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0',
-        );
+        pretendToBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0');
       });
 
       it('keeps Kendo’s own print tool, on desktop and on mobile', () => {
@@ -262,7 +268,7 @@ describe('PDFDocViewer', () => {
         const children = toolbarChildren();
 
         expect(children).toHaveLength(3);
-        expect(children.map((child) => child.type)).not.toContain(ToolbarPrint);
+        expect(children.map(child => child.type)).not.toContain(ToolbarPrint);
         expect(children.at(-1)?.type).toBe(ToolbarAttachments);
       });
     });
