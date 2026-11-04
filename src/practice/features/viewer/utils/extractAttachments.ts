@@ -34,6 +34,13 @@ export async function extractAttachments(bytes: Uint8Array): Promise<ExtractedAt
 
   for (const audio of findRichMediaAudio(pdf)) {
     list.push({ name: audio.name, filename: audio.filename, mimeType: audio.mimeType });
+    // Stores the read function itself; nothing is decoded until Play calls it.
+    //   audio.read                       same: stores the function
+    //   () => { return audio.read(); }   same: the () inside wait until Play
+    //   audio.read()                     NOT the same: decodes now, stores bytes
+    // Passing audio.read alone is safe because it is an arrow function that
+    // doesn't use `this` (see richMediaAudio). A class method using `this`
+    // would lose it; that one would need the () => wrapper.
     readers.set(audio.name, audio.read);
   }
 
