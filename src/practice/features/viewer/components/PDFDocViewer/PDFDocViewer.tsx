@@ -102,6 +102,10 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
   // prevent confusion from back2back loaders when pdfviewer loading pdf from memory
   // progress bar loads pdf to client -> this loads from client memory to pdfViewer so it never takes
   // longer than a second or two at most since we already have the bytearray
+  //
+  // How: whenever the viewer would show its spinner, Kendo calls this with
+  // that spinner (`loader`) and shows what it returns instead. A spinner gives
+  // back <></> and null gives back null, so either way nothing shows.
   const renderLoader = useCallback((loader: React.ReactElement<unknown> | null) => {
     return loader && <></>;
   }, []);

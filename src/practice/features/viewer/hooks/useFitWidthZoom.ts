@@ -28,7 +28,13 @@ export function useFitWidthZoom(
   isMobile: boolean,
   documentKey: unknown,
 ) {
-  // Ours rather than Kendo's, so it can be set to fit after load
+  // Ours rather than Kendo's, so it can be set to fit after load.
+  //
+  // Kendo shows whatever `zoom` it is given and never changes it itself. Its
+  // + / − buttons and zoom list only report the new level through `onZoom`
+  // (handleZoom below), which saves it here; the re-render then passes it back
+  // in through `zoom`, and only then does the page change size. Like `value`
+  // and `onChange` on an <input>.
   const [zoom, setZoom] = useState(isMobile ? MOBILE_DEFAULT_ZOOM : DESKTOP_MAX_FIT_ZOOM);
 
   // True after a zoom by hand, so a desktop resize keeps it. Phones always refit.
@@ -65,6 +71,12 @@ export function useFitWidthZoom(
   // crossing into the other layout, opening the details drawer. Width only:
   // mobile browsers resize the *height* whenever the address bar slides in or
   // out, and refitting on that would fight the user's scrolling.
+  //
+  // For example: on a phone the user zooms in to read small text, then scrolls
+  // down. The address bar slides away, so the viewer gets taller and the
+  // observer fires. Mobile refits even after a zoom by hand, so without the
+  // width check their zoom would jump back to the fit on every scroll. Hence
+  // lastWidth: a report where only the height changed returns early.
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') return;
     const scroller = viewerRef.current?.element?.querySelector<HTMLElement>('.k-pdf-viewer-canvas');
