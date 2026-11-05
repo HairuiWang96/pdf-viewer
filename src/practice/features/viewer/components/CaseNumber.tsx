@@ -8,6 +8,11 @@
 //     both ('@cmm-courts/ui' has no ComboBox).
 //   - the props interface sits below the imports (doc-viewer: above them).
 //   - the learning comments.
+//
+// Markup in step with doc-viewer's as pasted on 2026-11-05 (grey label, black
+// small icon). Proposed, NOT in doc-viewer yet: a global.css rule
+// (.case-number-heading > :has(.case-number-info)) that centres the info icon,
+// which k-align-items-start put 2px above the label's centre.
 import { useCallback, useState } from 'react';
 import { ComboBox, Label, Tooltip } from '@progress/kendo-react-all';
 import type { ComboBoxChangeEvent, ComboBoxFilterChangeEvent } from '@progress/kendo-react-all';
@@ -50,11 +55,11 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
 
   return (
     <div>
-      {/* Label and info icon on one row (see global.css) */}
-      <div className="case-number-heading">
-        <Label>
-          <strong>Case Number</strong>
-        </Label>
+      {/* Label and info icon on one row. k-align-items-start (as in doc-viewer,
+          reason unknown) puts both at the top, which left the 14px icon 2px
+          above the 18px label's centre; global.css centres the icon alone. */}
+      <div className="case-number-heading k-align-items-start">
+        <Label className="k-color-subtle">Case Number</Label>
 
         {/* Info icon, only when there is a choice to make. Three layers:
               <Tooltip>  watches what is inside it; on hover or focus it
@@ -82,7 +87,7 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
           >
             <span
               // display: flex, so the icon is centred with the label (global.css)
-              className="case-number-info"
+              className="case-number-info k-color-black"
               // A span can't take focus by default; 0 puts it in the Tab order,
               // so the focus option above can trigger
               tabIndex={0}
@@ -96,7 +101,7 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
               role="img"
             >
               {/* Kendo's icon component: the "i" in a circle */}
-              <SvgIcon icon={infoCircleIcon} />
+              <SvgIcon icon={infoCircleIcon} size="small" />
             </span>
           </Tooltip>
         )}

@@ -145,3 +145,12 @@
 .case-number-info {
   display: flex;
 }
+
+/* Centre the info icon even though the row aligns its items to the top
+   (k-align-items-start, which beats align-items: center above). The row's
+   child is Tooltip's wrapper <div>, not our span, so the rule targets the
+   child holding the icon; align-self on one item beats the row's align-items.
+   Without it the 14px icon sits 2px above the 18px label's centre. */
+.case-number-heading > :has(.case-number-info) {
+  align-self: center;
+}
