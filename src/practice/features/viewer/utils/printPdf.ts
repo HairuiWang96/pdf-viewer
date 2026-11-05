@@ -69,7 +69,15 @@ export function printPdf(bytes: Uint8Array, { delayMs = 0 }: PrintOptions = {}) 
   // ‼️"load" only means the file has arrived in the frame, not that the
   // browser's PDF viewer has drawn it. Chrome and Edge wait for their viewer
   // when printing; Safari doesn't, so it needs delayMs.
+  //
+  // Nothing inside this () => { … } runs now. addEventListener('load', fn)
+  // only stores fn and calls it when the frame finishes loading, a few ms
+  // later. So the print timer starts then, not when printPdf is called.
+  // (Code inside a function handed to something else runs later: this
+  // listener, setTimeout(print, …), and print itself.)
   iframe.addEventListener('load', () => {
+    // ④ in ToolbarPrint's timeline: the print timer starts now, a few ms after
+    // its spinner timer, so the spinner ends just before printing
     if (delayMs > 0) setTimeout(print, delayMs);
     else print();
   });

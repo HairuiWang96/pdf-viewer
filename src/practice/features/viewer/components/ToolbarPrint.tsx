@@ -32,14 +32,28 @@ export function ToolbarPrint({ document }: ToolbarPrintProps) {
   const spinnerTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(spinnerTimer.current), []);
 
+  // Two timers of delayMs each: the spinner's (here) and the print's (in
+  // printPdf). The spinner's starts first, so it also ends first:
+  //
+  //   0 ms      click: ① frame set up, ② spinner shown, ③ spinner timer starts
+  //   ~5 ms     frame loaded: ④ print timer starts (printPdf's load listener)
+  //   3000 ms   spinner timer fires, spinner goes away (flushSync)
+  //   ~3005 ms  print timer fires, print dialog opens
+  //
+  // The gap is only as long as the frame took to load, which is why flushSync
+  // is used: it makes sure the spinner is really gone before the print dialog
+  // pauses the page.
   const print = () => {
+    // ① Only sets up the hidden frame and returns. Its print timer starts
+    // later, once the frame has loaded the PDF.
     printPdf(document, { delayMs });
     if (delayMs === 0) return;
 
+    // ② Runs now, but doesn't redraw now: it asks React to redraw soon, just
+    // after this click handler finishes.
     setIsPreparing(true);
-    // Ends with the wait, a few ms before the print itself (which waits from
-    // the frame's load, just after the click). flushSync redraws the button
-    // at once, before the print dialog pauses the page.
+    // ③ The spinner timer starts now. At the end, flushSync overrides React's
+    // "redraw soon" and redraws the button at once.
     spinnerTimer.current = setTimeout(() => flushSync(() => setIsPreparing(false)), delayMs);
   };
 
