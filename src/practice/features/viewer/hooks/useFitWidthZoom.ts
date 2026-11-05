@@ -111,3 +111,38 @@ export function useFitWidthZoom(
 
   return { zoom, handleZoom, fitToWidth };
 }
+
+// ── Why both refits are needed: the resize watch AND the layout switch ──
+//
+// The resize watch handles width changes WITHIN one layout (mobile → mobile,
+// desktop → desktop). The layout-switch effect handles a jump BETWEEN them.
+//
+// Why the resize watch misses the jump. isMobile is one of its dependencies,
+// so a switch stops the old watch and starts a new one, and each watch has its
+// own lastWidth, measured when it starts. With numbers, viewer 920 → 640 px:
+//
+//   Watch A running         lastWidth = 920
+//   window jumps            viewer is now 640, so isMobile flips to true
+//   React stops Watch A     its 920 is thrown away
+//   React starts Watch B    lastWidth = clientWidth = 640 (already the new one)
+//   Watch B's report        640 === 640 → "no change", no refit
+//
+// The switch can only happen because the width already changed, so the new
+// watch never sees a "before". Only the layout-switch effect, which watches
+// isMobile itself rather than the width, refits here.
+//
+// Why dragging looks fine without it. Dragging changes the width in many small
+// steps. Only the one step that crosses 768 px is missed; the next step, a
+// pixel later, is a normal change in the new layout, and the resize watch
+// refits. A jump (DevTools width typed in, a window snapped to half the
+// screen, a tablet turned) has no next step, so the miss stays on screen.
+//
+// To see it by hand, with the layout-switch effect removed: DevTools device
+// toolbar, Responsive, width 1280; zoom to 150% with +; type 700 as the width.
+// The page stays at 150%, too wide. The zoom by hand matters: without it, the
+// old desktop watch may refit on its own just before the switch. The other
+// way (mobile → desktop) the old mobile watch refits without desktop's 100%
+// cap, so a wide screen can be left above 100%.
+//
+// Tested in PDFDocViewer.test.tsx: "refits when the layout switches to
+// mobile, even after zooming by hand" and "… switches back to desktop".

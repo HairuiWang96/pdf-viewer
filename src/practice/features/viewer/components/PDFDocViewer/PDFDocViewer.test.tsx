@@ -371,6 +371,49 @@ describe('PDFDocViewer', () => {
 
       expect(viewerProps().zoom).toBe(1.5);
     });
+
+    it('refits when the layout switches to mobile, even after zooming by hand', async () => {
+      // A desktop window, 920 px: the page already fits at 100%. The user
+      // zooms to 150%, then snaps the window narrow, so the layout turns mobile.
+      const viewer = fakeViewerElement(920);
+      mockState.element = viewer.root;
+      const { rerender } = renderViewer({ isMobile: false });
+      await act(async () => {});
+      const onZoom = viewerProps().onZoom as (event: { zoom: number }) => void;
+      act(() => onZoom({ zoom: 1.5 }));
+
+      // The switch restarts the resize watch at the new width, so its report
+      // sees no change; only the layout switch itself can refit here.
+      viewer.setWidth(640);
+      rerender(<PDFDocViewer document={pdfBytes} isMobile />);
+      act(() => resize());
+
+      // 640 / 816 = 0.784, rounded down
+      await waitFor(() => expect(viewerProps().zoom).toBe(0.78));
+    });
+
+    it('refits when the layout switches back to desktop', async () => {
+      const viewer = fakeViewerElement(390);
+      mockState.element = viewer.root;
+      const { rerender } = renderViewer({ isMobile: true });
+      await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
+
+      // Wide again: a desktop page that fits is shown at 100%, its cap
+      viewer.setWidth(920);
+      rerender(<PDFDocViewer document={pdfBytes} isMobile={false} />);
+
+      await waitFor(() => expect(viewerProps().zoom).toBe(1));
+    });
+
+    it('keeps the opening zoom while the viewer has no width', async () => {
+      // A hidden viewer measures 0 px wide; fitting to that would make no
+      // sense, so the zoom it opened at stays.
+      mockState.element = fakeViewerElement(0).root;
+      renderViewer({ isMobile: true });
+      await act(async () => {});
+
+      expect(viewerProps().zoom).toBe(0.5);
+    });
   });
 
   describe('when the PDF arrives after the page', () => {
