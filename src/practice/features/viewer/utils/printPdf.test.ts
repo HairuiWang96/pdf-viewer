@@ -74,13 +74,47 @@ const pdfBytes = new Uint8Array([37, 80, 68, 70]); // "%PDF"
 const frames = () => document.querySelectorAll('iframe');
 
 /** Replace the frame window's print() (and focus(), which jsdom only logs
- * "not implemented" for), returning the print spy. */
+ * "not implemented" for), returning the print spy.
+ *
+ *‼️ .mockImplementation(fn) sets what a mock does when called: fn replaces the
+ * real behaviour. Same idea as vi.fn(() => …), but on a mock that already
+ * exists, usually a spyOn. A spy alone only watches and the REAL method still
+ * runs; adding .mockImplementation stops it and runs fn instead:
+ *
+ *   frame's focus   () => {}     do nothing; jsdom's real focus isn't needed
+ *   frame's print   print        a fake each test passes; one that throws acts
+ *                                out a browser refusing to print
+ *   window.open     () => null   no real tab; it only records the code tried
+ *                                (beforeEach, below)
+ *
+ * Each spy still records its calls, e.g. expect(openTab).toHaveBeenCalledWith(url, '_blank').
+ *   vi.spyOn(obj, 'm')                        watch; the real method still runs
+ *   vi.spyOn(obj, 'm').mockImplementation(fn) watch, and run fn instead
+ *   vi.fn(fn)                                 a brand-new mock that runs fn
+ * (See also the list of Vitest's fakes at the top of this file.) */
 function spyOnFrame(frame: HTMLIFrameElement, print: () => void = () => {}) {
   vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => {});
   return vi.spyOn(frame.contentWindow!, 'print').mockImplementation(print);
 }
 
-/** Print, then let the frame "finish loading". */
+/** Print, then let the frame "finish loading".
+ *
+ * Not backwards: "Print" is calling printPdf(), the user pressing the button,
+ * not the printing itself. printPdf only sets up the frame and its load
+ * listener and returns; the real print() runs later, inside that listener. So
+ * the order matches the browser's:
+ *
+ *   ① printPdf()        frame created, "when loaded, print" listener added
+ *   ② spyOnFrame        fake print() swapped in
+ *   ③ dispatch 'load'   listener runs → frame.print(): printing happens HERE
+ *
+ * ② sits between: the frame only exists after ①, and the fake must be in place
+ * before ③ calls print(), or jsdom's real (not implemented) one would run.
+ *
+ * ‼️ dispatchEvent(event) fires an event on an element by hand, as if it really
+ * happened, running every listener for it there. new Event('load') makes the
+ * event; dispatching it runs printPdf's addEventListener('load', …). Done by
+ * hand because jsdom has no PDF viewer, so a real load never comes. */
 function printAndLoad(print?: () => void) {
   printPdf(pdfBytes);
   // The newest frame: printPdf adds it with appendChild, which puts it last.

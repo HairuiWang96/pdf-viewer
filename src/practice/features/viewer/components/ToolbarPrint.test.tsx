@@ -53,8 +53,8 @@ describe('ToolbarPrint', () => {
 
   describe('in Safari', () => {
     // Safari prints blank pages if print() runs as soon as the PDF loads, so
-    // the button waits, with a spinner. ‼️ fireEvent rather than userEvent: the
-    // timers are fake here, and userEvent waits on real ones.
+    // the button waits, with a spinner.
+    // ‼️ fireEvent rather than userEvent: the timers are fake here, and userEvent waits on real ones.
     beforeEach(() => {
       pretendToBe('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
       vi.useFakeTimers();

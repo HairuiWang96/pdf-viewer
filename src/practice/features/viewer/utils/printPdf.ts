@@ -86,3 +86,48 @@ export function printPdf(bytes: Uint8Array, { delayMs = 0 }: PrintOptions = {}) 
   document.body.appendChild(iframe);
   previous = { iframe, url };
 }
+
+// ── The whole print, in order: from the click to the print dialog ──
+//
+// Two different functions are called `print`:
+//   ToolbarPrint's print   the button's click handler
+//   printPdf's inner print the one that actually prints the frame (above)
+// printPdf has no `return` statement: it returns at its closing `}`, like any
+// function. The `return` inside the inner print belongs to that, not printPdf.
+//
+// Phase A, the click. Runs straight through, within about a millisecond:
+//    1  ToolbarPrint   onClick={print} runs ToolbarPrint's print
+//    2  ToolbarPrint   calls printPdf(document, { delayMs }); into printPdf:
+//    3  printPdf       removes the previous print's frame, if any
+//    4  printPdf       URL.createObjectURL: the bytes become a blob URL
+//    5  printPdf       createElement('iframe'): the frame, in memory only
+//    6  printPdf       const print = () => { … }: DEFINED, stored, NOT run
+//    7  printPdf       addEventListener('load', …): REGISTERED, NOT run
+//    8  printPdf       iframe.src = url
+//    9  printPdf       appendChild: the frame goes on the page; the browser
+//                      STARTS loading the PDF in the background
+//   10  printPdf       previous = { iframe, url }: remembers this frame
+//   11  printPdf       reaches `}`: printPdf returns to ToolbarPrint
+//   12  ToolbarPrint   Chrome/Edge (delayMs 0): `return`; the click is done
+//   12' ToolbarPrint   Safari: setIsPreparing(true) and the spinner timer; done
+//   Nothing has printed yet: steps 6 and 7 only stored functions.
+//
+// Phase B, a few ms later, the frame finishes loading:
+//   13  browser        fires `load` on the iframe
+//   14  printPdf       the listener stored in step 7 runs now
+//   15  printPdf       Chrome/Edge: calls the inner print() at once
+//   15' printPdf       Safari: setTimeout(print, delayMs), so it runs 3 s later
+//
+// Phase C, the inner print runs (the function stored in step 6):
+//   16  printPdf       not the latest frame any more (Print clicked again)? stop
+//   17  printPdf       frameWindow.focus(), then .print(): the dialog opens
+//   17' printPdf       the browser refused (it threw): window.open(url) instead
+//
+// In short:
+//   click → ToolbarPrint's print → printPdf: build frame, STORE print,
+//   STORE listener, add frame → return
+//   … frame loads … → listener runs → (Safari: wait 3 s) → inner print → dialog
+//
+// The tests do the same by hand: printAndLoad calls printPdf (steps 2-11),
+// swaps in a fake print, then dispatchEvent(new Event('load')) acts out step
+// 13, so steps 14-17 run.
