@@ -26,11 +26,20 @@ function attachment(filename: string, read: ReadAttachment = () => new Uint8Arra
   return { info, read };
 }
 
-/** Put attachments in the store, as the loader does once they are extracted. */
+/**
+ * Put attachments in the store, as the loader does once they are extracted.
+ * <AttachmentIndicator /> takes no props: it reads the store itself, so tests
+ * call this (or useViewerStore.setState) BEFORE render, and beforeEach empties
+ * the store again.
+ */
 function storeAttachments(...items: ReturnType<typeof attachment>[]) {
   useViewerStore.setState({
-    attachments: items.map((i) => i.info),
-    attachmentReader: new Map(items.map((i) => [i.info.name, i.read])),
+    attachments: items.map(i => i.info),
+    // new Map(pairs) builds a Map from an array of [key, value] pairs:
+    //   [['clip.mp3', readFn1], ['note.wav', readFn2]]
+    //   → Map { 'clip.mp3' => readFn1, 'note.wav' => readFn2 }
+    // The same name → reader shape extractAttachments builds for real.
+    attachmentReader: new Map(items.map(i => [i.info.name, i.read])),
   });
 }
 
@@ -40,8 +49,31 @@ const revokeObjectURL = vi.fn();
 
 describe('AttachmentIndicator', () => {
   beforeEach(() => {
+    // Reset the store completely, so one test's attachments can't leak into
+    // the next. getInitialState() is the store as first created; the `true`
+    // means REPLACE the whole store with it, where plain setState(partial)
+    // only merges the fields passed. The actions (setAttachments, …) are part
+    // of the initial state, so they survive; replacing with an object without
+    // them would delete them.
     useViewerStore.setState(useViewerStore.getInitialState(), true);
     // jsdom has no blob URLs; pressing play makes one
+    //
+    // vi.stubGlobal('URL', fake) replaces a global (usable everywhere without
+    // an import: URL, window, ResizeObserver) with a fake for the test. Here:
+    //   ...URL             keeps everything else the real URL has
+    //   createObjectURL    returns predictable 'blob:mock-0', 'blob:mock-1', …
+    //                      so tests can check the <audio> got one
+    //   revokeObjectURL    a mock that records calls, so a test can check the
+    //                      cleanup freed the right URL ('blob:mock-0')
+    // afterEach's vi.unstubAllGlobals() puts the real URL back, so the fake
+    // can't leak into other tests. The PDFDocViewer tests fake ResizeObserver
+    // the same way.
+    //
+    //‼️ vi.fn(() => …): passing a function to vi.fn sets the mock's
+    // implementation, what it does when called. So it both runs that function
+    // (returning its URL) and, like any mock, records every call:
+    //   vi.fn()                      records calls, returns undefined
+    //   vi.fn(() => 'blob:mock-0')   records calls AND returns what the function returns
     let counter = 0;
     revokeObjectURL.mockClear();
     vi.stubGlobal('URL', {
@@ -147,7 +179,20 @@ describe('AttachmentIndicator', () => {
 
   it('frees the audio’s memory when the list goes away', async () => {
     storeAttachments(attachment('call-1.mp3'));
-    // render() returns several tools; this test takes `unmount`
+    //‼️ render() returns several tools (rerender, unmount, container, …);
+    // `{ unmount }` takes just this one. Mount = put on the page, unmount =
+    // removed from it. Calling unmount() makes React run the cleanups, here
+    // AttachmentIndicator's blob URL cleanup ("unmount → frees the current
+    // URL"), which the revokeObjectURL mock from beforeEach records:
+    //   render → Play → 'blob:mock-0' made → unmount() → revokeObjectURL('blob:mock-0')
+    //
+    // Its sibling, rerender(<Comp newProps />): the component STAYS with new
+    // props, keeping state and refs; for each effect whose dependencies
+    // changed, the old cleanup runs, then the effect again (a new url frees
+    // the old one; the same url runs nothing). unmount runs EVERY cleanup and
+    // nothing again. Not used here: AttachmentIndicator takes no props, so
+    // tests change the store (setState) and it re-renders itself.
+    //   new props → rerender · goes away → unmount · store-driven → setState
     const { unmount } = render(<AttachmentIndicator />);
     await userEvent.click(screen.getByRole('button', { name: 'call-1.mp3' }));
 
