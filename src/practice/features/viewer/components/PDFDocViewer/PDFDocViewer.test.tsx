@@ -23,6 +23,19 @@ import { useViewerStore } from '../../data/viewerStore';
 // vi.mock is hoisted above the imports, so the state it shares with the tests
 // must be hoisted too.
 // Typed up front rather than with `as` on each field.
+//
+//‼️ `received` is a mock function (vi.fn()): ‼️ a fake that remembers every call.
+//   Mock<(props: Record<string, unknown>) => void>   Vitest's mock type; inside
+//   the < > is the function it pretends to be: one argument, props (an object
+//   with string keys and values of any type), returning nothing.
+// How the tests use it:
+//   1. records:  the fake PDFViewer calls received(props) on every render‼️
+//   2. reads:    viewerProps() takes received.mock.lastCall?.[0]: .mock holds
+//                the records, .lastCall the latest call's arguments, [0] the
+//                props. So viewerProps().zoom = the zoom last passed to Kendo.
+//   3. resets:   beforeEach's mockClear() forgets old calls between tests
+// ‼️ The fake PDFViewer is the only thing that sees the props PDFDocViewer
+// passes; this is how the tests get them back out.
 const { mockState } = vi.hoisted(() => {
   const mockState: {
     document: unknown;
@@ -35,11 +48,26 @@ const { mockState } = vi.hoisted(() => {
 vi.mock('@progress/kendo-react-all', async () => {
   const React = await import('react');
   return {
+    // props: PDFDocViewer writes <PDFViewer zoom={zoom} onLoad={handleLoad} … />,
+    // and React collects those attributes (all but ref) into ONE object,
+    // { zoom: 1, onLoad: handleLoad, … }, and calls this fake with it.
+    // (props, ref) => …: two parameters; forwardRef adds the second, ref, so
+    // the fake also gets viewerRef. `props: { onLoad?: () => void }` is a
+    // TypeScript type on the parameter: an object that may (?) have onLoad, a
+    // function taking nothing and returning nothing. It names only onLoad, the
+    // one prop read below by name; ‼️ at runtime props still holds every prop,
+    // which is why received(props) records them all.
+    //
+    //   PDFDocViewer  <PDFViewer onLoad={handleLoad} />
+    //   React         calls the fake with props = { onLoad: handleLoad, … }
+    //   here          (props, ref) => …     receives the object
+    //   below         props.onLoad          takes handleLoad out of it
+    //                 onLoad.current?.()    calls it once → fitToWidth()‼️
     PDFViewer: React.forwardRef((props: { onLoad?: () => void }, ref: React.Ref<unknown>) => {
       mockState.received(props);
-      // useImperativeHandle lets a component choose what a parent's ref points
-      // to: instead of a DOM element, "give them this object". (It needs
-      // forwardRef above, so the component receives the ref at all.) Here
+      // ‼️ useImperativeHandle lets a component choose what a parent's ref points
+      // to: instead of a DOM element, ‼️ "give them this object". (It needs
+      // forwardRef above, so the component receives the ref at all.) ‼️ Here
       // PDFDocViewer's viewerRef.current becomes { document, element }, the
       // same shape the real Kendo PDFViewer gives: useFitWidthZoom calls
       // document.getPage(1) for the page width and measures element. Without
@@ -297,6 +325,16 @@ describe('PDFDocViewer', () => {
       renderViewer({ isMobile: true });
 
       const onZoom = viewerProps().onZoom as (event: { zoom: number }) => void;
+      //‼️  act() tells React: "I'm changing something; finish every update it
+      // causes before the test carries on." ‼️ React queues a state change
+      // (here setZoom(1.25)) instead of re-rendering at once; act makes it
+      // process the queue now, so the expect below sees the new zoom.
+      //   act(() => …)                 a change that happens right away
+      //                                (onZoom, the fake resize())
+      //   await act(async () => {})    nothing to do, just let pending async
+      //                                work finish (fitToWidth's getPage)
+      // ‼️ render, rerender, fireEvent and waitFor wrap themselves in act already;
+      // write it only for changes made outside them, like calling a prop.
       act(() => onZoom({ zoom: 1.25 }));
 
       expect(viewerProps().zoom).toBe(1.25);
@@ -309,7 +347,17 @@ describe('PDFDocViewer', () => {
       mockState.element = fakeViewerElement(390).root;
       renderViewer({ isMobile: true });
 
-      // 390 / 816 = 0.478, rounded down
+      // 390 / 816 = 0.478, rounded down.
+      //
+      // Why async, await AND waitFor. The fit lands a moment after render:
+      // onLoad → fitToWidth() → await getPage(1) → setZoom(0.47) → re-render,
+      // so right after renderViewer the zoom is still the opening 0.5.
+      //   waitFor‼️ retries the check (every 50 ms) until it passes, or 1 s runs out
+      //   await     pauses the test until waitFor is done; without it the test
+      //             ends at once and passes having checked nothing
+      //   async     lets the test use await; Vitest then waits for the test too
+      // A plain expect(…) without waitFor would check once, see 0.5 and fail.
+      // The other fit tests use the same pattern.
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
     });
 
@@ -385,6 +433,10 @@ describe('PDFDocViewer', () => {
       // The switch restarts the resize watch at the new width, so its report
       // sees no change; only the layout switch itself can refit here.
       viewer.setWidth(640);
+      //‼️ `isMobile` with no value means true in JSX: same as isMobile={true}.
+      // false must be written out (isMobile={false}); leaving the prop off
+      // gives undefined, not false. Works for any boolean prop: parentTitle,
+      // filterable, and <audio controls autoPlay> elsewhere in this code.
       rerender(<PDFDocViewer document={pdfBytes} isMobile />);
       act(() => resize());
 
@@ -425,6 +477,13 @@ describe('PDFDocViewer', () => {
       mockState.element = viewer.root;
       const { rerender } = renderViewer({ isMobile: true, document: null });
 
+      // rerender, not a second render. rerender gives the SAME component new
+      // props, keeping its state, refs and effects, as ViewerPage does when the
+      // bytes arrive. render again would mount a SECOND, brand-new component
+      // beside the first, with the PDF from its very first render: its watch
+      // would find the viewer at once, so the test would pass even without
+      // the documentKey fix, and two viewers would both write to received and
+      // resize. Same component, new props → rerender; a fresh start → a new test.
       rerender(<PDFDocViewer isMobile document={pdfBytes} />);
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
 

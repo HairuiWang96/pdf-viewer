@@ -33,6 +33,17 @@ async function delay(ms: number) {
 }
 
 export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) {
+  // Connects this component to Kendo's viewer so the zoom code can measure it.
+  //   1. here: an empty box (.current is null)
+  //   2. <PDFViewer ref={viewerRef}>: once on screen, Kendo fills .current with
+  //      its handle { element, document, pages, props }
+  //   3. useFitWidthZoom(viewerRef, …): fitToWidth reads .current.document
+  //      (page 1's width) and .current.element (the .k-pdf-viewer-canvas
+  //      scroll area, the screen width); the resize watch watches that area
+  // A ref, not state: it is only looked at when measuring, and changing it
+  // causes no re-render. The hook gets the ref itself, not .current, so it
+  // always reads the latest handle, even one Kendo filled in later. The tests'
+  // fake PDFViewer fills it with { document, element } via useImperativeHandle.
   const viewerRef = useRef<PDFViewerHandle | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
