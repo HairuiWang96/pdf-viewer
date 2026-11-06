@@ -36,9 +36,7 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
   // What the user has typed into the ComboBox; the list shows only the case
   // numbers containing it ("912" finds 2026-CR-00912)
   const [filter, setFilter] = useState('');
-  const filteredCases = caseList.filter((c) =>
-    (c.caseNumber ?? '').toLowerCase().includes(filter.toLowerCase()),
-  );
+  const filteredCases = caseList.filter(c => (c.caseNumber ?? '').toLowerCase().includes(filter.toLowerCase()));
 
   const handleComboBoxChange = useCallback(
     (e: ComboBoxChangeEvent) => {
@@ -49,17 +47,15 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
     [onSelectCase],
   );
 
-  const selectedCase = selectedCaseNumber
-    ? (caseList.find((c) => c.caseNumber === selectedCaseNumber) ?? null)
-    : null;
+  const selectedCase = selectedCaseNumber ? (caseList.find(c => c.caseNumber === selectedCaseNumber) ?? null) : null;
 
   return (
     <div>
       {/* Label and info icon on one row. k-align-items-start (as in doc-viewer,
           reason unknown) puts both at the top, which left the 14px icon 2px
           above the 18px label's centre; global.css centres the icon alone. */}
-      <div className="case-number-heading k-align-items-start">
-        <Label className="k-color-subtle">Case Number</Label>
+      <div className='case-number-heading k-align-items-start'>
+        <Label className='k-color-subtle'>Case Number</Label>
 
         {/* Info icon, only when there is a choice to make. Three layers:
               <Tooltip>  watches what is inside it; on hover or focus it
@@ -76,9 +72,9 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
             // icon), so the box sits beside it and stays put. "pointer": the
             // mouse cursor, so the box follows the cursor around. "target"
             // also works for Tab, where there is no cursor to stick to.
-            anchorElement="target"
+            anchorElement='target'
             // To the left of the icon, as the main project's CaseSelector does
-            position="left"
+            position='left'
             // The mouse lands on the svg, which has no title; look up to its
             // parent (the span) for one. Without it, hovering shows nothing.
             parentTitle
@@ -87,8 +83,8 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
           >
             <span
               // display: flex, so the icon is centred with the label (global.css)
-              className="case-number-info k-color-black"
-              // A span can't take focus by default; 0 puts it in the Tab order,
+              className='case-number-info k-color-black'
+              //‼️ A span can't take focus by default; 0 puts it in the Tab order,
               // so the focus option above can trigger
               tabIndex={0}
               // The tooltip's text. Kendo reads it from here and shows it in
@@ -96,12 +92,12 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
               title={CASE_SELECTION_INFO}
               // What a screen reader reads aloud: the icon has no words
               aria-label={CASE_SELECTION_INFO}
-              // Announce it as a picture; an empty span means nothing to a
+              //‼️ Announce it as a picture; an empty span means nothing to a
               // screen reader
-              role="img"
+              role='img'
             >
               {/* Kendo's icon component: the "i" in a circle */}
-              <SvgIcon icon={infoCircleIcon} size="small" />
+              <SvgIcon icon={infoCircleIcon} size='small' />
             </span>
           </Tooltip>
         )}
@@ -109,8 +105,8 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
       {hasMultipleCases ? (
         <ComboBox
           data={filteredCases}
-          textField="caseNumber"
-          dataItemKey="caseNumber"
+          textField='caseNumber'
+          dataItemKey='caseNumber'
           value={selectedCase}
           onChange={handleComboBoxChange}
           filterable
@@ -121,7 +117,7 @@ export default function CaseNumber({ cases, selectedCaseNumber, onSelectCase }: 
           placeholder={PLACEHOLDER}
           // A case must stay selected, so there is nothing to clear
           clearButton={false}
-          ariaLabel="Select case number"
+          ariaLabel='Select case number'
         />
       ) : (
         <p>{selectedCaseNumber}</p>

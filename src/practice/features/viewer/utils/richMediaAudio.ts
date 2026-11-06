@@ -45,6 +45,7 @@ export function findRichMediaAudio(pdf: PDF): RichMieaiaAudio[] {
   const found: RichMieaiaAudio[] = [];
 
   pdf.getPages().forEach((page, pageIndex) => {
+    //‼️ Here doesn't pass a ref. It passes the resolve function itself, without calling it. libpdf calls it later, with whatever ref it finds.
     const annots = page.dict.getArray('Annots', resolve);
     // `return`, not `continue`: this is forEach's callback, not a loop, so
     // `continue` would not compile. Returning ends this page's call and forEach
@@ -58,6 +59,12 @@ export function findRichMediaAudio(pdf: PDF): RichMieaiaAudio[] {
 
       const assets = annot.getDict('RichMediaContent', resolve)?.getDict('Assets', resolve);
 
+      // The handover. Down to /Assets every step is exactly one level, so plain
+      // get… calls do. /Assets is a name tree of unknown depth, so fileSpecs
+      // flattens it (recursion) into one list of file specs, wherever they sat.
+      // This loop then reads each: the name from /UF or /F, the bytes from
+      // /EF → /F, keeping only audio. fileSpecs knows nothing of pages,
+      // annotations or audio; this function knows the route and what to keep.
       for (const spec of fileSpecs(assets, resolve)) {
         // Keys are case-sensitive: /F, not /f
         const filename = (spec.getString('UF') ?? spec.getString('F'))?.asString();
@@ -88,6 +95,21 @@ export function findRichMediaAudio(pdf: PDF): RichMieaiaAudio[] {
 //             0          1             2            3    ← values at 1, 3, …
 //   /Kids  [ <<node>> <<node>> ]       a big tree splits into child nodes,
 //                                      each with its own /Names or /Kids
+//
+// Recursive: it handles one node, then calls itself for each kid, one level
+// deeper, because the depth is not known in advance:
+//
+//   root                                fileSpecs(root, 0)
+//   ├─ A  /Names [(clip.mp3) …]         ├─ fileSpecs(A, 1)     → [clip.mp3 spec]
+//   └─ B  /Kids                         └─ fileSpecs(B, 1)
+//      └─ C  /Names [(player.swf) …]       └─ fileSpecs(C, 2)  → [player.swf spec]
+//                                       result: [clip.mp3 spec, player.swf spec]
+//
+// Stops (base cases): no node, so nothing here; or depth > 32, a safety limit
+// for a broken or malicious PDF whose kid points back to its parent, which
+// would otherwise recurse forever and crash the page. Real trees are a few
+// levels deep. push(...fileSpecs(…)) spreads each child's list into this one,
+// so the result is one flat list, not lists inside lists.
 function fileSpecs(node: PdfDict | undefined, resolve: (ref: PdfRef) => PdfObject | null, depth = 0): PdfDict[] {
   if (!node || depth > 32) return [];
   const result: PdfDict[] = [];

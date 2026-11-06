@@ -23,7 +23,7 @@ export function ToolbarAttachments() {
   // found from this span below.
   const [buttonWrapper, setButtonWrapper] = useState<HTMLSpanElement | null>(null);
 
-  const attachments = useViewerStore((state) => state.attachments);
+  const attachments = useViewerStore(state => state.attachments);
 
   // The attachment list the user has opened, like an "unread" marker. A new
   // document brings a new list, so its badge shows again until it is opened.
@@ -51,7 +51,7 @@ export function ToolbarAttachments() {
   // audio button (the details button on desktop, nothing on mobile). Outside a
   // toolbar, as in the tests, there is none: it lines up with the button.
   //
-  // The toolbar is Kendo's, not ours, and is never passed in. PDFViewer builds
+  // ‼️ The toolbar is Kendo's, not ours, and is never passed in. PDFViewer builds
   // it with Kendo's Toolbar, whose outer <div> has class "k-toolbar", and
   // PDFDocViewer's renderToolbar adds this component at its end. So we find it
   // from our own span: closest() checks the span's parent, then its parent,
@@ -72,28 +72,18 @@ export function ToolbarAttachments() {
           so the dot is hidden from them. */}
       <BadgeContainer>
         <Button
-          type="button"
-          fillMode="flat"
+          type='button'
+          fillMode='flat'
           svgIcon={fileAudioIcon}
           title={label}
           aria-label={label}
           aria-expanded={isOpen}
           onClick={() => {
-            setIsOpen((open) => !open);
+            setIsOpen(open => !open);
             setSeenAttachments(attachments);
           }}
         />
-        {isUnseen && (
-          <Badge
-            themeColor="info"
-            size="small"
-            rounded="full"
-            position="inside"
-            align={{ vertical: 'top', horizontal: 'end' }}
-            className="audio-dot-badge"
-            aria-hidden="true"
-          />
-        )}
+        {isUnseen && <Badge themeColor='info' size='small' rounded='full' position='inside' align={{ vertical: 'top', horizontal: 'end' }} className='audio-dot-badge' aria-hidden='true' />}
       </BadgeContainer>
 
       {/* A popup, not a modal:
@@ -111,12 +101,12 @@ export function ToolbarAttachments() {
         // popup's top-right, so it opens below with right edges lined up
         anchorAlign={{ horizontal: 'right', vertical: 'bottom' }}
         popupAlign={{ horizontal: 'right', vertical: 'top' }}
-        onMouseDownOutside={(event) => {
+        onMouseDownOutside={event => {
           // Close when clicking anywhere outside the popup, except on the
           // button: its own onClick already opens and closes the popup. If
           // we closed here too, the button would then toggle it open again.
           //
-          // How it knows the click was on the button: event.event is the
+          // ‼️ How it knows the click was on the button: event.event is the
           // browser's mouse event, and its target is the exact element the
           // mouse went down on (e.g. the icon's <svg>). buttonWrapper is the
           // <span> around the button, icon and dot, and contains() is true for
@@ -125,14 +115,14 @@ export function ToolbarAttachments() {
           // The span, not the Popup's anchor (`toolbar`): with the toolbar, a
           // click on any toolbar button (zoom, …) would leave the popup open.
           //
-          // Clicks inside the popup never get here: Kendo puts the popup's HTML
+          //‼️ Clicks inside the popup never get here: Kendo puts the popup's HTML
           // at the end of <body>, outside the span, and they are not outside it.
           if (buttonWrapper?.contains(event.event.target as Node)) return;
           setIsOpen(false);
         }}
       >
         {/* Wide enough that the audio player keeps its seek bar (global.css) */}
-        <div className="attachment-popup">
+        <div className='attachment-popup'>
           <AttachmentIndicator />
         </div>
       </Popup>
