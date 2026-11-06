@@ -154,6 +154,17 @@ describe('PDFDocViewer', () => {
   });
 
   // Unmount after each test.
+  //
+  //‼️ cleanup() (Testing Library) removes everything render() put on the page:
+  // it unmounts each component, so React runs all its cleanups (effects,
+  // listeners, the ResizeObserver disconnected), and removes the <div>s it
+  // added to <body>. All tests in a file share one jsdom page; without it the
+  // next test would find two viewers, and the old one's effects could still
+  // fire. vi.unstubAllGlobals() puts the real globals back.
+  //
+  // Here it runs twice: src/test/setup.ts calls cleanup() after every test in
+  // every file, and `globals: true` makes Testing Library do it too. Harmless,
+  // and it keeps this file working on its own, e.g. in doc-viewer.
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();

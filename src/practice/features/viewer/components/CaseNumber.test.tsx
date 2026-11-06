@@ -19,11 +19,7 @@ import CaseNumber from './CaseNumber';
 
 const PLACEHOLDER = 'Select or search a case number';
 
-const cases = [
-  { caseNumber: 'CASE-2026-001' },
-  { caseNumber: 'CASE-2026-002' },
-  { caseNumber: 'CASE-2026-003' },
-];
+const cases = [{ caseNumber: 'CASE-2026-001' }, { caseNumber: 'CASE-2026-002' }, { caseNumber: 'CASE-2026-003' }];
 
 // Any number of cases, CASE-01 … CASE-NN, so typing "1" matches several and
 // "11" just one.
@@ -37,9 +33,7 @@ function renderCaseNumber(props: Partial<React.ComponentProps<typeof CaseNumber>
   const onSelectCase = vi.fn();
   const user = userEvent.setup();
 
-  render(
-    <CaseNumber cases={cases} selectedCaseNumber={null} onSelectCase={onSelectCase} {...props} />,
-  );
+  render(<CaseNumber cases={cases} selectedCaseNumber={null} onSelectCase={onSelectCase} {...props} />);
 
   return { user, onSelectCase };
 }
@@ -111,12 +105,7 @@ describe('CaseNumber', () => {
 
       await user.type(screen.getByRole('combobox'), '1');
 
-      expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
-        'CASE-01',
-        'CASE-10',
-        'CASE-11',
-        'CASE-12',
-      ]);
+      expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual(['CASE-01', 'CASE-10', 'CASE-11', 'CASE-12']);
     });
 
     it('reports the case picked from the narrowed list', async () => {
@@ -158,11 +147,7 @@ describe('CaseNumber', () => {
       const { user } = renderCaseNumber({ cases: manyCases(12) });
 
       await user.type(screen.getByRole('combobox'), 'case-1');
-      expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
-        'CASE-10',
-        'CASE-11',
-        'CASE-12',
-      ]);
+      expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual(['CASE-10', 'CASE-11', 'CASE-12']);
     });
 
     it('shows the full list again after a case is picked', async () => {
@@ -181,6 +166,35 @@ describe('CaseNumber', () => {
   describe('with no onSelectCase', () => {
     // An error thrown in a click handler doesn't reach the test: React reports it
     // to the window instead. So these collect what reaches the window.
+    //
+    //‼️ What this group tests: onSelectCase is optional (onSelectCase?: …), so
+    // picking a case with none must not crash. CaseNumber guards with
+    // `if (selected?.caseNumber && onSelectCase)`; without `&& onSelectCase`
+    // a pick would run undefined(…), a TypeError.
+    //
+    // Why the window: that TypeError would happen inside a click handler (the
+    // ComboBox's onChange). ‼️ It doesn't travel back to `await user.click(…)`;
+    // ‼️ jsdom catches it while dispatching the event and fires an `error` event
+    // on window instead. ‼️ So the test would PASS even though the component
+    // crashed. collect() listens there (added in beforeEach, removed in
+    // afterEach) and each test ends with expect(errors).toEqual([]).
+    //
+    //‼️ "Fires on window" = reported to the page as a whole, not to the code
+    // that started the click. A real browser, when a listener throws, fires an
+    // `error` event on window (carrying event.error) and prints "Uncaught …";
+    // that's how apps have one global error catcher. jsdom copies this:
+    //
+    //   user.click → jsdom dispatches the click → React's onChange throws
+    //     → jsdom fires an `error` event on window
+    //   user.click finishes normally: to the test, the click "worked"
+    //
+    // So window is the one place the crash shows up: the page's "lost and
+    // found" for errors nobody else caught.
+    //
+    // event.preventDefault() = "dealt with": without it jsdom also prints the
+    // error and Vitest may report it as unhandled, a second time. Same idea as
+    // preventDefault on the audio player's right-click: stop the browser's
+    // normal response to the event.
     let errors: unknown[] = [];
     const collect = (event: ErrorEvent) => {
       errors.push(event.error);
