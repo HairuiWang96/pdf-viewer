@@ -6,6 +6,7 @@ import type { ReactElement, ReactNode } from 'react';
 import PDFDocViewer from '.';
 import { toolsDesktop, toolsMobile } from './PDFViewerTools';
 import { ToolbarAttachments } from '../ToolbarAttachments';
+import { ToolbarPager } from '../ToolbarPager';
 import { ToolbarPrint } from '../ToolbarPrint';
 import { useViewerStore } from '../../data/viewerStore';
 
@@ -114,17 +115,20 @@ function fakeViewerElement(width: number) {
 // jsdom has no ResizeObserver. This one records its callback so a test can
 // fire it after changing the fake element's width, as a browser would.
 // A class because the hook creates it with `new ResizeObserver(callback)`.
-let resize: () => void = () => {};
+// Two hooks watch sizes (the fit and the pager's page), so it keeps every
+// callback being watched, and resize() fires them all.
+const watching = new Set<() => void>();
+const resize = () => watching.forEach(callback => callback());
 class FakeResizeObserver {
   callback: () => void;
   constructor(callback: () => void) {
     this.callback = callback;
   }
   observe() {
-    resize = this.callback;
+    watching.add(this.callback);
   }
   disconnect() {
-    resize = () => {};
+    watching.delete(this.callback);
   }
 }
 
@@ -254,7 +258,8 @@ describe('PDFDocViewer', () => {
 
         const children = toolbarChildren();
 
-        expect(children).toHaveLength(4);
+        // Our pager, Kendo's two, print, attachments
+        expect(children).toHaveLength(5);
         expect(children.at(-2)?.type).toBe(ToolbarPrint);
         expect(children.at(-1)?.type).toBe(ToolbarAttachments);
       });
@@ -306,10 +311,222 @@ describe('PDFDocViewer', () => {
 
         const children = toolbarChildren();
 
-        expect(children).toHaveLength(3);
+        // Our pager, Kendo's two, attachments
+        expect(children).toHaveLength(4);
         expect(children.map(child => child.type)).not.toContain(ToolbarPrint);
         expect(children.at(-1)?.type).toBe(ToolbarAttachments);
       });
+    });
+  });
+
+  describe('page number', () => {
+    // Our pager (ToolbarPager) in place of Kendo's, which shows the page at
+    // the top edge of the view. Ours shows the one that takes up the most of
+    // it (utils/mostVisiblePage.ts) and scrolls to pages itself.
+
+    // Kendo's root element with pages of the given heights in an 800 px tall
+    // scroll area, `gap` px between them. jsdom does no layout, so each page's
+    // position is worked out from the heights and `scrollTop` by hand:
+    //   offsetTop               where the page starts inside the scroll area
+    //   getBoundingClientRect   where it is on screen, after scrolling
+    // Setting scrollTop (ours does, a browser's wheel does) stops at the
+    // bottom and fires the scroll event, as a browser would. zoomTo() changes
+    // the heights without one, as a zoom can.
+    function fakeScrollingViewer(pageHeights: number[], gap = 28) {
+      const root = document.createElement('div');
+      const scroller = document.createElement('div');
+      scroller.className = 'k-pdf-viewer-canvas';
+      const pagesBox = document.createElement('div');
+      pagesBox.className = 'k-pdf-viewer-pages';
+      root.appendChild(scroller);
+      scroller.appendChild(pagesBox);
+
+      let heights = pageHeights;
+      // Page i starts after the gap and every page above it with its gap
+      const startOf = (i: number) => gap + heights.slice(0, i).reduce((sum, h) => sum + h + gap, 0);
+      const maxScroll = () => Math.max(0, startOf(heights.length) - 800);
+
+      let scrollTop = 0;
+      Object.defineProperty(scroller, 'scrollTop', {
+        get: () => scrollTop,
+        set: (y: number) => {
+          scrollTop = Math.min(Math.max(0, y), maxScroll());
+          scroller.dispatchEvent(new Event('scroll'));
+        },
+      });
+      scroller.getBoundingClientRect = () => ({ top: 0, bottom: 800 }) as DOMRect;
+
+      heights.forEach((_, i) => {
+        const page = document.createElement('div');
+        page.className = 'k-page';
+        Object.defineProperty(page, 'offsetTop', { get: () => startOf(i) });
+        page.getBoundingClientRect = () => {
+          const top = startOf(i) - scrollTop;
+          return { top, bottom: top + heights[i] } as DOMRect;
+        };
+        pagesBox.appendChild(page);
+      });
+
+      return {
+        root,
+        scrollTo: (y: number) => act(() => void (scroller.scrollTop = y)),
+        scrollTop: () => scrollTop,
+        zoomTo: (nextHeights: number[]) => (heights = nextHeights),
+      };
+    }
+
+    // Five US Letter pages at 100%, and at 25% (Kendo's gap is 7 px there)
+    const letter100 = [1056, 1056, 1056, 1056, 1056];
+    const letter25 = [264, 264, 264, 264, 264];
+
+    // The toolbar we hand back to Kendo, given a Kendo toolbar with one tool
+    function toolbarChildren() {
+      const renderToolbar = viewerProps().onRenderToolbar as (toolbar: ReactElement<{ children?: ReactNode }>) => ReactElement<{ children?: ReactNode }>;
+      const kendoToolbar = (
+        <div>
+          <span key='zoom' />
+        </div>
+      );
+      return Children.toArray(renderToolbar(kendoToolbar).props.children) as ReactElement<React.ComponentProps<typeof ToolbarPager>>[];
+    }
+
+    // The props of our pager in that toolbar
+    function pager() {
+      const found = toolbarChildren().find(child => child.type === ToolbarPager);
+      if (!found) throw new Error('no pager in the toolbar');
+      return found.props;
+    }
+
+    // Renders the viewer around the fake, and measures it once, as a browser's
+    // ResizeObserver does as soon as it starts (jsdom's fake doesn't)
+    function renderWith(viewer: ReturnType<typeof fakeScrollingViewer>) {
+      mockState.element = viewer.root;
+      renderViewer();
+      act(() => resize());
+    }
+
+    it('puts our pager first in the toolbar, where Kendo’s was', () => {
+      renderViewer();
+
+      expect(toolbarChildren()[0]?.type).toBe(ToolbarPager);
+      expect(toolsDesktop).not.toContain('pager');
+      expect(toolsMobile).not.toContain('pager');
+    });
+
+    it('counts the pages once they have appeared', () => {
+      // Before that its arrows are disabled (ToolbarPager's own tests)
+      mockState.element = fakeScrollingViewer(letter100).root;
+      renderViewer();
+      expect(pager().total).toBe(0);
+
+      act(() => resize());
+
+      expect(pager().total).toBe(5);
+    });
+
+    it('counts the pages as soon as Kendo adds them, with no scroll or resize', async () => {
+      // The viewer is on screen before its pages: Kendo adds them after
+      // reading the PDF. In doc-viewer the pages box growing didn't report
+      // it, and the pager said "Page 1 of 0" until the first scroll. So here
+      // no resize() is fired after the pages arrive.
+      const viewer = fakeScrollingViewer(letter100);
+      const pagesBox = viewer.root.querySelector('.k-pdf-viewer-pages')!;
+      const pages = [...pagesBox.children];
+      pages.forEach(page => page.remove());
+      renderWith(viewer);
+      expect(pager().total).toBe(0);
+
+      // A MutationObserver reports after the current task, hence async act
+      await act(async () => pagesBox.append(...pages));
+
+      expect(pager().total).toBe(5);
+    });
+
+    it('counts the pages when the viewer appears after the progress bar', async () => {
+      // The bytes arrive while the progress bar shows, so there is no viewer
+      // to watch yet; when it appears the bytes are the same. Watching from
+      // the bytes alone left the pager at "Page 1 of 0" (seen in doc-viewer).
+      vi.useFakeTimers();
+      try {
+        mockState.element = fakeScrollingViewer(letter100).root;
+        useViewerStore.setState({ isDocumentLoading: true });
+        renderViewer();
+        expect(screen.getByTestId('progress-bar')).toBeInTheDocument();
+
+        // The download finishes; the progress bar runs its 3.2 s to the end
+        useViewerStore.setState({ isDocumentLoading: false });
+        await act(() => vi.advanceTimersByTimeAsync(3300));
+        expect(screen.getByTestId('kendo-pdfviewer')).toBeInTheDocument();
+        act(() => resize());
+
+        expect(pager().total).toBe(5);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('shows the page that fills most of the view, not the one at the top edge', () => {
+      // Scrolled 750 px, page 1 shows its last 334 px and page 2 its first
+      // 442: Kendo would still say page 1.
+      const viewer = fakeScrollingViewer(letter100);
+      renderWith(viewer);
+      expect(pager().page).toBe(0);
+
+      viewer.scrollTo(750);
+
+      expect(pager().page).toBe(1);
+    });
+
+    it('remeasures when the pages change size without a scroll', () => {
+      // A zoom out leaves scrollTop where it was but moves every page up
+      const viewer = fakeScrollingViewer(letter100);
+      renderWith(viewer);
+      viewer.scrollTo(750);
+
+      viewer.zoomTo(letter25);
+      act(() => resize());
+
+      // At 264 px, 750 px down shows page 3's last 126 px, then pages 4 and 5
+      // whole: page 4, the first of the two
+      expect(pager().page).toBe(3);
+    });
+
+    it('scrolls to the page asked for, with the gap above it that page 1 has', () => {
+      const viewer = fakeScrollingViewer(letter100);
+      renderWith(viewer);
+
+      act(() => pager().onPageChange(3));
+
+      // Page 4 starts at 28 + 3 × (1056 + 28) = 3280; page 1 at 28
+      expect(viewer.scrollTop()).toBe(3252);
+      expect(pager().page).toBe(3);
+    });
+
+    it('scrolls to the right place when the pages differ in size', () => {
+      // Page 2 is landscape. Kendo's own arrows would scroll to
+      // 2 × (1056 + 28) = 2168, 212 px into page 3.
+      const viewer = fakeScrollingViewer([1056, 816, 1056, 1056, 1056]);
+      renderWith(viewer);
+
+      act(() => pager().onPageChange(2));
+
+      // Page 3 starts at 28 + 1084 + 844 = 1956; page 1 at 28
+      expect(viewer.scrollTop()).toBe(1928);
+      expect(pager().page).toBe(2);
+    });
+
+    it('keeps the page asked for when the view cannot scroll to it', () => {
+      // 25%: the view can't scroll further than pages 4 and 5 both whole
+      const viewer = fakeScrollingViewer(letter25, 7);
+      renderWith(viewer);
+      viewer.scrollTo(10_000);
+      expect(pager().page).toBe(3); // page 4, the first of the two
+
+      act(() => pager().onPageChange(4));
+
+      // The scroll stopped at the bottom, a tie between pages 4 and 5
+      expect(viewer.scrollTop()).toBe(562);
+      expect(pager().page).toBe(4);
     });
   });
 

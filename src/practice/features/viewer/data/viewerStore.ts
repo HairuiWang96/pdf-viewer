@@ -4,6 +4,8 @@
 // Changed from the original imports:
 //   - the other types come from ../types/document, as the loader takes them
 //
+// Practice-only: isDocumentLoading (see its comment below).
+//
 // In step with the other project as of 2026-10-15, plus documentId and
 // startDocument, which its loader (api/loadViewerDocument) calls.
 //
@@ -41,7 +43,9 @@ interface ViewerData {
 
   documentLoaded: boolean;
   // True while the PDF is being downloaded; PDFDocViewer shows a progress bar.
-  // In the other project's store; how it is set there has not been seen.
+  // Practice-only: NOT in the other project's store. Added here so the pasted
+  // PDFDocViewer, which reads it, typechecks; where doc-viewer gets it from has
+  // not been seen. Nothing here sets it except the tests.
   isDocumentLoading: boolean;
   attachmentsLoaded: boolean;
   stampedDocumentLoaded: boolean;

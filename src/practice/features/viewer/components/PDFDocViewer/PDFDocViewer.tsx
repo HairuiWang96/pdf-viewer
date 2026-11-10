@@ -9,6 +9,10 @@
 // Changed since (proposed, not in doc-viewer yet): the toolbar gets our own
 // print button (ToolbarPrint) where Kendo's was, before the attachments button.
 // Firefox keeps Kendo's print instead (see kendoPrint below).
+//
+// Also proposed, not in doc-viewer yet: our own pager (ToolbarPager) where
+// Kendo's was. It shows the page that takes up the most of the view, not
+// Kendo's page at the top edge, and scrolls to pages itself (useViewerPage).
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
@@ -20,8 +24,10 @@ import { PDFViewer, PDFViewerHandle, ProgressBar } from '@progress/kendo-react-a
 import type { PDFViewerTool } from '@progress/kendo-react-all';
 import { isFirefox } from '../../utils/isFirefox';
 import { useFitWidthZoom } from '../../hooks/useFitWidthZoom';
+import { useViewerPage } from '../../hooks/useViewerPage';
 import { MIN_ZOOM } from '../../utils/fitWidthZoom';
 import { ToolbarAttachments } from '../ToolbarAttachments';
+import { ToolbarPager } from '../ToolbarPager';
 import { ToolbarPrint } from '../ToolbarPrint';
 import type { PDFBytes } from '../../types/document';
 import { toolsMobile, toolsDesktop } from './PDFViewerTools';
@@ -83,7 +89,15 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
 
   const { zoom, handleZoom, fitToWidth } = useFitWidthZoom(viewerRef, isMobile, viewerData);
 
+  // Counts Kendo's onLoads, so the pager's watch starts once the viewer and
+  // its pages are on screen. Not viewerData: the bytes can arrive while the
+  // progress bar still shows, before there is a viewer to watch, and when it
+  // appears the bytes haven't changed, so the pager stayed at "Page 1 of 0".
+  const [loadCount, setLoadCount] = useState(0);
+  const { page, total, goToPage } = useViewerPage(viewerRef, loadCount);
+
   const handleLoad = useCallback(() => {
+    setLoadCount(count => count + 1);
     void fitToWidth();
   }, [fitToWidth]);
 
@@ -99,13 +113,18 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
     return kendoPrint ? [...layoutTools, 'print'] : layoutTools;
   }, [isMobile, kendoPrint]);
 
-  // 'tools' only takes Kendo's built-in names, so the print and attachments buttons are added by copying Kendo's toolbar with more children at the end
+  // 'tools' only takes Kendo's built-in names, so our buttons are added by
+  // copying Kendo's toolbar with more children: our pager first, where
+  // Kendo's 'pager' tool was (it is left out of the tool lists), and print and
+  // attachments at the end. A new page re-renders this, and Kendo calls it
+  // again, so the pager's number follows the scroll.
   const renderToolbar = useCallback(
     (defaultRendering: ReactElement<{ children?: ReactNode }>) => {
       if (isLoading || !document) return <></>;
       return cloneElement(
         defaultRendering,
         undefined,
+        <ToolbarPager key='pager' page={page} total={total} onPageChange={goToPage} />,
         ...Children.toArray(defaultRendering.props.children),
         // The store's bytes, not viewerData: pdf.js empties the buffer the
         // viewer is given, so printing that would print an empty file
@@ -113,7 +132,7 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
         <ToolbarAttachments key='attachment' />,
       );
     },
-    [isLoading, document, kendoPrint],
+    [isLoading, document, kendoPrint, page, total, goToPage],
   );
 
   // prevent confusion from back2back loaders when pdfviewer loading pdf from memory

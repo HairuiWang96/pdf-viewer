@@ -5,8 +5,9 @@ import type { PDFViewerTool } from '@progress/kendo-react-all';
 //
 // Changed (proposed, not in doc-viewer yet): no 'print'. PDFDocViewer adds our
 // own print button (ToolbarPrint) in its place, or 'print' back in Firefox.
+// Also no 'pager': PDFDocViewer puts our own (ToolbarPager) first, where
+// Kendo's was, because Kendo's shows the page at the top edge of the view.
 export const toolsDesktop: PDFViewerTool[] = [
-  'pager',
   'spacer',
   'zoomInOut',
   'zoom',
@@ -15,4 +16,4 @@ export const toolsDesktop: PDFViewerTool[] = [
   'download',
 ];
 
-export const toolsMobile: PDFViewerTool[] = ['pager', 'zoomInOut', 'download'];
+export const toolsMobile: PDFViewerTool[] = ['zoomInOut', 'download'];
