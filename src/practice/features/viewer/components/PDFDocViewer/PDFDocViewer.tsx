@@ -1,42 +1,37 @@
-// Practice copy of PDFDocViewer from the other project, after its merge on
-// 2026-10-19 (the download progress bar). Only here to test against.
+// Practice copy of PDFDocViewer from the other project, pasted on 2026-11-09
+// (the download is now TanStack Query's fetch: a progress bar, or a spinner
+// when the server sends no Content-Length). Only here to test against.
 //
-// Changed from the pasted version:
-//   - `if (!viewerData) return <div />` moved below the last hook. It was
-//     above renderLoader's useCallback, so a render without bytes ran one hook
-//     fewer than the next: "Rendered more hooks than during the previous render"
+// Changed from the original:
+//   - imports: Kendo's components come from '@progress/kendo-react-all', not
+//     '@cmm-courts/ui' (not installed here)
+//   - comments explaining the code, as elsewhere in this folder
 //
-// Changed since (proposed, not in doc-viewer yet): the toolbar gets our own
-// print button (ToolbarPrint) where Kendo's was, before the attachments button.
-// Firefox keeps Kendo's print instead (see kendoPrint below).
-//
-// Also proposed, not in doc-viewer yet: our own pager (ToolbarPager) where
-// Kendo's was. It shows the page that takes up the most of the view, not
-// Kendo's page at the top edge, and scrolls to pages itself (useViewerPage).
+// Proposed, not in doc-viewer yet:
+//   - useViewerPage is keyed on viewerShown, as useFitWidthZoom is, not on
+//     viewerData: the bytes can arrive while the progress bar still shows,
+//     before there is a viewer to watch, and the pager stayed at "Page 1 of 0"
+//     (the fix suggested for doc-viewer on 2026-11-09)
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
 }
 
-import { useCallback, useRef, useMemo, Children, cloneElement, useState, useEffect } from 'react';
+import { useCallback, useRef, useMemo, Children, cloneElement, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { PDFViewer, PDFViewerHandle, ProgressBar } from '@progress/kendo-react-all';
+import { PDFViewer, PDFViewerHandle, ProgressBar, Loader } from '@progress/kendo-react-all';
 import type { PDFViewerTool } from '@progress/kendo-react-all';
-import { isFirefox } from '../../utils/isFirefox';
 import { useFitWidthZoom } from '../../hooks/useFitWidthZoom';
-import { useViewerPage } from '../../hooks/useViewerPage';
 import { MIN_ZOOM } from '../../utils/fitWidthZoom';
 import { ToolbarAttachments } from '../ToolbarAttachments';
-import { ToolbarPager } from '../ToolbarPager';
 import { ToolbarPrint } from '../ToolbarPrint';
 import type { PDFBytes } from '../../types/document';
 import { toolsMobile, toolsDesktop } from './PDFViewerTools';
 import { useViewerStore } from '../../data/viewerStore';
-
-// This will be removed when we switch to utilizing an actual request
-async function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+import { useIsFetching } from '@tanstack/react-query';
+import { isFirefox } from '../../utils/isFirefox';
+import { useViewerPage } from '../../hooks/useViewerPage';
+import { ToolbarPager } from '../ToolbarPager';
 
 export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) {
   // Connects this component to Kendo's viewer so the zoom code can measure it.
@@ -51,55 +46,6 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
   // always reads the latest handle, even one Kendo filled in later. The tests'
   // fake PDFViewer fills it with { document, element } via useImperativeHandle.
   const viewerRef = useRef<PDFViewerHandle | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [progress, setProgress] = useState<number>(0);
-  const { isDocumentLoading } = useViewerStore.getState();
-
-  useEffect(() => {
-    // The progress bar loader will be updated to use actual request for loading once the
-    // connection to BE is up.
-    async function loadingDelay() {
-      setIsLoading(true);
-      setProgress(0);
-
-      const totalSteps = 10;
-      const delayTime = 300;
-
-      for (let i = 1; i <= totalSteps; i++) {
-        await delay(delayTime);
-
-        const currentProgress = i * 10;
-        setProgress(currentProgress);
-      }
-      await delay(200);
-      setIsLoading(false);
-    }
-    if (isDocumentLoading) {
-      void loadingDelay();
-    }
-  }, [isDocumentLoading]);
-
-  // The viewer's own copy of the PDF's bytes. pdf.js empties the buffer it is
-  // given once it has read it, so the store keeps the original for Print
-  // (ToolbarPrint gets `document`, not this). useMemo copies once per PDF, not
-  // on every render; with no PDF yet there is nothing to copy.
-
-  //new Uint8Array(document) copies the bytes. It's a new array with the same contents.
-  const viewerData = useMemo(() => (document ? new Uint8Array(document) : undefined), [document]);
-
-  const { zoom, handleZoom, fitToWidth } = useFitWidthZoom(viewerRef, isMobile, viewerData);
-
-  // Counts Kendo's onLoads, so the pager's watch starts once the viewer and
-  // its pages are on screen. Not viewerData: the bytes can arrive while the
-  // progress bar still shows, before there is a viewer to watch, and when it
-  // appears the bytes haven't changed, so the pager stayed at "Page 1 of 0".
-  const [loadCount, setLoadCount] = useState(0);
-  const { page, total, goToPage } = useViewerPage(viewerRef, loadCount);
-
-  const handleLoad = useCallback(() => {
-    setLoadCount(count => count + 1);
-    void fitToWidth();
-  }, [fitToWidth]);
 
   // Firefox keeps Kendo's own print. Our print (ToolbarPrint) shows the PDF in
   // a hidden frame, which Firefox sends to Adobe or downloads unless its PDF
@@ -107,6 +53,35 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
   // ignores that setting, and Firefox's default "shrink to fit" keeps each on
   // one sheet. Read once: the browser doesn't change while the page is open.
   const [kendoPrint] = useState(() => isFirefox());
+
+  const progress = useViewerStore((state) => state.documentLoadingProgress);
+  const hasContentLengthHeader = useViewerStore((state) => state.hasDocumentContentLengthHeader);
+  const documentId = useViewerStore((state) => state.documentId);
+  // How many fetches of this document are running: 0 once it has arrived
+  const isDocumentLoading = useIsFetching({ queryKey: ['documentById', documentId] });
+
+  // The viewer's own copy of the PDF's bytes. pdf.js empties the buffer it is
+  // given once it has read it, so the store keeps the original for Print
+  // (ToolbarPrint gets `document`, not this). useMemo copies once per PDF, not
+  // on every render; with no PDF yet there is nothing to copy.
+  const viewerData = useMemo(() => (document ? new Uint8Array(document) : undefined), [document]);
+
+  // The bytes once the viewer is on screen, else nothing. It changes in the
+  // render where <PDFViewer> appears, so hooks keyed on it start watching
+  // the viewer then, not while the progress bar still shows.
+  const viewerShown = !isDocumentLoading && viewerData;
+
+  const { zoom, handleZoom, fitToWidth } = useFitWidthZoom(
+    viewerRef,
+    isMobile,
+    viewerShown || undefined,
+  );
+
+  const { page, total, goToPage } = useViewerPage(viewerRef, viewerShown || undefined);
+
+  const handleLoad = useCallback(() => {
+    void fitToWidth();
+  }, [fitToWidth]);
 
   const tools = useMemo<PDFViewerTool[]>(() => {
     const layoutTools = isMobile ? toolsMobile : toolsDesktop;
@@ -120,19 +95,19 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
   // again, so the pager's number follows the scroll.
   const renderToolbar = useCallback(
     (defaultRendering: ReactElement<{ children?: ReactNode }>) => {
-      if (isLoading || !document) return <></>;
+      if (isDocumentLoading || !document) return <></>;
       return cloneElement(
         defaultRendering,
         undefined,
-        <ToolbarPager key='pager' page={page} total={total} onPageChange={goToPage} />,
+        <ToolbarPager key="pager" page={page} total={total} onPageChange={goToPage} />,
         ...Children.toArray(defaultRendering.props.children),
         // The store's bytes, not viewerData: pdf.js empties the buffer the
         // viewer is given, so printing that would print an empty file
-        !kendoPrint && <ToolbarPrint key='print' document={document} />,
-        <ToolbarAttachments key='attachment' />,
+        !kendoPrint && <ToolbarPrint key="print" document={document} />,
+        <ToolbarAttachments key="attachment" />,
       );
     },
-    [isLoading, document, kendoPrint, page, total, goToPage],
+    [isDocumentLoading, document, kendoPrint, page, total, goToPage],
   );
 
   // prevent confusion from back2back loaders when pdfviewer loading pdf from memory
@@ -146,38 +121,54 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
     return loader && <></>;
   }, []);
 
-  // After every hook: the same hooks must run on every render
+  // While downloading: a progress bar when the size is known (Content-Length),
+  // else a spinner. Below every hook: the same hooks must run on every render.
+  if (isDocumentLoading) {
+    return (
+      <div
+        style={{ height: '100vh' }}
+        className="k-d-flex k-justify-content-center k-align-items-center"
+      >
+        {hasContentLengthHeader ? (
+          <ProgressBar
+            style={{ width: '50%' }}
+            value={progress}
+            label={(props) => `${props.value}%`}
+            animation={false}
+            min={0}
+            max={100}
+            progressStyle={{ backgroundColor: 'green' }}
+          />
+        ) : (
+          <Loader type="infinite-spinner" />
+        )}
+      </div>
+    );
+  }
+
   if (!viewerData) return <div />;
 
   return (
-    <>
-      {isDocumentLoading || isLoading ? (
-        <div style={{ height: '100vh' }} className='k-d-flex k-justify-content-center k-align-items-center'>
-          <ProgressBar style={{ width: '50%' }} value={progress} label={props => `${props.value}%`} animation={false} min={0} max={100} progressStyle={{ backgroundColor: 'green' }} />
-        </div>
-      ) : (
-        <PDFViewer
-          ref={viewerRef}
-          arrayBuffer={viewerData?.buffer ?? undefined}
-          style={{ height: '100%' }}
-          tools={tools}
-          // zoom goes IN: the level Kendo shows (1 = 100%); Kendo never changes
-          // it by itself. onZoom comes OUT: on + / − or a picked level, Kendo
-          // calls it with the new one. Like value + onChange on an <input>:
-          //   click + → onZoom({ zoom: 1.25 }) → handleZoom: setZoom(1.25)
-          //           → re-render, zoom={1.25} goes back in → Kendo shows 125%
-          // We own the number so fitToWidth can set it too (after load, on resize).
-          // Kendo's API docs list onZoom under Events: "Fires when the zoom has
-          // changed." Its event's .zoom is the new level.
-          zoom={zoom}
-          minZoom={MIN_ZOOM}
-          onZoom={handleZoom}
-          onLoad={handleLoad}
-          onRenderToolbar={renderToolbar}
-          onRenderLoader={renderLoader}
-        />
-      )}
-    </>
+    <PDFViewer
+      ref={viewerRef}
+      arrayBuffer={viewerData?.buffer ?? undefined}
+      style={{ height: '100%' }}
+      tools={tools}
+      // zoom goes IN: the level Kendo shows (1 = 100%); Kendo never changes
+      // it by itself. onZoom comes OUT: on + / − or a picked level, Kendo
+      // calls it with the new one. Like value + onChange on an <input>:
+      //   click + → onZoom({ zoom: 1.25 }) → handleZoom: setZoom(1.25)
+      //           → re-render, zoom={1.25} goes back in → Kendo shows 125%
+      // We own the number so fitToWidth can set it too (after load, on resize).
+      // Kendo's API docs list onZoom under Events: "Fires when the zoom has
+      // changed." Its event's .zoom is the new level.
+      zoom={zoom}
+      minZoom={MIN_ZOOM}
+      onZoom={handleZoom}
+      onLoad={handleLoad}
+      onRenderToolbar={renderToolbar}
+      onRenderLoader={renderLoader}
+    />
   );
 }
 

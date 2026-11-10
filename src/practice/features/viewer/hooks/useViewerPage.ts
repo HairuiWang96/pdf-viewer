@@ -12,10 +12,9 @@ import { mostVisiblePage, visibleHeights } from '../utils/mostVisiblePage';
 //   - total: how many pages the document has (0 until they have appeared)
 //   - goToPage: scrolls to a page, for the pager's arrows and typed numbers
 //
-// `loadKey` re-arms the watch: pass something that changes each time Kendo
-// has loaded a document (PDFDocViewer counts its onLoads). Only then is the
-// viewer surely on screen to be watched.
-export function useViewerPage(viewerRef: RefObject<PDFViewerHandle | null>, loadKey: unknown) {
+// `documentKey` re-arms the watch: pass something that changes when the
+// viewer appears (PDFDocViewer passes viewerShown, as to useFitWidthZoom).
+export function useViewerPage(viewerRef: RefObject<PDFViewerHandle | null>, documentKey: unknown) {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
 
@@ -63,7 +62,7 @@ export function useViewerPage(viewerRef: RefObject<PDFViewerHandle | null>, load
       pagesAdded.disconnect();
       observer?.disconnect();
     };
-  }, [viewerRef, loadKey]);
+  }, [viewerRef, documentKey]);
 
   // Scrolls so the page's top sits where page 1's does at the start, with the
   // same gap above it. Each page's own position, not Kendo's "page 1's height

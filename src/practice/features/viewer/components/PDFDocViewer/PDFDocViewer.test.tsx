@@ -1,14 +1,30 @@
+// Practice copy of PDFDocViewer's tests from the other project
+// (test/features/viewer/components/PDFDocViewer.test.tsx), pasted 2026-11-10.
+//
+// Changed from the original:
+//   - imports are relative, and the fake Kendo components replace
+//     '@progress/kendo-react-all' (doc-viewer: '@cmm-courts/ui')
+//
+// Proposed, not in doc-viewer yet (the "page number" tests):
+//   - pager() finds our pager itself, with no second toolbarChildren()
+//   - "puts our pager first in the toolbar" removed: the page-number tests
+//     don't check the toolbar's contents
+//   - "counts the pages once they have appeared" removed: "counts the pages
+//     as soon as Kendo adds them" covers it, the way it happens in a browser
+//   - "counts the pages when the viewer appears after the progress bar" no
+//     longer waits out a timer: the download is now useIsFetching
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { act, render, screen, cleanup, waitFor } from '@testing-library/react';
 import { Children } from 'react';
-import type { ReactElement, ReactNode } from 'react';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 import PDFDocViewer from '.';
 import { toolsDesktop, toolsMobile } from './PDFViewerTools';
 import { ToolbarAttachments } from '../ToolbarAttachments';
-import { ToolbarPager } from '../ToolbarPager';
-import { ToolbarPrint } from '../ToolbarPrint';
 import { useViewerStore } from '../../data/viewerStore';
+import { useIsFetching } from '@tanstack/react-query';
+import { ToolbarPrint } from '../ToolbarPrint';
+import { ToolbarPager } from '../ToolbarPager';
 
 /**
  * Tests for the viewer wrapper around KendoReact's PDFViewer.
@@ -21,22 +37,10 @@ import { useViewerStore } from '../../data/viewerStore';
  * browser.
  */
 
+vi.mock('@tanstack/react-query');
+
 // vi.mock is hoisted above the imports, so the state it shares with the tests
 // must be hoisted too.
-// Typed up front rather than with `as` on each field.
-//
-//‼️ `received` is a mock function (vi.fn()): ‼️ a fake that remembers every call.
-//   Mock<(props: Record<string, unknown>) => void>   Vitest's mock type; inside
-//   the < > is the function it pretends to be: one argument, props (an object
-//   with string keys and values of any type), returning nothing.
-// How the tests use it:
-//   1. records:  the fake PDFViewer calls received(props) on every render‼️
-//   2. reads:    viewerProps() takes received.mock.lastCall?.[0]: .mock holds
-//                the records, .lastCall the latest call's arguments, [0] the
-//                props. So viewerProps().zoom = the zoom last passed to Kendo.
-//   3. resets:   beforeEach's mockClear() forgets old calls between tests
-// ‼️ The fake PDFViewer is the only thing that sees the props PDFDocViewer
-// passes; this is how the tests get them back out.
 const { mockState } = vi.hoisted(() => {
   const mockState: {
     document: unknown;
@@ -49,42 +53,19 @@ const { mockState } = vi.hoisted(() => {
 vi.mock('@progress/kendo-react-all', async () => {
   const React = await import('react');
   return {
-    // props: PDFDocViewer writes <PDFViewer zoom={zoom} onLoad={handleLoad} … />,
-    // and React collects those attributes (all but ref) into ONE object,
-    // { zoom: 1, onLoad: handleLoad, … }, and calls this fake with it.
-    // (props, ref) => …: two parameters; forwardRef adds the second, ref, so
-    // the fake also gets viewerRef. `props: { onLoad?: () => void }` is a
-    // TypeScript type on the parameter: an object that may (?) have onLoad, a
-    // function taking nothing and returning nothing. It names only onLoad, the
-    // one prop read below by name; ‼️ at runtime props still holds every prop,
-    // which is why received(props) records them all.
-    //
-    //   PDFDocViewer  <PDFViewer onLoad={handleLoad} />
-    //   React         calls the fake with props = { onLoad: handleLoad, … }
-    //   here          (props, ref) => …     receives the object
-    //   below         props.onLoad          takes handleLoad out of it
-    //                 onLoad.current?.()    calls it once → fitToWidth()‼️
     PDFViewer: React.forwardRef((props: { onLoad?: () => void }, ref: React.Ref<unknown>) => {
       mockState.received(props);
-      // ‼️ useImperativeHandle lets a component choose what a parent's ref points
-      // to: instead of a DOM element, ‼️ "give them this object". (It needs
-      // forwardRef above, so the component receives the ref at all.) ‼️ Here
-      // PDFDocViewer's viewerRef.current becomes { document, element }, the
-      // same shape the real Kendo PDFViewer gives: useFitWidthZoom calls
-      // document.getPage(1) for the page width and measures element. Without
-      // it the fake would hand back nothing, and fitting would find nothing.
       React.useImperativeHandle(ref, () => ({
         document: mockState.document,
         element: mockState.element,
       }));
-      // Once on mount, as Kendo fires onLoad once per loaded document. Held in
-      // a ref so the effect needs no dependencies (and no lint exception).
       const onLoad = React.useRef(props.onLoad);
       React.useEffect(() => onLoad.current?.(), []);
-      return <div data-testid='kendo-pdfviewer' />;
+      return <div data-testid="kendo-pdfviewer" />;
     }),
-    // Shown instead of the viewer while the PDF downloads
-    ProgressBar: () => <div data-testid='progress-bar' />,
+    ProgressBar: () => <div role="progressbar" aria-label="progress" />,
+    Loader: () => <div role="status"></div>,
+    PDFViewerHandle: {},
   };
 });
 
@@ -104,21 +85,15 @@ function fakeViewerElement(width: number) {
 
   let current = width;
   Object.defineProperty(scroller, 'clientWidth', { get: () => current });
-  // setWidth(844) sets `current`, so clientWidth now reports 844. Both it and
-  // the getter above share `current` even after this function has returned
-  // (a closure: a function keeps the variables around where it was made).
-  // An arrow without { } returns what follows =>; the parentheses mark the
-  // assignment as meant, not a typo for ===. Same as { current = next; }.
   return { root, setWidth: (next: number) => (current = next) };
 }
 
 // jsdom has no ResizeObserver. This one records its callback so a test can
 // fire it after changing the fake element's width, as a browser would.
-// A class because the hook creates it with `new ResizeObserver(callback)`.
-// Two hooks watch sizes (the fit and the pager's page), so it keeps every
-// callback being watched, and resize() fires them all.
+// Two hooks watch sizes(the fit and the pager's page), so it keeps every callback
+// being watched, and resize() fires them all.
 const watching = new Set<() => void>();
-const resize = () => watching.forEach(callback => callback());
+const resize = () => watching.forEach((callback) => callback());
 class FakeResizeObserver {
   callback: () => void;
   constructor(callback: () => void) {
@@ -149,8 +124,7 @@ function viewerProps() {
 
 describe('PDFDocViewer', () => {
   beforeEach(() => {
-    // No download in progress, so the viewer shows rather than the progress bar
-    useViewerStore.setState({ isDocumentLoading: false });
+    vi.mocked(useIsFetching).mockReturnValue(0);
     mockState.received.mockClear();
     mockState.document = fakeDocument;
     mockState.element = null;
@@ -158,17 +132,6 @@ describe('PDFDocViewer', () => {
   });
 
   // Unmount after each test.
-  //
-  //‼️ cleanup() (Testing Library) removes everything render() put on the page:
-  // it unmounts each component, so React runs all its cleanups (effects,
-  // listeners, the ResizeObserver disconnected), and removes the <div>s it
-  // added to <body>. All tests in a file share one jsdom page; without it the
-  // next test would find two viewers, and the old one's effects could still
-  // fire. vi.unstubAllGlobals() puts the real globals back.
-  //
-  // Here it runs twice: src/test/setup.ts calls cleanup() after every test in
-  // every file, and `globals: true` makes Testing Library do it too. Harmless,
-  // and it keeps this file working on its own, e.g. in doc-viewer.
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -183,11 +146,23 @@ describe('PDFDocViewer', () => {
     });
 
     it('shows the progress bar, not the viewer, while the PDF downloads', () => {
-      useViewerStore.setState({ isDocumentLoading: true });
+      vi.mocked(useIsFetching).mockReturnValue(1);
 
       renderViewer();
 
-      expect(screen.getByTestId('progress-bar')).toBeInTheDocument();
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      expect(screen.queryByTestId('kendo-pdfviewer')).not.toBeInTheDocument();
+    });
+
+    it('shows the infinite spinner loader when there is no document response content-length header, while the PDF downloads', () => {
+      useViewerStore.getState().setHasDocumentContentLengthHeader(false);
+      vi.mocked(useIsFetching).mockReturnValue(1);
+
+      renderViewer();
+
+      expect(useViewerStore.getState().hasDocumentContentLengthHeader).toBeFalsy();
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.queryByTestId('progress-bar')).not.toBeInTheDocument();
       expect(screen.queryByTestId('kendo-pdfviewer')).not.toBeInTheDocument();
     });
 
@@ -218,19 +193,18 @@ describe('PDFDocViewer', () => {
   });
 
   describe('toolbar', () => {
-    // The children of the toolbar we hand back to Kendo, given a Kendo
-    // toolbar with two tools of its own.
     function toolbarChildren() {
-      const renderToolbar = viewerProps().onRenderToolbar as (toolbar: ReactElement<{ children?: ReactNode }>) => ReactElement<{ children?: ReactNode }>;
+      const renderToolbar = viewerProps().onRenderToolbar as (
+        toolbar: ReactElement<{ children?: ReactNode }>,
+      ) => ReactElement<{ children?: ReactNode }>;
       const kendoToolbar = (
         <div>
-          <span key='pager' />
-          <span key='zoom' />
+          <span key="pager" />
+          <span key="zoom" />
         </div>
       );
-      return Children.toArray(renderToolbar(kendoToolbar).props.children) as ReactElement<{
-        document?: Uint8Array;
-      }>[];
+
+      return Children.toArray(renderToolbar(kendoToolbar).props.children) as ReactElement[];
     }
 
     // Which print the viewer uses depends on the browser, read from its
@@ -247,54 +221,51 @@ describe('PDFDocViewer', () => {
       // Kendo's print makes pages that don't fit the paper (#3742), so these
       // get our own print button
       beforeEach(() => {
-        pretendToBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36');
+        pretendToBe(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+        );
       });
 
-      it('adds the print and attachments buttons after Kendo’s own tools', () => {
-        // `tools` only takes Kendo's built-in names, so the buttons are appended
-        // to the toolbar Kendo renders. The attachments button reads the store
-        // itself, so it is added with no props.
+      it('adds the print and attachments button after Kendo’s own tools', () => {
         renderViewer();
-
         const children = toolbarChildren();
 
-        // Our pager, Kendo's two, print, attachments
         expect(children).toHaveLength(5);
-        expect(children.at(-2)?.type).toBe(ToolbarPrint);
         expect(children.at(-1)?.type).toBe(ToolbarAttachments);
+        expect(children.at(-2)?.type).toBe(ToolbarPrint);
       });
 
-      it('still has the whole PDF to print after pdf.js has emptied the viewer’s copy', () => {
-        // pdf.js takes over the buffer the viewer is given, leaving it empty
-        // (0 bytes). Printing that copy printed an empty file: Edge showed
-        // "We can't open this file".
+      it('still has the whole PDF to print after pdf.js has emptied the viewer copy', () => {
         renderViewer();
         const viewerBuffer = viewerProps().arrayBuffer as ArrayBuffer;
-        structuredClone(viewerBuffer, { transfer: [viewerBuffer] }); // empties it, as pdf.js does
+        structuredClone(viewerBuffer, { transfer: [viewerBuffer] });
+
         expect(viewerBuffer.byteLength).toBe(0);
 
-        const printButton = toolbarChildren().at(-2);
+        const printButton = toolbarChildren().at(-2) as
+          ReactElement<ComponentProps<typeof ToolbarPrint>> | undefined;
 
-        // The same PDF the viewer shows, so the printout matches the screen
         expect(printButton?.props.document).toEqual(pdfBytes);
         expect(printButton?.props.document?.byteLength).toBe(4);
       });
 
-      it('leaves Kendo’s own print tool out, on desktop and on mobile', () => {
+      it('leaves Kendo own print tool out, on desktop and on mobile', () => {
         renderViewer({ isMobile: false });
-        expect(viewerProps().tools).not.toContain('print');
+        expect(toolsDesktop).not.toContain('print');
 
         cleanup();
         renderViewer({ isMobile: true });
-        expect(viewerProps().tools).not.toContain('print');
+        expect(toolsMobile).not.toContain('print');
       });
     });
 
     describe('in Firefox', () => {
       // Our print shows the PDF in a hidden frame, which Firefox downloads or
-      // sends to Adobe unless set to "Open in Firefox"; Kendo's doesn't.
+      // sends to Adobe (other tools) or set to "Open in Firefox" loop; Kendo's doesn't.
       beforeEach(() => {
-        pretendToBe('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0');
+        pretendToBe(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0',
+        );
       });
 
       it('keeps Kendo’s own print tool, on desktop and on mobile', () => {
@@ -306,14 +277,13 @@ describe('PDFDocViewer', () => {
         expect(viewerProps().tools).toEqual([...toolsMobile, 'print']);
       });
 
-      it('adds only the attachments button, not ours for print', () => {
+      it('adds the attachments button, not ours for print', () => {
         renderViewer();
 
         const children = toolbarChildren();
 
-        // Our pager, Kendo's two, attachments
         expect(children).toHaveLength(4);
-        expect(children.map(child => child.type)).not.toContain(ToolbarPrint);
+        expect(children.map((child) => child.type)).not.toContain(ToolbarPrint);
         expect(children.at(-1)?.type).toBe(ToolbarAttachments);
       });
     });
@@ -322,7 +292,7 @@ describe('PDFDocViewer', () => {
   describe('page number', () => {
     // Our pager (ToolbarPager) in place of Kendo's, which shows the page at
     // the top edge of the view. Ours shows the one that takes up the most of
-    // it (utils/mostVisiblePage.ts) and scrolls to pages itself.
+    // it and scrolls to pages itself.
 
     // Kendo's root element with pages of the given heights in an 800 px tall
     // scroll area, `gap` px between them. jsdom does no layout, so each page's
@@ -344,6 +314,11 @@ describe('PDFDocViewer', () => {
       let heights = pageHeights;
       // Page i starts after the gap and every page above it with its gap
       const startOf = (i: number) => gap + heights.slice(0, i).reduce((sum, h) => sum + h + gap, 0);
+      // The farthest the view can scroll: the whole strip of pages minus the
+      // 800 px view. startOf(heights.length) is where a page after the last
+      // would start, i.e. the strip's end. 25%: 7 + 5 × (264 + 7) = 1362,
+      // − 800 = 562. 0 when the pages are shorter than the view. A function,
+      // so it follows zoomTo()'s new heights.
       const maxScroll = () => Math.max(0, startOf(heights.length) - 800);
 
       let scrollTop = 0;
@@ -379,22 +354,15 @@ describe('PDFDocViewer', () => {
     const letter100 = [1056, 1056, 1056, 1056, 1056];
     const letter25 = [264, 264, 264, 264, 264];
 
-    // The toolbar we hand back to Kendo, given a Kendo toolbar with one tool
-    function toolbarChildren() {
-      const renderToolbar = viewerProps().onRenderToolbar as (toolbar: ReactElement<{ children?: ReactNode }>) => ReactElement<{ children?: ReactNode }>;
-      const kendoToolbar = (
-        <div>
-          <span key='zoom' />
-        </div>
-      );
-      return Children.toArray(renderToolbar(kendoToolbar).props.children) as ReactElement<React.ComponentProps<typeof ToolbarPager>>[];
-    }
-
-    // The props of our pager in that toolbar
+    // The props of our pager, in the toolbar we hand back to Kendo
     function pager() {
-      const found = toolbarChildren().find(child => child.type === ToolbarPager);
+      const renderToolbar = viewerProps().onRenderToolbar as (
+        toolbar: ReactElement<{ children?: ReactNode }>,
+      ) => ReactElement<{ children?: ReactNode }>;
+      const children = Children.toArray(renderToolbar(<div />).props.children) as ReactElement[];
+      const found = children.find((child) => child.type === ToolbarPager);
       if (!found) throw new Error('no pager in the toolbar');
-      return found.props;
+      return found.props as ComponentProps<typeof ToolbarPager>;
     }
 
     // Renders the viewer around the fake, and measures it once, as a browser's
@@ -405,25 +373,6 @@ describe('PDFDocViewer', () => {
       act(() => resize());
     }
 
-    it('puts our pager first in the toolbar, where Kendo’s was', () => {
-      renderViewer();
-
-      expect(toolbarChildren()[0]?.type).toBe(ToolbarPager);
-      expect(toolsDesktop).not.toContain('pager');
-      expect(toolsMobile).not.toContain('pager');
-    });
-
-    it('counts the pages once they have appeared', () => {
-      // Before that its arrows are disabled (ToolbarPager's own tests)
-      mockState.element = fakeScrollingViewer(letter100).root;
-      renderViewer();
-      expect(pager().total).toBe(0);
-
-      act(() => resize());
-
-      expect(pager().total).toBe(5);
-    });
-
     it('counts the pages as soon as Kendo adds them, with no scroll or resize', async () => {
       // The viewer is on screen before its pages: Kendo adds them after
       // reading the PDF. In doc-viewer the pages box growing didn't report
@@ -432,37 +381,34 @@ describe('PDFDocViewer', () => {
       const viewer = fakeScrollingViewer(letter100);
       const pagesBox = viewer.root.querySelector('.k-pdf-viewer-pages')!;
       const pages = [...pagesBox.children];
-      pages.forEach(page => page.remove());
+      pages.forEach((page) => page.remove());
       renderWith(viewer);
       expect(pager().total).toBe(0);
 
-      // A MutationObserver reports after the current task, hence async act
-      await act(async () => pagesBox.append(...pages));
+      // Kendo adds the pages. A MutationObserver reports a moment later, so
+      // wait for it, as the fit tests wait for theirs
+      pagesBox.append(...pages);
+      await act(async () => {});
 
       expect(pager().total).toBe(5);
     });
 
-    it('counts the pages when the viewer appears after the progress bar', async () => {
-      // The bytes arrive while the progress bar shows, so there is no viewer
-      // to watch yet; when it appears the bytes are the same. Watching from
-      // the bytes alone left the pager at "Page 1 of 0" (seen in doc-viewer).
-      vi.useFakeTimers();
-      try {
-        mockState.element = fakeScrollingViewer(letter100).root;
-        useViewerStore.setState({ isDocumentLoading: true });
-        renderViewer();
-        expect(screen.getByTestId('progress-bar')).toBeInTheDocument();
+    it('counts the pages when the viewer appears after the progress bar', () => {
+      // The bytes arrive while the download still shows, so there is no
+      // viewer to watch yet; when it appears the bytes are the same. Watching
+      // from the bytes alone left the pager at "Page 1 of 0" (seen in doc-viewer).
+      mockState.element = fakeScrollingViewer(letter100).root;
+      vi.mocked(useIsFetching).mockReturnValue(1);
+      const { rerender } = renderViewer();
+      expect(screen.queryByTestId('kendo-pdfviewer')).not.toBeInTheDocument();
 
-        // The download finishes; the progress bar runs its 3.2 s to the end
-        useViewerStore.setState({ isDocumentLoading: false });
-        await act(() => vi.advanceTimersByTimeAsync(3300));
-        expect(screen.getByTestId('kendo-pdfviewer')).toBeInTheDocument();
-        act(() => resize());
+      // The download finishes: same bytes, and now the viewer
+      vi.mocked(useIsFetching).mockReturnValue(0);
+      rerender(<PDFDocViewer document={pdfBytes} isMobile={false} />);
+      expect(screen.getByTestId('kendo-pdfviewer')).toBeInTheDocument();
+      act(() => resize());
 
-        expect(pager().total).toBe(5);
-      } finally {
-        vi.useRealTimers();
-      }
+      expect(pager().total).toBe(5);
     });
 
     it('shows the page that fills most of the view, not the one at the top edge', () => {
@@ -533,8 +479,6 @@ describe('PDFDocViewer', () => {
   describe('desktop and mobile', () => {
     // These check which list is chosen, not what is in it: the lists are a
     // design decision meant to change freely.
-    // No element in these, so nothing can be measured and the opening zoom
-    // stays put.
     it('uses the desktop tools at 100% zoom on desktop', () => {
       renderViewer({ isMobile: false });
 
@@ -553,16 +497,6 @@ describe('PDFDocViewer', () => {
       renderViewer({ isMobile: true });
 
       const onZoom = viewerProps().onZoom as (event: { zoom: number }) => void;
-      //‼️  act() tells React: "I'm changing something; finish every update it
-      // causes before the test carries on." ‼️ React queues a state change
-      // (here setZoom(1.25)) instead of re-rendering at once; act makes it
-      // process the queue now, so the expect below sees the new zoom.
-      //   act(() => …)                 a change that happens right away
-      //                                (onZoom, the fake resize())
-      //   await act(async () => {})    nothing to do, just let pending async
-      //                                work finish (fitToWidth's getPage)
-      // ‼️ render, rerender, fireEvent and waitFor wrap themselves in act already;
-      // write it only for changes made outside them, like calling a prop.
       act(() => onZoom({ zoom: 1.25 }));
 
       expect(viewerProps().zoom).toBe(1.25);
@@ -575,17 +509,7 @@ describe('PDFDocViewer', () => {
       mockState.element = fakeViewerElement(390).root;
       renderViewer({ isMobile: true });
 
-      // 390 / 816 = 0.478, rounded down.
-      //
-      // Why async, await AND waitFor. The fit lands a moment after render:
-      // onLoad → fitToWidth() → await getPage(1) → setZoom(0.47) → re-render,
-      // so right after renderViewer the zoom is still the opening 0.5.
-      //   waitFor‼️ retries the check (every 50 ms) until it passes, or 1 s runs out
-      //   await     pauses the test until waitFor is done; without it the test
-      //             ends at once and passes having checked nothing
-      //   async     lets the test use await; Vitest then waits for the test too
-      // A plain expect(…) without waitFor would check once, see 0.5 and fail.
-      // The other fit tests use the same pattern.
+      // 390 / 816 = 0.478, rounded down
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
     });
 
@@ -598,20 +522,18 @@ describe('PDFDocViewer', () => {
     });
 
     it('refits a phone even after zooming by hand', async () => {
-      // Phone upright, 390 px wide: the page fits at 47%
       const viewer = fakeViewerElement(390);
       mockState.element = viewer.root;
       renderViewer({ isMobile: true });
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
 
-      // The user zooms to 150%, then turns the phone sideways (844 px wide)
       const onZoom = viewerProps().onZoom as (event: { zoom: number }) => void;
       act(() => onZoom({ zoom: 1.5 }));
+
+      // Turn the pone sideways, and it will refits and replace 150%
       viewer.setWidth(844);
       act(() => resize());
 
-      // Turning a phone always refits, so the 150% is replaced:
-      // 844 / 816 = 1.034, rounded down
       await waitFor(() => expect(viewerProps().zoom).toBe(1.03));
     });
 
@@ -631,10 +553,8 @@ describe('PDFDocViewer', () => {
     });
 
     it('ignores a resize that does not change the width', async () => {
-      // On a phone, the address bar slides in and out as you scroll. That
-      // changes the viewer's height, so the ResizeObserver fires. But the
-      // width didn't change, so there's no reason to refit. Refitting would
-      // jump the zoom back while the person is reading.
+      // Mobile browsers resize the height whenever the address bar slides in
+      // or out. Refitting on that would fight the reader's scrolling.
       const viewer = fakeViewerElement(390);
       mockState.element = viewer.root;
       renderViewer({ isMobile: true });
@@ -661,10 +581,6 @@ describe('PDFDocViewer', () => {
       // The switch restarts the resize watch at the new width, so its report
       // sees no change; only the layout switch itself can refit here.
       viewer.setWidth(640);
-      //‼️ `isMobile` with no value means true in JSX: same as isMobile={true}.
-      // false must be written out (isMobile={false}); leaving the prop off
-      // gives undefined, not false. Works for any boolean prop: parentTitle,
-      // filterable, and <audio controls autoPlay> elsewhere in this code.
       rerender(<PDFDocViewer document={pdfBytes} isMobile />);
       act(() => resize());
 
@@ -705,13 +621,6 @@ describe('PDFDocViewer', () => {
       mockState.element = viewer.root;
       const { rerender } = renderViewer({ isMobile: true, document: null });
 
-      // rerender, not a second render. rerender gives the SAME component new
-      // props, keeping its state, refs and effects, as ViewerPage does when the
-      // bytes arrive. render again would mount a SECOND, brand-new component
-      // beside the first, with the PDF from its very first render: its watch
-      // would find the viewer at once, so the test would pass even without
-      // the documentKey fix, and two viewers would both write to received and
-      // resize. Same component, new props → rerender; a fresh start → a new test.
       rerender(<PDFDocViewer isMobile document={pdfBytes} />);
       await waitFor(() => expect(viewerProps().zoom).toBe(0.47));
 

@@ -4,7 +4,10 @@
 // Changed from the original imports:
 //   - the other types come from ../types/document, as the loader takes them
 //
-// Practice-only: isDocumentLoading (see its comment below).
+// Stand-ins: documentLoadingProgress, hasDocumentContentLengthHeader and
+// setHasDocumentContentLengthHeader, which doc-viewer's store has but this
+// copy hasn't seen. Shaped from how PDFDocViewer and its test (pasted
+// 2026-11-09) use them; nothing here sets them except the tests.
 //
 // In step with the other project as of 2026-10-15, plus documentId and
 // startDocument, which its loader (api/loadViewerDocument) calls.
@@ -42,11 +45,12 @@ interface ViewerData {
   currentCaseNumber?: string;
 
   documentLoaded: boolean;
-  // True while the PDF is being downloaded; PDFDocViewer shows a progress bar.
-  // Practice-only: NOT in the other project's store. Added here so the pasted
-  // PDFDocViewer, which reads it, typechecks; where doc-viewer gets it from has
-  // not been seen. Nothing here sets it except the tests.
-  isDocumentLoading: boolean;
+  // Stand-ins (see the header). The download's progress, 0–100, for
+  // PDFDocViewer's progress bar; and whether the server said how big the PDF
+  // is (Content-Length). Without it no percentage can be known, so a spinner
+  // shows instead. True to start: the test expects the progress bar by default.
+  documentLoadingProgress: number;
+  hasDocumentContentLengthHeader: boolean;
   attachmentsLoaded: boolean;
   stampedDocumentLoaded: boolean;
 
@@ -65,6 +69,8 @@ interface ViewerState extends ViewerData {
   setCurrentCaseNumber: (caseNumber: string) => void;
   selectCase: (caseNumber: string) => void;
   setDocument: (document: PDFBytes) => void;
+  // Stand-in (see the header)
+  setHasDocumentContentLengthHeader: (hasHeader: boolean) => void;
   setStampedDocument: (document: PDFBytes) => void;
   setAttachments: (
     attachments: AttachmentInfo[],
@@ -89,7 +95,8 @@ const emptyDocument: ViewerData = {
   currentCaseNumber: undefined,
 
   documentLoaded: false,
-  isDocumentLoading: false,
+  documentLoadingProgress: 0,
+  hasDocumentContentLengthHeader: true,
   attachmentsLoaded: false,
   stampedDocumentLoaded: false,
 
@@ -126,6 +133,7 @@ export const useViewerStore = create<ViewerState>((set, get) => ({
     });
   },
   setDocument: (document) => set({ documentLoaded: true, document }),
+  setHasDocumentContentLengthHeader: (hasHeader) => set({ hasDocumentContentLengthHeader: hasHeader }),
   setStampedDocument: (document) => set({ stampedDocumentLoaded: true, stampedDocument: document }),
   setAttachments: (attachments, attachmentReader) =>
     set({ attachmentsLoaded: true, attachments, attachmentReader }),

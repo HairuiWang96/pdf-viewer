@@ -6,7 +6,6 @@
 // Kendo's own Pager component, with the props Kendo's viewer gives it, so it
 // looks and behaves the same: arrows, "Page [n] of 5", Enter and arrow keys.
 import { Pager } from '@progress/kendo-react-all';
-import type { PageChangeEvent } from '@progress/kendo-react-all';
 
 interface ToolbarPagerProps {
   // The page to show (0 = page 1)
@@ -31,7 +30,10 @@ export function ToolbarPager({ page, total, onPageChange }: ToolbarPagerProps) {
       info={false}
       // Like Kendo's: nothing to page through until the pages are there
       disabled={total === 0}
-      onPageChange={(event: PageChangeEvent) => onPageChange(event.skip)}
+      // Only `skip` is read, so only it is typed: Kendo's PageChangeEvent
+      // isn't exported by '@cmm-courts/ui', and an unknown type fails
+      // doc-viewer's lint (no-unsafe-argument, no-unsafe-member-access)
+      onPageChange={(event: { skip: number }) => onPageChange(event.skip)}
     />
   );
 }
