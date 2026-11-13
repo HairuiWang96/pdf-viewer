@@ -12,15 +12,17 @@
 //     viewerData: the bytes can arrive while the progress bar still shows,
 //     before there is a viewer to watch, and the pager stayed at "Page 1 of 0"
 //     (the fix suggested for doc-viewer on 2026-11-09)
+//   - the toolbar's keyboardNavigation is off, so Tab reaches every control
+//     (the keyboard bug report, 2026-11-12)
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
 }
 
 import { useCallback, useRef, useMemo, Children, cloneElement, useState } from 'react';
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { PDFViewer, PDFViewerHandle, ProgressBar, Loader } from '@progress/kendo-react-all';
-import type { PDFViewerTool } from '@progress/kendo-react-all';
+import type { PDFViewerTool, ToolbarProps } from '@progress/kendo-react-all';
 import { useFitWidthZoom } from '../../hooks/useFitWidthZoom';
 import { MIN_ZOOM } from '../../utils/fitWidthZoom';
 import { ToolbarAttachments } from '../ToolbarAttachments';
@@ -93,12 +95,21 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
   // Kendo's 'pager' tool was (it is left out of the tool lists), and print and
   // attachments at the end. A new page re-renders this, and Kendo calls it
   // again, so the pager's number follows the scroll.
+  //
+  // keyboardNavigation off: Tab goes through every control, one by one.
+  // Kendo's toolbar lets Tab into one control only and moves between the rest
+  // with the arrow keys, but PDFViewer's list of its controls doesn't match
+  // the pager's buttons (it looks for `.k-pager > a`; they are <button>s now).
+  // The only way in was the page number box, so Tab skipped zoom, selection,
+  // download and print.
   const renderToolbar = useCallback(
-    (defaultRendering: ReactElement<{ children?: ReactNode }>) => {
+    // ToolbarProps: Kendo's own type for this toolbar, as PDFViewer declares
+    // onRenderToolbar, so cloneElement checks keyboardNavigation against it
+    (defaultRendering: ReactElement<ToolbarProps>) => {
       if (isDocumentLoading || !document) return <></>;
       return cloneElement(
         defaultRendering,
-        undefined,
+        { keyboardNavigation: false },
         <ToolbarPager key="pager" page={page} total={total} onPageChange={goToPage} />,
         ...Children.toArray(defaultRendering.props.children),
         // The store's bytes, not viewerData: pdf.js empties the buffer the

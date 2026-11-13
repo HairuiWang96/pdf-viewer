@@ -13,6 +13,12 @@
 //     as soon as Kendo adds them" covers it, the way it happens in a browser
 //   - "counts the pages when the viewer appears after the progress bar" no
 //     longer waits out a timer: the download is now useIsFetching
+//
+// Proposed, not in doc-viewer yet (the keyboard bug report, 2026-11-12):
+//   - "lets Tab reach every toolbar control", and a fake Pager in the mock
+//     for it. Toolbar, ButtonGroup and Button come from
+//     '@progress/kendo-react-buttons' here; in doc-viewer, from wherever it
+//     gets the real (not mocked) ones
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { act, render, screen, cleanup, waitFor } from '@testing-library/react';
@@ -25,6 +31,7 @@ import { useViewerStore } from '../../data/viewerStore';
 import { useIsFetching } from '@tanstack/react-query';
 import { ToolbarPrint } from '../ToolbarPrint';
 import { ToolbarPager } from '../ToolbarPager';
+import { Button, ButtonGroup, Toolbar } from '@progress/kendo-react-buttons';
 
 /**
  * Tests for the viewer wrapper around KendoReact's PDFViewer.
@@ -63,6 +70,8 @@ vi.mock('@progress/kendo-react-all', async () => {
       React.useEffect(() => onLoad.current?.(), []);
       return <div data-testid="kendo-pdfviewer" />;
     }),
+    // Our pager's Kendo Pager, for tests that render the toolbar
+    Pager: () => <div />,
     ProgressBar: () => <div role="progressbar" aria-label="progress" />,
     Loader: () => <div role="status"></div>,
     PDFViewerHandle: {},
@@ -215,6 +224,33 @@ describe('PDFDocViewer', () => {
 
     afterEach(() => {
       vi.restoreAllMocks();
+    });
+
+    it('lets Tab reach every toolbar control', () => {
+      // Kendo's toolbar makes all but one control unreachable by Tab
+      // (tabindex -1) and moves between them with the arrow keys. In the
+      // viewer that left zoom, selection, download and print unreachable, so
+      // ours turns it off. The real Kendo Toolbar, shaped like PDFViewer's:
+      // its zoom buttons in a button group, which is what its list matches.
+      renderViewer();
+      const renderToolbar = viewerProps().onRenderToolbar as (
+        toolbar: ReactElement<{ children?: ReactNode }>,
+      ) => ReactElement;
+      render(
+        renderToolbar(
+          <Toolbar>
+            <ButtonGroup>
+              <Button title="Zoom out" />
+              <Button title="Zoom in" />
+            </ButtonGroup>
+            <Button title="Download" />
+          </Toolbar>,
+        ),
+      );
+
+      for (const name of ['Zoom out', 'Zoom in', 'Download']) {
+        expect(screen.getByTitle(name)).not.toHaveAttribute('tabindex', '-1');
+      }
     });
 
     describe('in Chrome and Edge', () => {

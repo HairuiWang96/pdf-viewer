@@ -105,6 +105,28 @@
   }
 }
 
+/* ── Keyboard focus in the PDF viewer toolbar ──
+   Kendo marks a focused flat button with a faint grey square that is easy to
+   miss. A dark outline in the text colour shows which control has focus.
+   :focus-visible: only for the keyboard, not after a mouse click. The text
+   boxes (page number, zoom) are outlined around their whole box, which
+   :has() finds from the focused input inside. */
+.k-pdf-viewer .k-toolbar .k-button:focus-visible,
+.k-pdf-viewer .k-toolbar .k-input:has(input:focus-visible) {
+  outline: 2px solid var(--kendo-color-on-app-surface, #3d3d3d);
+  outline-offset: 1px;
+}
+
+/* ── No "×" in the toolbar's zoom box ──
+   Kendo's zoom box is a ComboBox, which has a clear button. In the viewer it
+   doesn't clear anything: Kendo sets the zoom back to 100%, so at 100% (where
+   desktop opens) it seemed to do nothing. There is always a zoom, so there is
+   nothing to clear; the list, typing, and the − / + buttons change it.
+   PDFViewer makes the ComboBox itself, so clearButton={false} can't be set. */
+.k-pdf-viewer .k-toolbar-combobox .k-clear-value {
+  display: none;
+}
+
 /* ── Hidden frame the print button prints from (utils/printPdf.ts) ──
    Zero size rather than display: none, which some browsers refuse to print. */
 .print-frame {
