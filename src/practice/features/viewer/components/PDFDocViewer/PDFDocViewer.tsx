@@ -14,8 +14,9 @@
 //     (the fix suggested for doc-viewer on 2026-11-09)
 //   - the toolbar's keyboardNavigation is off, so Tab reaches every control
 //     (the keyboard bug report, 2026-11-12)
-//   - saveFileName: downloads are named [doc id]-[case number].pdf, not
-//     Document.pdf (utils/downloadFileName)
+//   - saveFileName: downloads are named [doc id]-[case number].pdf, with
+//     -with-audio when the PDF has attachments, not Document.pdf
+//     (utils/downloadFileName)
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
@@ -63,6 +64,9 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
   const hasContentLengthHeader = useViewerStore((state) => state.hasDocumentContentLengthHeader);
   const documentId = useViewerStore((state) => state.documentId);
   const currentCaseNumber = useViewerStore((state) => state.currentCaseNumber);
+  // Any attachment counts as audio, as in ToolbarAttachments. They are read
+  // after the PDF arrives, so the name gains -with-audio a moment later.
+  const hasAudio = useViewerStore((state) => state.attachments.length > 0);
   // How many fetches of this document are running: 0 once it has arrived
   const isDocumentLoading = useIsFetching({ queryKey: ['documentById', documentId] });
 
@@ -184,7 +188,7 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
       onRenderToolbar={renderToolbar}
       onRenderLoader={renderLoader}
       // The download button's file name; picking another case renames it
-      saveFileName={downloadFileName(documentId, currentCaseNumber)}
+      saveFileName={downloadFileName(documentId, currentCaseNumber, hasAudio)}
     />
   );
 }

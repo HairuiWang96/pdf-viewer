@@ -205,7 +205,7 @@ describe('PDFDocViewer', () => {
 
   describe('download name', () => {
     afterEach(() => {
-      useViewerStore.setState({ documentId: null, currentCaseNumber: undefined });
+      useViewerStore.setState({ documentId: null, currentCaseNumber: undefined, attachments: [] });
     });
 
     it('names the download after the doc id and the selected case', () => {
@@ -231,6 +231,19 @@ describe('PDFDocViewer', () => {
       renderViewer();
 
       expect(viewerProps().saveFileName).toBe('DOC-123.pdf');
+    });
+
+    it('adds -with-audio once the PDF’s attachments have been read', () => {
+      useViewerStore.setState({ documentId: 'DOC-123', currentCaseNumber: '2026-CR-00912' });
+      renderViewer();
+
+      act(() =>
+        useViewerStore.setState({
+          attachments: [{ name: 'case-note-audio.wav', filename: 'case-note-audio.wav' }],
+        }),
+      );
+
+      expect(viewerProps().saveFileName).toBe('DOC-123-2026-CR-00912-with-audio.pdf');
     });
 
     it('leaves Kendo its default name when there is no doc id', () => {
