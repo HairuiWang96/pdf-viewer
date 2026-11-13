@@ -14,6 +14,8 @@
 //     (the fix suggested for doc-viewer on 2026-11-09)
 //   - the toolbar's keyboardNavigation is off, so Tab reaches every control
 //     (the keyboard bug report, 2026-11-12)
+//   - saveFileName: downloads are named [doc id]-[case number].pdf, not
+//     Document.pdf (utils/downloadFileName)
 interface PDFDocViewerProps {
   document?: PDFBytes | null;
   isMobile: boolean;
@@ -34,6 +36,7 @@ import { useIsFetching } from '@tanstack/react-query';
 import { isFirefox } from '../../utils/isFirefox';
 import { useViewerPage } from '../../hooks/useViewerPage';
 import { ToolbarPager } from '../ToolbarPager';
+import { downloadFileName } from '../../utils/downloadFileName';
 
 export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) {
   // Connects this component to Kendo's viewer so the zoom code can measure it.
@@ -59,6 +62,7 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
   const progress = useViewerStore((state) => state.documentLoadingProgress);
   const hasContentLengthHeader = useViewerStore((state) => state.hasDocumentContentLengthHeader);
   const documentId = useViewerStore((state) => state.documentId);
+  const currentCaseNumber = useViewerStore((state) => state.currentCaseNumber);
   // How many fetches of this document are running: 0 once it has arrived
   const isDocumentLoading = useIsFetching({ queryKey: ['documentById', documentId] });
 
@@ -179,6 +183,8 @@ export default function PDFDocViewer({ document, isMobile }: PDFDocViewerProps) 
       onLoad={handleLoad}
       onRenderToolbar={renderToolbar}
       onRenderLoader={renderLoader}
+      // The download button's file name; picking another case renames it
+      saveFileName={downloadFileName(documentId, currentCaseNumber)}
     />
   );
 }

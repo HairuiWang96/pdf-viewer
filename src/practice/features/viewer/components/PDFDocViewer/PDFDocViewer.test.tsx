@@ -19,6 +19,8 @@
 //     for it. Toolbar, ButtonGroup and Button come from
 //     '@progress/kendo-react-buttons' here; in doc-viewer, from wherever it
 //     gets the real (not mocked) ones
+//
+// Proposed, not in doc-viewer yet: the "download name" tests
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { act, render, screen, cleanup, waitFor } from '@testing-library/react';
@@ -198,6 +200,46 @@ describe('PDFDocViewer', () => {
       rerender(<PDFDocViewer document={pdfBytes} isMobile={false} />);
 
       expect(viewerProps().arrayBuffer).toBe(first);
+    });
+  });
+
+  describe('download name', () => {
+    afterEach(() => {
+      useViewerStore.setState({ documentId: null, currentCaseNumber: undefined });
+    });
+
+    it('names the download after the doc id and the selected case', () => {
+      useViewerStore.setState({ documentId: 'DOC-123', currentCaseNumber: '2026-CR-00912' });
+
+      renderViewer();
+
+      expect(viewerProps().saveFileName).toBe('DOC-123-2026-CR-00912.pdf');
+    });
+
+    it('renames the download when another case is picked', () => {
+      useViewerStore.setState({ documentId: 'DOC-123', currentCaseNumber: '2026-CR-00912' });
+      renderViewer();
+
+      act(() => useViewerStore.setState({ currentCaseNumber: '2026-CR-00555' }));
+
+      expect(viewerProps().saveFileName).toBe('DOC-123-2026-CR-00555.pdf');
+    });
+
+    it('names the download after the doc id alone when no case is selected', () => {
+      useViewerStore.setState({ documentId: 'DOC-123', currentCaseNumber: undefined });
+
+      renderViewer();
+
+      expect(viewerProps().saveFileName).toBe('DOC-123.pdf');
+    });
+
+    it('leaves Kendo its default name when there is no doc id', () => {
+      // undefined, not null: Kendo's default ("Document") is only used for undefined
+      useViewerStore.setState({ documentId: null, currentCaseNumber: '2026-CR-00912' });
+
+      renderViewer();
+
+      expect(viewerProps().saveFileName).toBeUndefined();
     });
   });
 
